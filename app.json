@@ -1,18 +1,34 @@
 {
   "expo": {
-    "name": "allo-health-expo",
-    "slug": "allo-health-expo",
+    "name": "Kinetic BioMetrics",
+    "slug": "kinetic-biometrics",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "allohealthexpo",
-    "userInterfaceStyle": "automatic",
+    "scheme": "kineticbiometrics",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kineticbiometrics.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Kinetic BioMetrics reads health data to build your daily recovery and wellness dashboard.",
+        "NSHealthUpdateUsageDescription": "Kinetic BioMetrics does not write health data."
+      }
     },
     "android": {
+      "permissions": [
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.READ_HEART_RATE_VARIABILITY",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_NUTRITION",
+        "android.permission.health.READ_BLOOD_GLUCOSE",
+        "android.permission.health.READ_RESPIRATORY_RATE"
+      ],
+      "package": "com.kineticbiometrics.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#101319",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -26,14 +42,35 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Kinetic BioMetrics reads health data to build your daily recovery and wellness dashboard.",
+          "NSHealthUpdateUsageDescription": "Kinetic BioMetrics does not write health data.",
+          "background": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#101319"
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true

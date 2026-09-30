@@ -1,70 +1,35 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { BlurTargetView } from "expo-blur";
+import { Tabs } from "expo-router";
+import { useRef } from "react";
+import { StyleSheet, View } from "react-native";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { FloatingTabBar } from "@/components/navigation/FloatingTabBar";
+import { colors } from "@/theme/tokens";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const blurTarget = useRef<View>(null);
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+    <BlurTargetView ref={blurTarget} style={styles.container}>
+      <Tabs
+        tabBar={(props) => (
+          <FloatingTabBar
+            {...(props as unknown as Parameters<typeof FloatingTabBar>[0])}
+            blurTarget={blurTarget}
+          />
+        )}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: colors.canvas },
         }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen name="index" options={{ title: "Home" }} />
+        <Tabs.Screen name="journal" options={{ title: "Journal" }} />
+        <Tabs.Screen name="fitness" options={{ title: "Fitness" }} />
+        <Tabs.Screen name="biology" options={{ title: "Biology" }} />
+      </Tabs>
+    </BlurTargetView>
   );
 }
+
+const styles = StyleSheet.create({ container: { flex: 1 } });
