@@ -6,10 +6,8 @@ import {
   ChartColumn,
   Dumbbell,
   Gauge,
-  HeartPulse,
   Layers,
   RotateCw,
-  Activity,
 } from "lucide-react-native";
 import type { ReactNode } from "react";
 import {
@@ -26,8 +24,16 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { CumulativeChart } from "@/components/charts/CumulativeChart";
-import { Sparkline } from "@/components/charts/Sparkline";
 import { ActivityCalendar } from "@/components/fitness/ActivityCalendar";
+import {
+  ActiveDurationCard,
+  ActiveEnergyCard,
+  CardioFocusCard,
+  HeartRateRecoveryCard,
+  HeartRateZonesCard,
+  LoadGaugeCard,
+  Vo2MaxCard,
+} from "@/components/fitness/FitnessCards";
 import { SettingsButton } from "@/components/settings/SettingsButton";
 import {
   Card,
@@ -36,12 +42,9 @@ import {
   Pill,
   Screen,
 } from "@/components/ui/primitives";
+import { useBiomarkers } from "@/hooks/useBiomarkers";
 import { useFitnessDashboard } from "@/hooks/useFitnessDashboard";
 import type { FitnessData } from "@/services/health/fitness";
-import {
-  heartRateRecoveryRating,
-  type AcuteChronicSummary,
-} from "@/services/metrics";
 import { makeStyles, useTheme } from "@/theme/ThemeProvider";
 import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
 import { formatDay, formatDuration, formatEnergy } from "@/utils/formatters";
@@ -112,10 +115,27 @@ function FitnessSections({
     data.activity.previousMinutes === null
       ? null
       : data.activity.totalMinutes - data.activity.previousMinutes;
-  const sparkWidth = Math.min(160, Math.max(110, contentWidth * 0.46));
+  const { data: biomarkers } = useBiomarkers();
+  // Two cards per row: half of the screen width minus margins and the gutter.
+  const halfWidth = (contentWidth + spacing.lg * 2 - spacing.gutter) / 2;
 
   return (
     <View style={styles.sections}>
+      <View style={styles.gridRow}>
+        <LoadGaugeCard
+          title="Cardio load"
+          gauge={data.cardioGauge}
+          metric="cardio-load"
+          width={halfWidth}
+        />
+        <LoadGaugeCard
+          title="Muscular load"
+          gauge={data.muscularGauge}
+          metric="muscular-load"
+          width={halfWidth}
+        />
+      </View>
+
       <Card>
         <CardHeading
           icon={<ChartColumn color={colors.text} size={15} />}
@@ -175,125 +195,25 @@ function FitnessSections({
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Cardio</Text>
-          <Text style={styles.sectionCaption}>Integrated Telemetry</Text>
+          <Text style={styles.sectionCaption}>Tap a card for details</Text>
         </View>
-        <Card style={styles.flushCard}>
-          <View style={styles.metricBlock}>
-            <CardHeading
-              icon={<HeartPulse color={colors.text} size={15} />}
-              label="CARDIO LOAD"
-            />
-            <View style={styles.metricRow}>
-              <View style={styles.metricCopy}>
-                <View style={styles.inlineValue}>
-                  <Text style={styles.metricValue}>
-                    {data.cardioLoad.ratio?.toFixed(2) ?? "--"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: loadColor(colors, data.cardioLoad.status) },
-                    ]}
-                  >
-                    {data.cardioLoad.status}
-                  </Text>
-                </View>
-                <Text style={styles.metricCaption}>Acute : Chronic (ACWR)</Text>
-              </View>
-              {data.cardioLoad.trend.length > 1 ? (
-                <View style={{ width: sparkWidth }}>
-                  <Sparkline
-                    values={data.cardioLoad.trend}
-                    color={colors.fat}
-                    targetColor={colors.sleep}
-                    targetRange={[0.8, 1.3]}
-                    width={sparkWidth}
-                    height={64}
-                    fill={false}
-                    accessibilityLabel="Acute to chronic workload ratio over the last two weeks"
-                  />
-                </View>
-              ) : null}
-            </View>
+        <View style={styles.grid}>
+          <View style={styles.gridRow}>
+            <ActiveDurationCard data={data} width={halfWidth} />
+            <ActiveEnergyCard data={data} width={halfWidth} />
           </View>
-          <Hairline />
-          <View style={styles.metricBlock}>
-            <CardHeading
-              icon={<Activity color={colors.primary} size={15} />}
-              label="STRAIN PERFORMANCE"
+          <View style={styles.gridRow}>
+            <Vo2MaxCard
+              vo2Max={biomarkers?.biomarkers.vo2Max ?? null}
+              width={halfWidth}
             />
-            <View style={styles.metricRow}>
-              <View style={styles.metricCopy}>
-                <Text
-                  style={[
-                    styles.metricValue,
-                    {
-                      color:
-                        data.loadChange !== null && data.loadChange < 0
-                          ? colors.stress
-                          : colors.primary,
-                    },
-                  ]}
-                >
-                  {data.loadChange === null
-                    ? "--"
-                    : `${data.loadChange > 0 ? "+" : ""}${data.loadChange}%`}
-                </Text>
-                <Text style={styles.zoneText}>
-                  {zoneLabel(data.cardioLoad.status)}
-                </Text>
-              </View>
-              {data.workoutCount ? (
-                <View style={{ width: sparkWidth }}>
-                  <Sparkline
-                    values={data.dailyLoads}
-                    color={colors.primary}
-                    width={sparkWidth}
-                    height={64}
-                    accessibilityLabel="Daily training load over the last 30 days"
-                  />
-                </View>
-              ) : null}
-            </View>
+            <HeartRateRecoveryCard data={data} width={halfWidth} />
           </View>
-          <Hairline />
-          <View style={styles.splitRow}>
-            <View style={styles.splitCell}>
-              <CardHeading
-                icon={<Layers color={colors.text} size={15} />}
-                label="CARDIO FOCUS"
-              />
-              {data.cardioFocus ? (
-                <View style={styles.focusList}>
-                  <FocusBar
-                    label="Aerobic Base"
-                    value={data.cardioFocus.aerobic}
-                    color={colors.primary}
-                  />
-                  <FocusBar
-                    label="Threshold"
-                    value={data.cardioFocus.threshold}
-                    color={colors.fat}
-                  />
-                  <FocusBar
-                    label="Anaerobic"
-                    value={data.cardioFocus.anaerobic}
-                    color={colors.salmon}
-                  />
-                </View>
-              ) : (
-                <Text style={styles.cellEmpty}>
-                  Needs cardio workouts with heart rate.
-                </Text>
-              )}
-            </View>
-            <View style={styles.splitDivider} />
-            <HeartRateRecoveryCell
-              values={data.heartRateRecovery}
-              width={contentWidth / 2 - spacing.lg}
-            />
+          <View style={styles.gridRow}>
+            <CardioFocusCard data={data} />
+            <HeartRateZonesCard data={data} width={halfWidth} />
           </View>
-        </Card>
+        </View>
       </View>
 
       <View style={styles.sectionBlock}>
@@ -521,84 +441,6 @@ function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
   );
 }
 
-function FocusBar({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) {
-  const styles = useStyles();
-  return (
-    <View
-      style={styles.focusRow}
-      accessible
-      accessibilityLabel={`${label} ${value} percent`}
-    >
-      <View style={styles.focusTop}>
-        <Text style={styles.focusLabel}>{label}</Text>
-        <Text style={[styles.focusValue, { color }]}>{value}%</Text>
-      </View>
-      <View style={styles.focusTrack}>
-        <View
-          style={[
-            styles.focusFill,
-            { width: `${value}%`, backgroundColor: color },
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
-
-function HeartRateRecoveryCell({
-  values,
-  width,
-}: {
-  values: number[];
-  width: number;
-}) {
-  const { colors } = useTheme();
-  const styles = useStyles();
-  const latest = values.at(-1);
-  return (
-    <View style={styles.splitCell}>
-      <CardHeading
-        icon={<HeartPulse color={colors.salmon} size={15} />}
-        label="HRR"
-      />
-      {latest === undefined ? (
-        <Text style={styles.cellEmpty}>
-          Needs heart rate right after a workout.
-        </Text>
-      ) : (
-        <>
-          <Text style={styles.hrrValue}>{latest} bpm</Text>
-          <Text style={styles.hrrRating}>
-            {heartRateRecoveryRating(latest)}
-            <Text style={styles.hrrWindow}> (1 min)</Text>
-          </Text>
-          {values.length > 1 ? (
-            <View style={styles.hrrChart}>
-              <Sparkline
-                values={values}
-                color={colors.salmon}
-                width={width}
-                height={40}
-                step
-                fill={false}
-                accessibilityLabel="One-minute heart rate recovery for recent workouts"
-              />
-            </View>
-          ) : null}
-        </>
-      )}
-    </View>
-  );
-}
-
 function SourcePill({ source }: { source: FitnessData["source"] }) {
   const styles = useStyles();
   return source === "mock" ? (
@@ -641,26 +483,6 @@ function formatTodayShort() {
   }).format(new Date())}`;
 }
 
-function loadColor(colors: ColorTokens, status: AcuteChronicSummary["status"]) {
-  return status === "OPTIMAL"
-    ? colors.primary
-    : status === "HIGH"
-      ? colors.stress
-      : status === "SPIKE"
-        ? colors.strainEnd
-        : colors.textSubtle;
-}
-
-function zoneLabel(status: AcuteChronicSummary["status"]) {
-  return status === "OPTIMAL"
-    ? "Optimal Target Zone"
-    : status === "LOW"
-      ? "Below Target Zone"
-      : status === "NO DATA"
-        ? "Not enough training history"
-        : "Above Target Zone";
-}
-
 const useStyles = makeStyles(({ colors }) =>
   StyleSheet.create({
     topBar: {
@@ -696,6 +518,8 @@ const useStyles = makeStyles(({ colors }) =>
     subtitle: { ...typography.caption, color: colors.textMuted },
     sections: { gap: spacing["2xl"] },
     sectionBlock: { gap: spacing.md },
+    grid: { gap: spacing.gutter },
+    gridRow: { flexDirection: "row", gap: spacing.gutter },
     sectionHeader: {
       flexDirection: "row",
       alignItems: "baseline",
@@ -771,37 +595,8 @@ const useStyles = makeStyles(({ colors }) =>
       color: colors.text,
       fontVariant: ["tabular-nums"],
     },
-    statusText: { ...typography.badge, fontSize: 11 },
     metricCaption: { ...typography.mono, color: colors.textMuted },
-    zoneText: { ...typography.caption, color: colors.primary },
-    splitRow: { flexDirection: "row" },
-    splitCell: { flex: 1, padding: spacing.lg, gap: spacing.md },
-    splitDivider: {
-      width: StyleSheet.hairlineWidth,
-      backgroundColor: colors.outlineSoft,
-    },
     cellEmpty: { ...typography.caption, color: colors.textSubtle },
-    focusList: { gap: spacing.md, marginTop: spacing.sm },
-    focusRow: { gap: spacing.xs },
-    focusTop: { flexDirection: "row", justifyContent: "space-between" },
-    focusLabel: { ...typography.caption, color: colors.text },
-    focusValue: { ...typography.mono, fontVariant: ["tabular-nums"] },
-    focusTrack: {
-      height: 5,
-      borderRadius: radii.full,
-      overflow: "hidden",
-      backgroundColor: colors.track,
-    },
-    focusFill: { height: "100%", borderRadius: radii.full },
-    hrrValue: {
-      ...typography.metricLG,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-      marginTop: spacing.sm,
-    },
-    hrrRating: { ...typography.caption, color: colors.primary, marginTop: -6 },
-    hrrWindow: { ...typography.mono, color: colors.textSubtle },
-    hrrChart: { marginTop: spacing.sm },
     weekBars: { flexDirection: "row", gap: spacing.sm },
     weekColumn: { alignItems: "center", gap: spacing["2xs"], width: 40 },
     weekCount: { ...typography.mono, color: colors.text },
