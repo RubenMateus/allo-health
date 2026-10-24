@@ -13,11 +13,13 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useHealthStore } from "@/stores/healthStore";
+import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -67,11 +69,35 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
+        <ThemeProvider>
+          <ThemedStack />
+        </ThemeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
+  );
+}
+
+function ThemedStack() {
+  const { colors, scheme } = useTheme();
+
+  // The root view shows through during screen transitions and keyboard
+  // animations, so keep it on the canvas color.
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(colors.canvas);
+  }, [colors.canvas]);
+
+  return (
+    <>
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.canvas },
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" />
+      </Stack>
+    </>
   );
 }

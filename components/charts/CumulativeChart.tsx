@@ -9,7 +9,8 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import { colors, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { typography } from "@/theme/tokens";
 
 const AXIS_WIDTH = 34;
 const INSET = 8;
@@ -27,6 +28,8 @@ export function CumulativeChart({
   height?: number;
   accessibilityLabel: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const id = useId().replace(/[^a-zA-Z0-9-]/g, "");
   const plotWidth = Math.max(width - AXIS_WIDTH, 1);
   const chart = useMemo(() => {
@@ -169,14 +172,16 @@ export function CumulativeChart({
   );
 }
 
-const styles = StyleSheet.create({
-  frame: { width: "100%" },
-  axisLabel: {
-    ...typography.monoSmall,
-    color: colors.textSubtle,
-    position: "absolute",
-    right: 0,
-    width: AXIS_WIDTH - 6,
-    textAlign: "right",
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    frame: { width: "100%" },
+    axisLabel: {
+      ...typography.monoSmall,
+      color: colors.textSubtle,
+      position: "absolute",
+      right: 0,
+      width: AXIS_WIDTH - 6,
+      textAlign: "right",
+    },
+  }),
+);

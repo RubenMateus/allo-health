@@ -8,7 +8,8 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
-import { colors, glow, radii, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, typography } from "@/theme/tokens";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -30,6 +31,8 @@ export function GlowRing({
   size?: number;
   strokeWidth?: number;
 }) {
+  const { colors, glow } = useTheme();
+  const styles = useStyles();
   const progress = useSharedValue(0);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -126,28 +129,30 @@ export function GlowRing({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { alignItems: "center", gap: 8 },
-  ring: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.full,
-  },
-  center: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-  },
-  value: {
-    ...typography.metricLG,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  label: { ...typography.caption, color: colors.textMuted },
-  status: {
-    ...typography.badge,
-    color: colors.textSubtle,
-    textTransform: "uppercase",
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    wrap: { alignItems: "center", gap: 8 },
+    ring: {
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radii.full,
+    },
+    center: {
+      position: "absolute",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "100%",
+    },
+    value: {
+      ...typography.metricLG,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+    },
+    label: { ...typography.caption, color: colors.textMuted },
+    status: {
+      ...typography.badge,
+      color: colors.textSubtle,
+      textTransform: "uppercase",
+    },
+  }),
+);

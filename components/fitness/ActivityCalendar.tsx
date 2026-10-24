@@ -1,22 +1,25 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { dayKey, type FitnessDay } from "@/services/metrics";
-import { colors, glow, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
 import { formatMonth } from "@/utils/formatters";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const CELL_GAP = 4;
 const MONTH_GAP = spacing.lg;
 
-const tiers = [
-  { label: "1 activity", color: colors.heat1 },
-  { label: "2 activities", color: colors.primary },
-  { label: "3+ activities", color: colors.primaryBright },
-];
+function activityTiers(colors: ColorTokens) {
+  return [
+    { label: "1 activity", color: colors.heat1 },
+    { label: "2 activities", color: colors.primary },
+    { label: "3+ activities", color: colors.primaryBright },
+  ];
+}
 
-function cellColor(sessions: number) {
+function cellColor(colors: ColorTokens, sessions: number) {
   if (sessions <= 0) return colors.surfaceElevatedProse;
-  return tiers[Math.min(sessions, 3) - 1]!.color;
+  return activityTiers(colors)[Math.min(sessions, 3) - 1]!.color;
 }
 
 /** Month grids (weeks start Sunday) for every month the window touches. */
@@ -27,6 +30,8 @@ export function ActivityCalendar({
   days: FitnessDay[];
   width: number;
 }) {
+  const { colors, glow } = useTheme();
+  const styles = useStyles();
   const sessions = new Map(days.map((day) => [day.date, day.sessions]));
   const today = days.at(-1)?.date;
   const months: Date[] = [];
@@ -89,7 +94,7 @@ export function ActivityCalendar({
                           ? styles.blank
                           : count === undefined
                             ? styles.outside
-                            : { backgroundColor: cellColor(count) },
+                            : { backgroundColor: cellColor(colors, count) },
                         count !== undefined && count >= 3 && glow.recovery,
                         key === today && styles.today,
                       ]}
@@ -102,7 +107,7 @@ export function ActivityCalendar({
         })}
       </View>
       <View style={styles.legend}>
-        {tiers.map((tier) => (
+        {activityTiers(colors).map((tier) => (
           <View key={tier.label} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: tier.color }]} />
             <Text style={styles.legendText}>{tier.label}</Text>
@@ -113,31 +118,33 @@ export function ActivityCalendar({
   );
 }
 
-const styles = StyleSheet.create({
-  months: { flexDirection: "row", gap: MONTH_GAP },
-  monthName: {
-    ...typography.subheading,
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  row: { flexDirection: "row", gap: CELL_GAP, marginBottom: spacing.xs },
-  weekday: {
-    ...typography.monoSmall,
-    color: colors.textSubtle,
-    textAlign: "center",
-  },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: CELL_GAP },
-  cell: { height: 10, borderRadius: radii.sm },
-  blank: { backgroundColor: colors.transparent },
-  outside: { backgroundColor: colors.surfaceElevatedProse, opacity: 0.45 },
-  today: { borderWidth: 1, borderColor: colors.textMuted },
-  legend: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.lg,
-  },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  legendDot: { width: 7, height: 7, borderRadius: radii.full },
-  legendText: { ...typography.caption, color: colors.textMuted },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    months: { flexDirection: "row", gap: MONTH_GAP },
+    monthName: {
+      ...typography.subheading,
+      fontSize: 14,
+      color: colors.text,
+      marginBottom: spacing.md,
+    },
+    row: { flexDirection: "row", gap: CELL_GAP, marginBottom: spacing.xs },
+    weekday: {
+      ...typography.monoSmall,
+      color: colors.textSubtle,
+      textAlign: "center",
+    },
+    grid: { flexDirection: "row", flexWrap: "wrap", gap: CELL_GAP },
+    cell: { height: 10, borderRadius: radii.sm },
+    blank: { backgroundColor: colors.transparent },
+    outside: { backgroundColor: colors.surfaceElevatedProse, opacity: 0.45 },
+    today: { borderWidth: 1, borderColor: colors.textMuted },
+    legend: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: spacing.lg,
+    },
+    legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    legendDot: { width: 7, height: 7, borderRadius: radii.full },
+    legendText: { ...typography.caption, color: colors.textMuted },
+  }),
+);

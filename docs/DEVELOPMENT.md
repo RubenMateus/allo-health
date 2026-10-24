@@ -108,8 +108,9 @@ hooks/               React Query hooks: useHealthDashboard, useFitnessDashboard
 services/health/     HealthProvider contract, HealthKit / Health Connect / mock adapters, data loaders
 services/metrics/    Pure estimates: sleep, recovery, strain, stress, energy (index.ts), training load and zones (fitness.ts)
 services/coaching/   Deterministic daily training guidance
-stores/              Zustand stores (active health provider and connection state)
-theme/tokens.ts      Design tokens
+stores/              Zustand stores (active health provider and connection state, journal, settings)
+theme/tokens.ts      Design tokens: dark and light palettes, spacing, radii, typography
+theme/ThemeProvider  useTheme() and makeStyles() for themed styles
 utils/               Formatting helpers (units, dates, locale)
 design/              DESIGN.md design system and reference screenshots
 ```
@@ -117,12 +118,34 @@ design/              DESIGN.md design system and reference screenshots
 ### Adding a screen
 
 1. Add a route under `app/(tabs)/` and register it in `app/(tabs)/_layout.tsx`.
-2. Build it from `components/ui`, `theme/tokens.ts` and the platform-independent services.
+2. Build it from `components/ui`, `theme/tokens.ts` and the platform-independent services. Style it with `makeStyles` so it follows the light and dark themes (see below).
 3. Read health data through the `HealthProvider` (via a hook like `hooks/useHealthDashboard`), never by importing a platform health library directly from a screen.
 
 ### Design tokens
 
 Tokens follow `design/DESIGN.md`. Its YAML frontmatter uses `#101319` / `#191c22` surface roles, while the prose describes a darker `#0D0F12` / `#14171D` / `#1C2029` hierarchy. `theme/tokens.ts` keeps both as named tokens: the frontmatter roles for canvas and text, the prose surfaces for cards, and the prose biometric hues.
+
+### Light and dark themes
+
+Settings offers Dark (the default), Light and System. The choice is saved on the device in `settings.db` and applied before the first frame. `theme/tokens.ts` holds `darkColors` and `lightColors` with the same keys. Light mode keeps the same accent families, a step deeper so they still read on pale surfaces.
+
+Never import a palette directly into a component. Read colors from the active theme instead:
+
+```tsx
+const useStyles = makeStyles(({ colors, glow }) =>
+  StyleSheet.create({
+    card: { backgroundColor: colors.surfaceProse, ...glow.recovery },
+  }),
+);
+
+function MyCard() {
+  const styles = useStyles();
+  const { colors, scheme } = useTheme(); // for icon colors, SVG fills, BlurView tint
+  // ...
+}
+```
+
+Helpers outside components that pick a color take `colors: ColorTokens` as a parameter.
 
 ## Privacy rules for contributors
 
@@ -131,7 +154,8 @@ These are hard requirements for every change:
 - Health data never leaves the device. No network request may carry health data, directly or derived.
 - No analytics, telemetry, crash reporting or tracking SDKs.
 - Health access stays read only.
-- Any local persistence (for example journal entries) stays on the device.
+- Any local persistence (for example journal entries or settings) stays on the device.
+- "Sync" in Settings only re-reads Apple Health or Health Connect on the device. It never uploads anything.
 
 If a feature would need a network call (weather, for example), leave it out or raise it for discussion first.
 

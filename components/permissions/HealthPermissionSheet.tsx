@@ -17,7 +17,8 @@ import {
 } from "react-native";
 
 import type { PermissionState } from "@/services/health/types";
-import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography } from "@/theme/tokens";
 
 export function HealthPermissionSheet({
   visible,
@@ -36,6 +37,8 @@ export function HealthPermissionSheet({
   onClose: () => void;
   onConnect: () => void;
 }) {
+  const { colors, scheme } = useTheme();
+  const styles = useStyles();
   const [requested, setRequested] = useState(false);
   const connected = permissionState === "granted";
   const partial = permissionState === "partial";
@@ -53,7 +56,7 @@ export function HealthPermissionSheet({
           style={StyleSheet.absoluteFill}
           onPress={onClose}
         />
-        <BlurView intensity={25} tint="dark" style={styles.sheet}>
+        <BlurView intensity={25} tint={scheme} style={styles.sheet}>
           <View style={styles.grabber} />
           <View style={styles.topRow}>
             <View style={styles.iconHalo}>
@@ -145,6 +148,8 @@ export function HealthPermissionSheet({
 }
 
 function PermissionRow({ title, detail }: { title: string; detail: string }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.permissionRow}>
       <View style={styles.checkMark}>
@@ -158,116 +163,122 @@ function PermissionRow({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: colors.scrim,
-  },
-  sheet: {
-    paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing.md,
-    paddingBottom: spacing["3xl"],
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceElevatedProse,
-    borderWidth: 1,
-    borderColor: colors.outlineGlass,
-  },
-  grabber: {
-    alignSelf: "center",
-    width: 36,
-    height: 4,
-    borderRadius: radii.full,
-    backgroundColor: colors.textSubtle,
-    marginBottom: spacing.xl,
-  },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.lg,
-  },
-  iconHalo: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryWash,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceHigh,
-  },
-  eyebrow: {
-    ...typography.badge,
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  title: { ...typography.title, color: colors.text, marginBottom: spacing.sm },
-  description: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
-  },
-  permissionList: {
-    gap: spacing.lg,
-    paddingVertical: spacing.lg,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.outlineSoft,
-    marginBottom: spacing.lg,
-  },
-  permissionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  checkMark: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primaryWash,
-  },
-  permissionCopy: { flex: 1, gap: spacing["2xs"] },
-  permissionTitle: { ...typography.bodySmall, color: colors.text },
-  permissionDetail: { ...typography.caption, color: colors.textSubtle },
-  message: {
-    ...typography.bodySmall,
-    color: colors.error,
-    marginBottom: spacing.md,
-  },
-  stateText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    marginBottom: spacing.md,
-  },
-  connectButton: {
-    minHeight: 52,
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryBright,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  connectText: { ...typography.subheading, color: colors.canvas },
-  disabled: { opacity: 0.7 },
-  pressed: { opacity: 0.78 },
-  privacyNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    marginTop: spacing.md,
-  },
-  privacyText: { ...typography.caption, color: colors.textSubtle },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: colors.scrim,
+    },
+    sheet: {
+      paddingHorizontal: spacing["2xl"],
+      paddingTop: spacing.md,
+      paddingBottom: spacing["3xl"],
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
+      overflow: "hidden",
+      backgroundColor: colors.surfaceElevatedProse,
+      borderWidth: 1,
+      borderColor: colors.outlineGlass,
+    },
+    grabber: {
+      alignSelf: "center",
+      width: 36,
+      height: 4,
+      borderRadius: radii.full,
+      backgroundColor: colors.textSubtle,
+      marginBottom: spacing.xl,
+    },
+    topRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing.lg,
+    },
+    iconHalo: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryWash,
+    },
+    closeButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radii.full,
+      backgroundColor: colors.surfaceHigh,
+    },
+    eyebrow: {
+      ...typography.badge,
+      color: colors.primary,
+      marginBottom: spacing.sm,
+    },
+    title: {
+      ...typography.title,
+      color: colors.text,
+      marginBottom: spacing.sm,
+    },
+    description: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      marginBottom: spacing.xl,
+    },
+    permissionList: {
+      gap: spacing.lg,
+      paddingVertical: spacing.lg,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.outlineSoft,
+      marginBottom: spacing.lg,
+    },
+    permissionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    checkMark: {
+      width: 28,
+      height: 28,
+      borderRadius: radii.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primaryWash,
+    },
+    permissionCopy: { flex: 1, gap: spacing["2xs"] },
+    permissionTitle: { ...typography.bodySmall, color: colors.text },
+    permissionDetail: { ...typography.caption, color: colors.textSubtle },
+    message: {
+      ...typography.bodySmall,
+      color: colors.error,
+      marginBottom: spacing.md,
+    },
+    stateText: {
+      ...typography.bodySmall,
+      color: colors.primary,
+      marginBottom: spacing.md,
+    },
+    connectButton: {
+      minHeight: 52,
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryBright,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+    },
+    connectText: { ...typography.subheading, color: colors.canvas },
+    disabled: { opacity: 0.7 },
+    pressed: { opacity: 0.78 },
+    privacyNote: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      marginTop: spacing.md,
+    },
+    privacyText: { ...typography.caption, color: colors.textSubtle },
+  }),
+);

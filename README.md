@@ -20,6 +20,7 @@ Everything is computed on your device. Your health data never leaves your phone.
 **In progress**
 - **Journal.** A quick daily check-in for mood, energy and habits like caffeine, alcohol or late meals, with a weekly overview.
 - **Biology.** Longer-term biomarkers and trends.
+- **Settings.** Tap the ••• button to re-sync your health data on demand and choose a dark, light or system theme.
 
 Units follow your region (for example mg/dL or mmol/L for glucose, kcal or kJ for energy), and times follow your phone's 12 or 24 hour setting.
 

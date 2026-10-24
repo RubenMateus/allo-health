@@ -28,6 +28,7 @@ import Animated, {
 import { CumulativeChart } from "@/components/charts/CumulativeChart";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { ActivityCalendar } from "@/components/fitness/ActivityCalendar";
+import { SettingsButton } from "@/components/settings/SettingsButton";
 import {
   Card,
   EmptyState,
@@ -41,10 +42,13 @@ import {
   heartRateRecoveryRating,
   type AcuteChronicSummary,
 } from "@/services/metrics";
-import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
 import { formatDay, formatDuration, formatEnergy } from "@/utils/formatters";
 
 export function FitnessScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { width } = useWindowDimensions();
   const { data, isLoading, isFetching, isError, refetch } =
     useFitnessDashboard();
@@ -63,6 +67,7 @@ export function FitnessScreen() {
         <CalendarDays color={colors.primary} size={20} />
         <Text style={styles.date}>{formatTodayShort()}</Text>
         {data ? <SourcePill source={data.source} /> : null}
+        <SettingsButton />
       </View>
 
       <View style={styles.titleRow}>
@@ -101,6 +106,8 @@ function FitnessSections({
   data: FitnessData;
   contentWidth: number;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const delta =
     data.activity.previousMinutes === null
       ? null
@@ -185,7 +192,7 @@ function FitnessSections({
                   <Text
                     style={[
                       styles.statusText,
-                      { color: loadColor(data.cardioLoad.status) },
+                      { color: loadColor(colors, data.cardioLoad.status) },
                     ]}
                   >
                     {data.cardioLoad.status}
@@ -328,6 +335,7 @@ function CardHeading({
   label: string;
   trailing?: ReactNode;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.cardHeading}>
       {icon}
@@ -339,16 +347,22 @@ function CardHeading({
 
 const WEEK_LABELS = ["3w ago", "2w ago", "Last wk", "This wk"];
 
-const mixStyles: Record<
+function mixStyles(
+  colors: ColorTokens,
+): Record<
   FitnessData["trainingMix"][number]["category"],
   { label: string; color: string }
-> = {
-  cardio: { label: "Cardio", color: colors.primary },
-  strength: { label: "Strength", color: colors.fat },
-  mixed: { label: "Mobility & other", color: colors.salmon },
-};
+> {
+  return {
+    cardio: { label: "Cardio", color: colors.primary },
+    strength: { label: "Strength", color: colors.fat },
+    mixed: { label: "Mobility & other", color: colors.salmon },
+  };
+}
 
 function StrengthBlock({ strength }: { strength: FitnessData["strength"] }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const peak = Math.max(...strength.weekly, 1);
   const energy =
     strength.activeEnergyKcal === null
@@ -440,6 +454,7 @@ function MiniStat({
   value: string;
   unit?: string;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.miniStat}>
       <Text style={styles.miniLabel}>{label}</Text>
@@ -452,6 +467,8 @@ function MiniStat({
 }
 
 function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.metricBlock}>
       <CardHeading
@@ -464,7 +481,7 @@ function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
             key={entry.category}
             style={{
               flex: entry.minutes,
-              backgroundColor: mixStyles[entry.category].color,
+              backgroundColor: mixStyles(colors)[entry.category].color,
             }}
           />
         ))}
@@ -475,16 +492,16 @@ function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
             key={entry.category}
             style={styles.mixRow}
             accessible
-            accessibilityLabel={`${mixStyles[entry.category].label} ${entry.share} percent, ${formatDuration(entry.minutes)}`}
+            accessibilityLabel={`${mixStyles(colors)[entry.category].label} ${entry.share} percent, ${formatDuration(entry.minutes)}`}
           >
             <View
               style={[
                 styles.mixDot,
-                { backgroundColor: mixStyles[entry.category].color },
+                { backgroundColor: mixStyles(colors)[entry.category].color },
               ]}
             />
             <Text style={styles.mixLabel}>
-              {mixStyles[entry.category].label}
+              {mixStyles(colors)[entry.category].label}
             </Text>
             <Text style={styles.mixMinutes}>
               {formatDuration(entry.minutes)}
@@ -492,7 +509,7 @@ function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
             <Text
               style={[
                 styles.mixShare,
-                { color: mixStyles[entry.category].color },
+                { color: mixStyles(colors)[entry.category].color },
               ]}
             >
               {entry.share}%
@@ -513,6 +530,7 @@ function FocusBar({
   value: number;
   color: string;
 }) {
+  const styles = useStyles();
   return (
     <View
       style={styles.focusRow}
@@ -542,6 +560,8 @@ function HeartRateRecoveryCell({
   values: number[];
   width: number;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const latest = values.at(-1);
   return (
     <View style={styles.splitCell}>
@@ -580,6 +600,7 @@ function HeartRateRecoveryCell({
 }
 
 function SourcePill({ source }: { source: FitnessData["source"] }) {
+  const styles = useStyles();
   return source === "mock" ? (
     <Pill>SAMPLE</Pill>
   ) : (
@@ -591,6 +612,7 @@ function SourcePill({ source }: { source: FitnessData["source"] }) {
 }
 
 function FitnessSkeleton() {
+  const styles = useStyles();
   return (
     <View style={styles.sections}>
       <Card>
@@ -619,7 +641,7 @@ function formatTodayShort() {
   }).format(new Date())}`;
 }
 
-function loadColor(status: AcuteChronicSummary["status"]) {
+function loadColor(colors: ColorTokens, status: AcuteChronicSummary["status"]) {
   return status === "OPTIMAL"
     ? colors.primary
     : status === "HIGH"
@@ -639,224 +661,234 @@ function zoneLabel(status: AcuteChronicSummary["status"]) {
         : "Above Target Zone";
 }
 
-const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingBottom: spacing.md,
-    marginBottom: spacing.xl,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineSoft,
-  },
-  date: { ...typography.subheading, color: colors.text, flex: 1 },
-  syncPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.surface,
-  },
-  syncDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-  },
-  syncText: { ...typography.caption, color: colors.text },
-  titleRow: { gap: spacing["2xs"], marginBottom: spacing["2xl"] },
-  title: { ...typography.title, color: colors.text },
-  subtitle: { ...typography.caption, color: colors.textMuted },
-  sections: { gap: spacing["2xl"] },
-  sectionBlock: { gap: spacing.md },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-  },
-  sectionTitle: { ...typography.subheading, color: colors.text },
-  sectionCaption: { ...typography.mono, color: colors.textSubtle },
-  cardHeading: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  cardLabel: {
-    ...typography.badge,
-    fontSize: 11,
-    color: colors.text,
-    flexShrink: 1,
-  },
-  cardTrailing: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: spacing.md,
-  },
-  deltaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing["2xs"],
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing["2xs"],
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primaryWash,
-  },
-  deltaDown: {
-    borderColor: colors.stressBorder,
-    backgroundColor: colors.stressWash,
-  },
-  deltaText: { ...typography.caption, color: colors.primary },
-  deltaTextDown: { color: colors.stress },
-  heroValue: {
-    ...typography.display,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-    marginTop: spacing.lg,
-  },
-  range: { ...typography.mono, color: colors.textMuted, marginTop: spacing.xs },
-  cumulativeChart: { marginTop: spacing.xl },
-  axisRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.md,
-    paddingRight: 34,
-  },
-  axisText: { ...typography.monoSmall, color: colors.textSubtle },
-  flushCard: { padding: 0, overflow: "hidden" },
-  metricBlock: { padding: spacing.lg, gap: spacing.md },
-  metricRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  metricCopy: { flex: 1, gap: spacing.sm },
-  inlineValue: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: spacing.sm,
-  },
-  metricValue: {
-    ...typography.metricXL,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  statusText: { ...typography.badge, fontSize: 11 },
-  metricCaption: { ...typography.mono, color: colors.textMuted },
-  zoneText: { ...typography.caption, color: colors.primary },
-  splitRow: { flexDirection: "row" },
-  splitCell: { flex: 1, padding: spacing.lg, gap: spacing.md },
-  splitDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineSoft,
-  },
-  cellEmpty: { ...typography.caption, color: colors.textSubtle },
-  focusList: { gap: spacing.md, marginTop: spacing.sm },
-  focusRow: { gap: spacing.xs },
-  focusTop: { flexDirection: "row", justifyContent: "space-between" },
-  focusLabel: { ...typography.caption, color: colors.text },
-  focusValue: { ...typography.mono, fontVariant: ["tabular-nums"] },
-  focusTrack: {
-    height: 5,
-    borderRadius: radii.full,
-    overflow: "hidden",
-    backgroundColor: colors.track,
-  },
-  focusFill: { height: "100%", borderRadius: radii.full },
-  hrrValue: {
-    ...typography.metricLG,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-    marginTop: spacing.sm,
-  },
-  hrrRating: { ...typography.caption, color: colors.primary, marginTop: -6 },
-  hrrWindow: { ...typography.mono, color: colors.textSubtle },
-  hrrChart: { marginTop: spacing.sm },
-  weekBars: { flexDirection: "row", gap: spacing.sm },
-  weekColumn: { alignItems: "center", gap: spacing["2xs"], width: 40 },
-  weekCount: { ...typography.mono, color: colors.text },
-  weekTrack: {
-    width: 14,
-    height: 48,
-    borderRadius: radii.sm,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    backgroundColor: colors.track,
-  },
-  weekFill: { width: "100%", borderRadius: radii.sm },
-  weekLabel: { ...typography.monoSmall, fontSize: 9, color: colors.textSubtle },
-  statRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineSoft,
-  },
-  miniStat: { gap: spacing.xs },
-  miniLabel: { ...typography.badge, color: colors.textSubtle },
-  miniValue: {
-    ...typography.subheading,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  miniUnit: { ...typography.mono, color: colors.textSubtle },
-  mixBar: {
-    flexDirection: "row",
-    height: 8,
-    gap: 3,
-    borderRadius: radii.full,
-    overflow: "hidden",
-  },
-  mixLegend: { gap: spacing.sm },
-  mixRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  mixDot: { width: 7, height: 7, borderRadius: radii.full },
-  mixLabel: { ...typography.caption, color: colors.text, flex: 1 },
-  mixMinutes: { ...typography.mono, color: colors.textMuted },
-  mixShare: {
-    ...typography.mono,
-    width: 40,
-    textAlign: "right",
-    fontVariant: ["tabular-nums"],
-  },
-  footerNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  footerText: { ...typography.caption, color: colors.textSubtle },
-  retryButton: {
-    minHeight: 48,
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryBright,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  retryText: { ...typography.subheading, color: colors.canvas },
-  skeletonLine: {
-    width: "40%",
-    height: 12,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceHigh,
-  },
-  skeletonHero: {
-    width: "55%",
-    height: 36,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-    marginTop: spacing.lg,
-  },
-  skeletonChart: {
-    width: "100%",
-    height: 120,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-    marginTop: spacing.lg,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    topBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      paddingBottom: spacing.md,
+      marginBottom: spacing.xl,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.outlineSoft,
+    },
+    date: { ...typography.subheading, color: colors.text, flex: 1 },
+    syncPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.surface,
+    },
+    syncDot: {
+      width: 7,
+      height: 7,
+      borderRadius: radii.full,
+      backgroundColor: colors.primary,
+    },
+    syncText: { ...typography.caption, color: colors.text },
+    titleRow: { gap: spacing["2xs"], marginBottom: spacing["2xl"] },
+    title: { ...typography.title, color: colors.text },
+    subtitle: { ...typography.caption, color: colors.textMuted },
+    sections: { gap: spacing["2xl"] },
+    sectionBlock: { gap: spacing.md },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+    },
+    sectionTitle: { ...typography.subheading, color: colors.text },
+    sectionCaption: { ...typography.mono, color: colors.textSubtle },
+    cardHeading: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    cardLabel: {
+      ...typography.badge,
+      fontSize: 11,
+      color: colors.text,
+      flexShrink: 1,
+    },
+    cardTrailing: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      gap: spacing.md,
+    },
+    deltaPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing["2xs"],
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing["2xs"],
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.primaryBorder,
+      backgroundColor: colors.primaryWash,
+    },
+    deltaDown: {
+      borderColor: colors.stressBorder,
+      backgroundColor: colors.stressWash,
+    },
+    deltaText: { ...typography.caption, color: colors.primary },
+    deltaTextDown: { color: colors.stress },
+    heroValue: {
+      ...typography.display,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+      marginTop: spacing.lg,
+    },
+    range: {
+      ...typography.mono,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+    cumulativeChart: { marginTop: spacing.xl },
+    axisRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: spacing.md,
+      paddingRight: 34,
+    },
+    axisText: { ...typography.monoSmall, color: colors.textSubtle },
+    flushCard: { padding: 0, overflow: "hidden" },
+    metricBlock: { padding: spacing.lg, gap: spacing.md },
+    metricRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    metricCopy: { flex: 1, gap: spacing.sm },
+    inlineValue: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: spacing.sm,
+    },
+    metricValue: {
+      ...typography.metricXL,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+    },
+    statusText: { ...typography.badge, fontSize: 11 },
+    metricCaption: { ...typography.mono, color: colors.textMuted },
+    zoneText: { ...typography.caption, color: colors.primary },
+    splitRow: { flexDirection: "row" },
+    splitCell: { flex: 1, padding: spacing.lg, gap: spacing.md },
+    splitDivider: {
+      width: StyleSheet.hairlineWidth,
+      backgroundColor: colors.outlineSoft,
+    },
+    cellEmpty: { ...typography.caption, color: colors.textSubtle },
+    focusList: { gap: spacing.md, marginTop: spacing.sm },
+    focusRow: { gap: spacing.xs },
+    focusTop: { flexDirection: "row", justifyContent: "space-between" },
+    focusLabel: { ...typography.caption, color: colors.text },
+    focusValue: { ...typography.mono, fontVariant: ["tabular-nums"] },
+    focusTrack: {
+      height: 5,
+      borderRadius: radii.full,
+      overflow: "hidden",
+      backgroundColor: colors.track,
+    },
+    focusFill: { height: "100%", borderRadius: radii.full },
+    hrrValue: {
+      ...typography.metricLG,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+      marginTop: spacing.sm,
+    },
+    hrrRating: { ...typography.caption, color: colors.primary, marginTop: -6 },
+    hrrWindow: { ...typography.mono, color: colors.textSubtle },
+    hrrChart: { marginTop: spacing.sm },
+    weekBars: { flexDirection: "row", gap: spacing.sm },
+    weekColumn: { alignItems: "center", gap: spacing["2xs"], width: 40 },
+    weekCount: { ...typography.mono, color: colors.text },
+    weekTrack: {
+      width: 14,
+      height: 48,
+      borderRadius: radii.sm,
+      justifyContent: "flex-end",
+      overflow: "hidden",
+      backgroundColor: colors.track,
+    },
+    weekFill: { width: "100%", borderRadius: radii.sm },
+    weekLabel: {
+      ...typography.monoSmall,
+      fontSize: 9,
+      color: colors.textSubtle,
+    },
+    statRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingTop: spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.outlineSoft,
+    },
+    miniStat: { gap: spacing.xs },
+    miniLabel: { ...typography.badge, color: colors.textSubtle },
+    miniValue: {
+      ...typography.subheading,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+    },
+    miniUnit: { ...typography.mono, color: colors.textSubtle },
+    mixBar: {
+      flexDirection: "row",
+      height: 8,
+      gap: 3,
+      borderRadius: radii.full,
+      overflow: "hidden",
+    },
+    mixLegend: { gap: spacing.sm },
+    mixRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    mixDot: { width: 7, height: 7, borderRadius: radii.full },
+    mixLabel: { ...typography.caption, color: colors.text, flex: 1 },
+    mixMinutes: { ...typography.mono, color: colors.textMuted },
+    mixShare: {
+      ...typography.mono,
+      width: 40,
+      textAlign: "right",
+      fontVariant: ["tabular-nums"],
+    },
+    footerNote: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    footerText: { ...typography.caption, color: colors.textSubtle },
+    retryButton: {
+      minHeight: 48,
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryBright,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+    },
+    retryText: { ...typography.subheading, color: colors.canvas },
+    skeletonLine: {
+      width: "40%",
+      height: 12,
+      borderRadius: radii.full,
+      backgroundColor: colors.surfaceHigh,
+    },
+    skeletonHero: {
+      width: "55%",
+      height: 36,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceHigh,
+      marginTop: spacing.lg,
+    },
+    skeletonChart: {
+      width: "100%",
+      height: 120,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceHigh,
+      marginTop: spacing.lg,
+    },
+  }),
+);
