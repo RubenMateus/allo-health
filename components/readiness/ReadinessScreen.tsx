@@ -1,4 +1,4 @@
-import { Check, LockKeyhole } from "lucide-react-native";
+import { LockKeyhole } from "lucide-react-native";
 import { Text, View } from "react-native";
 
 import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
@@ -106,36 +106,31 @@ export function ReadinessScreen() {
       </DetailSection>
 
       <DetailSection title="How it's decided">
+        <Text className="type-caption text-text-muted -mt-xs">
+          The rules are checked from top to bottom, and the first one that
+          matches sets the target for today.
+        </Text>
         <Card className="gap-md">
           {coachingRules.map((rule, index) => {
             const active = rule.mode === coaching.mode;
             return (
               <View key={rule.mode} className="gap-md">
                 {index > 0 ? <Hairline /> : null}
-                <View className="flex-row items-center gap-md">
-                  <View
-                    className={cn(
-                      "w-6 h-6 rounded-full items-center justify-center border border-outline-soft",
-                      active && "bg-primary border-primary",
-                    )}
-                  >
-                    {active ? (
-                      <Check color={colors.canvas} size={14} strokeWidth={3} />
-                    ) : null}
-                  </View>
+                <View
+                  className={cn(
+                    "flex-row items-start gap-md",
+                    !active && "opacity-60",
+                  )}
+                >
                   <View className="flex-1 gap-2xs">
-                    <Text
-                      className={cn(
-                        "type-subheading text-text-muted",
-                        active && "text-text",
-                      )}
-                    >
+                    <Text className="type-subheading text-text">
                       {modeLabels[rule.mode]}
                     </Text>
-                    <Text className="type-caption text-text-subtle">
+                    <Text className="type-caption text-text-muted">
                       {rule.when}
                     </Text>
                   </View>
+                  {active ? <Pill tone="positive">Today</Pill> : null}
                 </View>
               </View>
             );
