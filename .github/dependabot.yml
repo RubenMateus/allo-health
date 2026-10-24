@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: npm
+  - package-ecosystem: bun
     directory: /
     schedule:
       interval: weekly
@@ -20,7 +20,7 @@ updates:
           - minor
           - patch
     ignore:
-      # SDK upgrades need a manual migration (npx expo install --fix)
+      # SDK upgrades need a manual migration (bunx expo install --fix)
       - dependency-name: "expo"
         update-types: ["version-update:semver-major"]
       - dependency-name: "expo-*"

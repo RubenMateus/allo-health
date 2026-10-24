@@ -78,7 +78,12 @@ Allo Health's scores and guidance are informational estimates to help you notice
 
 ## Running it yourself
 
-Allo Health is not in the App Store or Google Play yet. To build and run it on your own device or a simulator, follow the [local development guide](docs/DEVELOPMENT.md).
+Allo Health is not in the App Store or Google Play yet. To build and run it on your own device or a simulator, follow the [local development guide](docs/DEVELOPMENT.md). The project uses [Bun](https://bun.sh) as its package manager:
+
+```sh
+bun install
+bun run ios       # or: bun run android
+```
 
 ## License
 
