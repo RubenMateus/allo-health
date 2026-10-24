@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Kinetic BioMetrics",
-    "slug": "kinetic-biometrics",
+    "name": "Allo Health",
+    "slug": "allo-health",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kineticbiometrics",
+    "scheme": "allohealth",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kineticbiometrics.app",
+      "bundleIdentifier": "com.rubenmateus.allohealth",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "Kinetic BioMetrics reads health data to build your daily recovery and wellness dashboard.",
-        "NSHealthUpdateUsageDescription": "Kinetic BioMetrics does not write health data."
+        "NSHealthShareUsageDescription": "Allo Health reads health data to build your daily recovery and wellness dashboard.",
+        "NSHealthUpdateUsageDescription": "Allo Health does not write health data."
       }
     },
     "android": {
@@ -26,7 +26,7 @@
         "android.permission.health.READ_BLOOD_GLUCOSE",
         "android.permission.health.READ_RESPIRATORY_RATE"
       ],
-      "package": "com.kineticbiometrics.app",
+      "package": "com.rubenmateus.allohealth",
       "adaptiveIcon": {
         "backgroundColor": "#101319",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -46,8 +46,8 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "Kinetic BioMetrics reads health data to build your daily recovery and wellness dashboard.",
-          "NSHealthUpdateUsageDescription": "Kinetic BioMetrics does not write health data.",
+          "NSHealthShareUsageDescription": "Allo Health reads health data to build your daily recovery and wellness dashboard.",
+          "NSHealthUpdateUsageDescription": "Allo Health does not write health data.",
           "background": false
         }
       ],
@@ -69,8 +69,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#101319"
         }
-      ],
-      "expo-build-properties"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -108,7 +108,7 @@ export function HomeScreen() {
             <Activity color={colors.primary} size={17} strokeWidth={2.3} />
           </View>
           <View style={styles.topBarCopy}>
-            <Text style={styles.topOverline}>KINETIC / DAILY SYSTEMS</Text>
+            <Text style={styles.topOverline}>ALLO / DAILY SYSTEMS</Text>
             <Text style={styles.date}>{formatToday()}</Text>
           </View>
           <Pressable
