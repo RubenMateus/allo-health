@@ -1,14 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { BookOpen, Check, Flame, Lock, Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import { SettingsButton } from "@/components/settings/SettingsButton";
 import {
@@ -35,8 +28,9 @@ import {
   type Rating,
 } from "@/services/journal";
 import { useJournalStore } from "@/stores/journalStore";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { type ColorTokens } from "@/theme/tokens";
+import { cn } from "@/utils/cn";
 import { formatDayLabel, formatToday } from "@/utils/formatters";
 
 const ratings: Rating[] = [1, 2, 3, 4, 5];
@@ -53,7 +47,6 @@ function moodColor(colors: ColorTokens, mood: Rating) {
 
 export function JournalScreen() {
   const { colors } = useTheme();
-  const styles = useStyles();
   const entries = useJournalStore((state) => state.entries);
   const hydrated = useJournalStore((state) => state.hydrated);
   const loadFailed = useJournalStore((state) => state.loadFailed);
@@ -79,14 +72,16 @@ export function JournalScreen() {
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <View style={styles.brandMark}>
+      <View className="flex-row items-center gap-md mb-2xl">
+        <View className="w-[38px] h-[38px] rounded-md bg-surface-high items-center justify-center border border-outline-soft">
           <BookOpen color={colors.primary} size={17} strokeWidth={2.3} />
         </View>
-        <View style={styles.topBarCopy}>
-          <Text style={styles.topOverline}>ALLO / JOURNAL</Text>
+        <View className="flex-1 gap-2xs">
+          <Text className="type-badge text-primary uppercase">
+            ALLO / JOURNAL
+          </Text>
           <Text
-            style={styles.date}
+            className="type-heading text-text"
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.8}
@@ -94,23 +89,23 @@ export function JournalScreen() {
             {formatToday()}
           </Text>
         </View>
-        <View style={styles.privacyBadge}>
+        <View className="flex-row items-center gap-2xs px-md py-xs rounded-full border border-primary-border bg-primary-wash">
           <Lock color={colors.primary} size={12} strokeWidth={2.4} />
-          <Text style={styles.privacyText}>ON-DEVICE</Text>
+          <Text className="type-badge text-primary">ON-DEVICE</Text>
         </View>
         <SettingsButton />
       </View>
 
-      <View style={styles.hero}>
-        <Text style={styles.title}>Journal</Text>
-        <Text style={styles.subtitle}>
+      <View className="gap-2xs mb-xl">
+        <Text className="type-display text-text tracking-[-1px]">Journal</Text>
+        <Text className="type-body-small text-text-muted">
           Daily check-ins, stored only on this phone
         </Text>
       </View>
 
       <WeekCard week={week} today={today} />
 
-      <View style={styles.sectionBlock}>
+      <View className="gap-md mt-section">
         <SectionHeader
           title="Today's check-in"
           trailing={
@@ -139,17 +134,17 @@ export function JournalScreen() {
           />
         ) : (
           <Card>
-            <View style={styles.skeleton} />
+            <View className="h-[220px] rounded-md bg-surface-elevated-prose" />
           </Card>
         )}
       </View>
 
-      <View style={styles.sectionBlock}>
+      <View className="gap-md mt-section">
         <SectionHeader
           title="Past entries"
           trailing={
             pastEntries.length ? (
-              <Text style={styles.sectionMeta}>
+              <Text className="type-mono text-text-subtle">
                 {pastEntries.length}{" "}
                 {pastEntries.length === 1 ? "entry" : "entries"}
               </Text>
@@ -185,30 +180,33 @@ function WeekCard({
   today: string;
 }) {
   const { colors, glow } = useTheme();
-  const styles = useStyles();
   return (
-    <Card style={styles.weekCard}>
-      <View style={styles.weekHeader}>
-        <View style={styles.weekHeading}>
-          <Text style={styles.eyebrow}>LAST 7 DAYS</Text>
-          <Text style={styles.weekTitle}>
+    <Card className="gap-lg">
+      <View className="flex-row items-start justify-between gap-md">
+        <View className="flex-1 gap-2xs">
+          <Text className="type-badge text-text-subtle uppercase">
+            LAST 7 DAYS
+          </Text>
+          <Text className="type-heading text-text">
             {week.loggedDays} of 7 days logged
           </Text>
         </View>
-        <View style={styles.streakBadge}>
+        <View className="flex-row items-center gap-xs px-md py-xs rounded-full border border-outline-soft bg-surface-elevated-prose">
           <Flame color={colors.primary} size={14} strokeWidth={2.4} />
-          <Text style={styles.streakText}>{week.streak}-day streak</Text>
+          <Text className="type-mono text-primary">
+            {week.streak}-day streak
+          </Text>
         </View>
       </View>
 
-      <View style={styles.weekGrid}>
+      <View className="flex-row justify-between">
         {week.days.map((day) => {
           const date = fromDayKey(day.date);
           const isToday = day.date === today;
           return (
             <View
               key={day.date}
-              style={styles.weekColumn}
+              className="items-center gap-sm flex-1"
               accessible
               accessibilityLabel={`${formatDayLabel(date)}: ${
                 day.entry
@@ -217,16 +215,21 @@ function WeekCard({
               }`}
             >
               <Text
-                style={[styles.dayLetter, isToday && styles.dayLetterActive]}
+                className={cn(
+                  "type-caption text-text-subtle",
+                  isToday && "text-text",
+                )}
               >
                 {new Intl.DateTimeFormat(undefined, {
                   weekday: "narrow",
                 }).format(date)}
               </Text>
               <View
+                className={cn(
+                  "w-[34px] h-[34px] rounded-md bg-surface-elevated-prose border border-outline-soft items-center justify-center",
+                  isToday && "border-primary-border",
+                )}
                 style={[
-                  styles.dayCell,
-                  isToday && styles.dayCellToday,
                   day.entry && {
                     backgroundColor: moodColor(colors, day.entry.mood),
                     borderColor: moodColor(colors, day.entry.mood),
@@ -234,9 +237,11 @@ function WeekCard({
                   day.entry && isToday && glow.recovery,
                 ]}
               >
-                {day.entry ? <View style={styles.dayDot} /> : null}
+                {day.entry ? (
+                  <View className="w-1.5 h-1.5 rounded-full bg-canvas" />
+                ) : null}
               </View>
-              <Text style={styles.dayValue}>
+              <Text className="type-mono text-text-muted">
                 {day.entry ? day.entry.mood : "-"}
               </Text>
             </View>
@@ -246,13 +251,15 @@ function WeekCard({
 
       <Hairline />
 
-      <View style={styles.weekStats}>
+      <View className="flex-row items-center">
         <WeekStat label="Avg mood" value={week.averageMood} />
-        <View style={styles.statDivider} />
+        <View className="w-hairline self-stretch bg-outline-soft mx-md" />
         <WeekStat label="Avg energy" value={week.averageEnergy} />
-        <View style={styles.statDivider} />
-        <View style={styles.weekStat}>
-          <Text style={styles.weekStatValue}>{week.loggedDays}</Text>
+        <View className="w-hairline self-stretch bg-outline-soft mx-md" />
+        <View className="flex-1 gap-2xs">
+          <Text className="type-metric-lg text-text tabular-nums">
+            {week.loggedDays}
+          </Text>
           <MetricLabel>Check-ins</MetricLabel>
         </View>
       </View>
@@ -261,12 +268,11 @@ function WeekCard({
 }
 
 function WeekStat({ label, value }: { label: string; value: number | null }) {
-  const styles = useStyles();
   return (
-    <View style={styles.weekStat}>
-      <Text style={styles.weekStatValue}>
+    <View className="flex-1 gap-2xs">
+      <Text className="type-metric-lg text-text tabular-nums">
         {value === null ? "-" : value.toFixed(1)}
-        <Text style={styles.weekStatUnit}>/5</Text>
+        <Text className="type-mono text-text-subtle">/5</Text>
       </Text>
       <MetricLabel>{label}</MetricLabel>
     </View>
@@ -289,7 +295,6 @@ function CheckInCard({
   }) => void;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const [mood, setMood] = useState<Rating | null>(entry?.mood ?? null);
   const [energy, setEnergy] = useState<Rating | null>(entry?.energy ?? null);
   const [tags, setTags] = useState<JournalTag[]>(entry?.tags ?? []);
@@ -306,7 +311,7 @@ function CheckInCard({
   };
 
   return (
-    <Card style={styles.checkInCard}>
+    <Card className="gap-xl">
       <RatingScale
         label="Mood"
         value={mood}
@@ -320,9 +325,11 @@ function CheckInCard({
         onChange={setEnergy}
       />
 
-      <View style={styles.field}>
-        <MetricLabel style={styles.fieldLabel}>FACTORS</MetricLabel>
-        <View style={styles.tagWrap}>
+      <View className="gap-sm">
+        <MetricLabel className="type-badge text-text-subtle">
+          FACTORS
+        </MetricLabel>
+        <View className="flex-row flex-wrap gap-sm">
           {JOURNAL_TAGS.map((tag) => {
             const selected = tags.includes(tag);
             return (
@@ -331,13 +338,19 @@ function CheckInCard({
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: selected }}
                 onPress={() => toggleTag(tag)}
-                style={[styles.tagChip, selected && styles.tagChipSelected]}
+                className={cn(
+                  "flex-row items-center gap-2xs min-h-[34px] px-md rounded-full border border-outline-soft bg-surface-elevated-prose",
+                  selected && "border-primary-border bg-primary-wash",
+                )}
               >
                 {selected ? (
                   <Check color={colors.primary} size={12} strokeWidth={3} />
                 ) : null}
                 <Text
-                  style={[styles.tagText, selected && styles.tagTextSelected]}
+                  className={cn(
+                    "type-body-small text-text-muted",
+                    selected && "text-primary",
+                  )}
                 >
                   {tagLabels[tag]}
                 </Text>
@@ -347,10 +360,12 @@ function CheckInCard({
         </View>
       </View>
 
-      <View style={styles.field}>
-        <View style={styles.noteHeader}>
-          <MetricLabel style={styles.fieldLabel}>NOTE</MetricLabel>
-          <Text style={styles.noteCount}>
+      <View className="gap-sm">
+        <View className="flex-row items-center justify-between">
+          <MetricLabel className="type-badge text-text-subtle">
+            NOTE
+          </MetricLabel>
+          <Text className="type-mono-small text-text-subtle">
             {note.length}/{NOTE_MAX_LENGTH}
           </Text>
         </View>
@@ -363,7 +378,7 @@ function CheckInCard({
           placeholder="How did you sleep, train and feel today?"
           placeholderTextColor={colors.textSubtle}
           selectionColor={colors.primary}
-          style={styles.noteInput}
+          className="type-body min-h-[96px] text-text p-md rounded-md border border-outline-soft bg-canvas-deep"
           textAlignVertical="top"
         />
       </View>
@@ -376,13 +391,18 @@ function CheckInCard({
           if (mood === null || energy === null) return;
           onSave({ date, mood, energy, tags, note });
         }}
-        style={({ pressed }) => [
-          styles.saveButton,
-          !canSave && styles.saveButtonDisabled,
-          pressed && styles.pressed,
-        ]}
+        className={cn(
+          "min-h-[48px] rounded-full bg-primary-bright items-center justify-center",
+          !canSave && "bg-surface-high",
+          "active:opacity-70",
+        )}
       >
-        <Text style={[styles.saveText, !canSave && styles.saveTextDisabled]}>
+        <Text
+          className={cn(
+            "type-subheading text-canvas",
+            !canSave && "text-text-subtle",
+          )}
+        >
           {entry ? "Update check-in" : "Save check-in"}
         </Text>
       </Pressable>
@@ -401,18 +421,20 @@ function RatingScale({
   labels: Record<Rating, string>;
   onChange: (value: Rating) => void;
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.field}>
-      <View style={styles.noteHeader}>
-        <MetricLabel style={styles.fieldLabel}>
+    <View className="gap-sm">
+      <View className="flex-row items-center justify-between">
+        <MetricLabel className="type-badge text-text-subtle">
           {label.toUpperCase()}
         </MetricLabel>
-        <Text style={styles.ratingValue}>
+        <Text className="type-mono text-primary">
           {value === null ? "Not set" : labels[value]}
         </Text>
       </View>
-      <View style={styles.segmented} accessibilityRole="radiogroup">
+      <View
+        className="flex-row gap-2xs p-2xs rounded-full border border-outline-soft bg-surface-prose"
+        accessibilityRole="radiogroup"
+      >
         {ratings.map((rating) => {
           const selected = rating === value;
           return (
@@ -425,13 +447,17 @@ function RatingScale({
                 void Haptics.selectionAsync();
                 onChange(rating);
               }}
-              style={[styles.segment, selected && styles.segmentSelected]}
+              className={cn(
+                "flex-1 min-h-[40px] rounded-full items-center justify-center",
+                selected &&
+                  "bg-surface-elevated-prose border border-primary-border",
+              )}
             >
               <Text
-                style={[
-                  styles.segmentText,
-                  selected && styles.segmentTextSelected,
-                ]}
+                className={cn(
+                  "type-subheading text-text-subtle",
+                  selected && "text-text",
+                )}
               >
                 {rating}
               </Text>
@@ -451,30 +477,25 @@ function EntryCard({
   onDelete: () => void;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   return (
-    <Card style={styles.entryCard}>
-      <View style={styles.entryHeader}>
+    <Card className="gap-md">
+      <View className="flex-row items-center gap-md">
         <View
-          style={[
-            styles.moodMark,
-            { borderColor: moodColor(colors, entry.mood) },
-          ]}
+          className="w-[38px] h-[38px] rounded-md border bg-surface-elevated-prose items-center justify-center"
+          style={{ borderColor: moodColor(colors, entry.mood) }}
         >
           <Text
-            style={[
-              styles.moodMarkText,
-              { color: moodColor(colors, entry.mood) },
-            ]}
+            className="type-subheading"
+            style={{ color: moodColor(colors, entry.mood) }}
           >
             {entry.mood}
           </Text>
         </View>
-        <View style={styles.entryHeading}>
-          <Text style={styles.entryTitle}>
+        <View className="flex-1 gap-2xs">
+          <Text className="type-subheading text-text">
             {moodLabels[entry.mood]} mood · {energyLabels[entry.energy]}
           </Text>
-          <Text style={styles.entryDate}>
+          <Text className="type-mono text-text-subtle">
             {formatDayLabel(fromDayKey(entry.date))}
           </Text>
         </View>
@@ -483,247 +504,33 @@ function EntryCard({
           accessibilityLabel={`Delete entry for ${formatDayLabel(fromDayKey(entry.date))}`}
           hitSlop={8}
           onPress={onDelete}
-          style={({ pressed }) => [
-            styles.deleteButton,
-            pressed && styles.pressed,
-          ]}
+          className="w-8 h-8 rounded-full items-center justify-center active:opacity-70"
         >
           <Trash2 color={colors.textSubtle} size={16} />
         </Pressable>
       </View>
       {entry.note ? (
-        <Text style={styles.entryNote} numberOfLines={3}>
+        <Text className="type-body text-text-muted" numberOfLines={3}>
           {entry.note}
         </Text>
       ) : null}
       {entry.tags.length ? (
-        <View style={styles.entryTags}>
+        <View className="flex-row flex-wrap gap-xs">
           {entry.tags.map((tag) => (
             <Pill key={tag}>{tagLabels[tag]}</Pill>
           ))}
         </View>
       ) : null}
       <Hairline />
-      <View style={styles.entryMeta}>
-        <Text style={styles.entryMetaText}>MOOD {entry.mood}/5</Text>
-        <Text style={styles.entryMetaDot}>•</Text>
-        <Text style={styles.entryMetaText}>ENERGY {entry.energy}/5</Text>
+      <View className="flex-row items-center gap-sm">
+        <Text className="type-mono-small text-text-subtle">
+          MOOD {entry.mood}/5
+        </Text>
+        <Text className="type-mono-small text-outline">•</Text>
+        <Text className="type-mono-small text-text-subtle">
+          ENERGY {entry.energy}/5
+        </Text>
       </View>
     </Card>
   );
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    topBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      marginBottom: spacing["2xl"],
-    },
-    brandMark: {
-      width: 38,
-      height: 38,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceHigh,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-    },
-    topBarCopy: { flex: 1, gap: spacing["2xs"] },
-    topOverline: {
-      ...typography.badge,
-      color: colors.primary,
-      textTransform: "uppercase",
-    },
-    date: { ...typography.heading, color: colors.text },
-    privacyBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing["2xs"],
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.primaryBorder,
-      backgroundColor: colors.primaryWash,
-    },
-    privacyText: { ...typography.badge, color: colors.primary },
-    hero: { gap: spacing["2xs"], marginBottom: spacing.xl },
-    title: { ...typography.display, color: colors.text, letterSpacing: -1 },
-    subtitle: { ...typography.bodySmall, color: colors.textMuted },
-    sectionBlock: { gap: spacing.md, marginTop: spacing.section },
-    sectionMeta: { ...typography.mono, color: colors.textSubtle },
-    eyebrow: {
-      ...typography.badge,
-      color: colors.textSubtle,
-      textTransform: "uppercase",
-    },
-    weekCard: { gap: spacing.lg },
-    weekHeader: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: spacing.md,
-    },
-    weekHeading: { flex: 1, gap: spacing["2xs"] },
-    weekTitle: { ...typography.heading, color: colors.text },
-    streakBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surfaceElevatedProse,
-    },
-    streakText: { ...typography.mono, color: colors.primary },
-    weekGrid: { flexDirection: "row", justifyContent: "space-between" },
-    weekColumn: { alignItems: "center", gap: spacing.sm, flex: 1 },
-    dayLetter: { ...typography.caption, color: colors.textSubtle },
-    dayLetterActive: { color: colors.text },
-    dayCell: {
-      width: 34,
-      height: 34,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceElevatedProse,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    dayCellToday: { borderColor: colors.primaryBorder },
-    dayDot: {
-      width: 6,
-      height: 6,
-      borderRadius: radii.full,
-      backgroundColor: colors.canvas,
-    },
-    dayValue: { ...typography.mono, color: colors.textMuted },
-    weekStats: { flexDirection: "row", alignItems: "center" },
-    weekStat: { flex: 1, gap: spacing["2xs"] },
-    weekStatValue: {
-      ...typography.metricLG,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    weekStatUnit: { ...typography.mono, color: colors.textSubtle },
-    statDivider: {
-      width: StyleSheet.hairlineWidth,
-      alignSelf: "stretch",
-      backgroundColor: colors.outlineSoft,
-      marginHorizontal: spacing.md,
-    },
-    checkInCard: { gap: spacing.xl },
-    skeleton: {
-      height: 220,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceElevatedProse,
-    },
-    field: { gap: spacing.sm },
-    fieldLabel: { ...typography.badge, color: colors.textSubtle },
-    noteHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    ratingValue: { ...typography.mono, color: colors.primary },
-    segmented: {
-      flexDirection: "row",
-      gap: spacing["2xs"],
-      padding: spacing["2xs"],
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surfaceProse,
-    },
-    segment: {
-      flex: 1,
-      minHeight: 40,
-      borderRadius: radii.full,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    segmentSelected: {
-      backgroundColor: colors.surfaceElevatedProse,
-      borderWidth: 1,
-      borderColor: colors.primaryBorder,
-    },
-    segmentText: { ...typography.subheading, color: colors.textSubtle },
-    segmentTextSelected: { color: colors.text },
-    tagWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-    tagChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing["2xs"],
-      minHeight: 34,
-      paddingHorizontal: spacing.md,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surfaceElevatedProse,
-    },
-    tagChipSelected: {
-      borderColor: colors.primaryBorder,
-      backgroundColor: colors.primaryWash,
-    },
-    tagText: { ...typography.bodySmall, color: colors.textMuted },
-    tagTextSelected: { color: colors.primary },
-    noteCount: { ...typography.monoSmall, color: colors.textSubtle },
-    noteInput: {
-      ...typography.body,
-      minHeight: 96,
-      color: colors.text,
-      padding: spacing.md,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.canvasDeep,
-    },
-    saveButton: {
-      minHeight: 48,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryBright,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    saveButtonDisabled: { backgroundColor: colors.surfaceHigh },
-    saveText: { ...typography.subheading, color: colors.canvas },
-    saveTextDisabled: { color: colors.textSubtle },
-    pressed: { opacity: 0.7 },
-    entryCard: { gap: spacing.md },
-    entryHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-    },
-    moodMark: {
-      width: 38,
-      height: 38,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      backgroundColor: colors.surfaceElevatedProse,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    moodMarkText: { ...typography.subheading },
-    entryHeading: { flex: 1, gap: spacing["2xs"] },
-    entryTitle: { ...typography.subheading, color: colors.text },
-    entryDate: { ...typography.mono, color: colors.textSubtle },
-    deleteButton: {
-      width: 32,
-      height: 32,
-      borderRadius: radii.full,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    entryNote: { ...typography.body, color: colors.textMuted },
-    entryTags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-    entryMeta: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    entryMetaText: { ...typography.monoSmall, color: colors.textSubtle },
-    entryMetaDot: { ...typography.monoSmall, color: colors.outline },
-  }),
-);

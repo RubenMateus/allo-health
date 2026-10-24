@@ -2,7 +2,6 @@ import type { PropsWithChildren, ReactNode } from "react";
 import {
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
   type RefreshControlProps,
@@ -11,8 +10,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
 
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
@@ -27,12 +26,11 @@ export function Screen({
   onRefresh,
 }: ScreenProps) {
   const { colors } = useTheme();
-  const styles = useStyles();
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-canvas">
       {scroll ? (
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerClassName="px-margin pt-md pb-nav-clearance"
           showsVerticalScrollIndicator={false}
           refreshControl={
             onRefresh ? (
@@ -53,14 +51,23 @@ export function Screen({
   );
 }
 
+type StyledProps<S> = { className?: string; style?: S };
+
 export function Card({
   children,
+  className,
   style,
   elevated = false,
-}: PropsWithChildren<{ style?: ViewStyle; elevated?: boolean }>) {
-  const styles = useStyles();
+}: PropsWithChildren<StyledProps<ViewStyle> & { elevated?: boolean }>) {
   return (
-    <View style={[styles.card, elevated && styles.cardElevated, style]}>
+    <View
+      className={cn(
+        "rounded-card border border-outline-soft bg-surface-prose p-lg",
+        elevated && "bg-surface-elevated-prose",
+        className,
+      )}
+      style={style}
+    >
       {children}
     </View>
   );
@@ -75,12 +82,15 @@ export function SectionHeader({
   eyebrow?: string;
   trailing?: ReactNode;
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionHeading}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-        <Text style={styles.sectionTitle}>{title}</Text>
+    <View className="flex-row items-end justify-between mb-md">
+      <View className="gap-2xs">
+        {eyebrow ? (
+          <Text className="type-badge text-text-subtle uppercase">
+            {eyebrow}
+          </Text>
+        ) : null}
+        <Text className="type-heading text-text">{title}</Text>
       </View>
       {trailing}
     </View>
@@ -89,44 +99,62 @@ export function SectionHeader({
 
 export function MetricLabel({
   children,
+  className,
   style,
-}: PropsWithChildren<{ style?: TextStyle }>) {
-  const styles = useStyles();
-  return <Text style={[styles.metricLabel, style]}>{children}</Text>;
+}: PropsWithChildren<StyledProps<TextStyle>>) {
+  return (
+    <Text
+      className={cn("type-caption text-text-muted", className)}
+      style={style}
+    >
+      {children}
+    </Text>
+  );
 }
 
 export function StatValue({
   children,
   unit,
+  className,
   style,
-}: PropsWithChildren<{ unit?: string; style?: TextStyle }>) {
-  const styles = useStyles();
+}: PropsWithChildren<StyledProps<TextStyle> & { unit?: string }>) {
   return (
-    <View style={styles.statValueRow}>
-      <Text style={[styles.statValue, style]}>{children}</Text>
-      {unit ? <Text style={styles.statUnit}>{unit}</Text> : null}
+    <View className="flex-row items-baseline gap-xs">
+      <Text
+        className={cn("type-metric-lg tabular-nums text-text", className)}
+        style={style}
+      >
+        {children}
+      </Text>
+      {unit ? <Text className="type-mono text-text-subtle">{unit}</Text> : null}
     </View>
   );
 }
+
+const pillTones = {
+  neutral: { box: "border-outline-soft bg-surface", text: "text-text-muted" },
+  positive: {
+    box: "border-primary-border bg-primary-wash",
+    text: "text-primary",
+  },
+  warning: { box: "border-stress-border bg-stress-wash", text: "text-stress" },
+  violet: { box: "border-sleep-border bg-sleep-wash", text: "text-sleep" },
+};
 
 export function Pill({
   children,
   tone = "neutral",
 }: PropsWithChildren<{
-  tone?: "neutral" | "positive" | "warning" | "violet";
+  tone?: keyof typeof pillTones;
 }>) {
-  const styles = useStyles();
-  const toneStyle =
-    tone === "positive"
-      ? styles.pillPositive
-      : tone === "warning"
-        ? styles.pillWarning
-        : tone === "violet"
-          ? styles.pillViolet
-          : null;
   return (
-    <View style={[styles.pill, toneStyle]}>
-      <Text style={[styles.pillText, toneStyle && { color: toneStyle.color }]}>
+    <View
+      className={cn(
+        "self-start rounded-full border px-md py-xs",
+        pillTones[tone].box,
+      )}
+    >
+      <Text className={cn("type-badge uppercase", pillTones[tone].text)}>
         {children}
       </Text>
     </View>
@@ -140,104 +168,21 @@ export function EmptyState({
   title: string;
   detail: string;
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyDetail}>{detail}</Text>
+    <View className="items-center py-2xl gap-sm">
+      <Text className="type-subheading text-text">{title}</Text>
+      <Text className="type-body-small text-text-muted text-center">
+        {detail}
+      </Text>
     </View>
   );
 }
 
-export function Hairline({ style }: { style?: ViewStyle }) {
-  const styles = useStyles();
-  return <View style={[styles.hairline, style]} />;
+export function Hairline({ className, style }: StyledProps<ViewStyle>) {
+  return (
+    <View
+      className={cn("h-hairline bg-outline-soft", className)}
+      style={style}
+    />
+  );
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.canvas },
-    scrollContent: {
-      paddingHorizontal: spacing.margin,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.navClearance,
-    },
-    card: {
-      backgroundColor: colors.surfaceProse,
-      borderColor: colors.outlineSoft,
-      borderWidth: 1,
-      borderRadius: radii.card,
-      padding: spacing.lg,
-    },
-    cardElevated: { backgroundColor: colors.surfaceElevatedProse },
-    sectionHeader: {
-      flexDirection: "row",
-      alignItems: "flex-end",
-      justifyContent: "space-between",
-      marginBottom: spacing.md,
-    },
-    sectionHeading: { gap: spacing["2xs"] },
-    eyebrow: {
-      ...typography.badge,
-      color: colors.textSubtle,
-      textTransform: "uppercase",
-    },
-    sectionTitle: { ...typography.heading, color: colors.text },
-    metricLabel: { ...typography.caption, color: colors.textMuted },
-    statValueRow: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      gap: spacing.xs,
-    },
-    statValue: {
-      ...typography.metricLG,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    statUnit: { ...typography.mono, color: colors.textSubtle },
-    pill: {
-      alignSelf: "flex-start",
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surface,
-    },
-    pillText: {
-      ...typography.badge,
-      color: colors.textMuted,
-      textTransform: "uppercase",
-    },
-    pillPositive: {
-      color: colors.primary,
-      borderColor: colors.primaryBorder,
-      backgroundColor: colors.primaryWash,
-    },
-    pillWarning: {
-      color: colors.stress,
-      borderColor: colors.stressBorder,
-      backgroundColor: colors.stressWash,
-    },
-    pillViolet: {
-      color: colors.sleep,
-      borderColor: colors.sleepBorder,
-      backgroundColor: colors.sleepWash,
-    },
-    emptyState: {
-      alignItems: "center",
-      paddingVertical: spacing["2xl"],
-      gap: spacing.sm,
-    },
-    emptyTitle: { ...typography.subheading, color: colors.text },
-    emptyDetail: {
-      ...typography.bodySmall,
-      color: colors.textMuted,
-      textAlign: "center",
-    },
-    hairline: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.outlineSoft,
-    },
-  }),
-);

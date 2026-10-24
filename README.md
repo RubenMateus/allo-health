@@ -4,23 +4,42 @@ Allo Health is a personal health dashboard for iPhone and Android. It reads the 
 
 Everything is computed on your device. Your health data never leaves your phone.
 
+## Screenshots
+
+Shown with the built-in sample data. Allo Health follows a dark or light theme, or your phone's setting.
+
+| | Today | Fitness | Biomarkers | VO₂ max | Journal |
+| --- | --- | --- | --- | --- | --- |
+| **Dark** | <img src="docs/images/dark-today.png" width="160" alt="Today, dark theme"> | <img src="docs/images/dark-fitness.png" width="160" alt="Fitness, dark theme"> | <img src="docs/images/dark-biomarkers.png" width="160" alt="Biomarkers, dark theme"> | <img src="docs/images/dark-vo2-max.png" width="160" alt="VO2 max detail, dark theme"> | <img src="docs/images/dark-journal.png" width="160" alt="Journal, dark theme"> |
+| **Light** | <img src="docs/images/light-today.png" width="160" alt="Today, light theme"> | <img src="docs/images/light-fitness.png" width="160" alt="Fitness, light theme"> | <img src="docs/images/light-biomarkers.png" width="160" alt="Biomarkers, light theme"> | <img src="docs/images/light-vo2-max.png" width="160" alt="VO2 max detail, light theme"> | <img src="docs/images/light-journal.png" width="160" alt="Journal, light theme"> |
+
 ## What you get
 
 **Today**
+
 - **Daily readiness.** Recovery, sleep and strain scores built from your resting heart rate, heart rate variability, sleep and active energy.
 - **Training guidance.** A daily recommendation to push, maintain or recover, with a target strain range for the day.
 - **Stress and energy.** An estimate of today's stress load and an energy "battery" that charges with sleep and drains with strain and stress.
 - **Nutrition and glucose.** Calories, macros and glucose readings, shown when your health source shares them.
 
 **Fitness**
-- **Activity summary.** Active time over the last 30 days compared with the 30 before, and an activity calendar shaded by how many sessions you did each day.
-- **Cardio.** Acute:chronic workload ratio, training-load change, time in heart-rate zones and one-minute heart-rate recovery.
-- **Strength and training mix.** Strength sessions per week and your split between cardio, strength and mobility.
 
-**In progress**
-- **Journal.** A quick daily check-in for mood, energy and habits like caffeine, alcohol or late meals, with a weekly overview.
-- **Biology.** Longer-term biomarkers and trends.
-- **Settings.** Tap the ••• button to re-sync your health data on demand and choose a dark, light or system theme.
+- **Training load.** Cardio and muscular load gauges that compare your last 7 days with your usual week.
+- **Activity summary.** Active time over the last 30 days compared with the 30 before, and an activity calendar shaded by how many sessions you did each day.
+- **Cardio.** Active duration and energy this week against last week, VO₂ max, heart-rate recovery, cardio focus and time in heart-rate zones, each with its own detail page.
+
+**Biomarkers**
+
+- **Fitness age.** The age your VO₂ max matches, compared with your real age.
+- **Trends.** Weight, body fat, lean mass, HRV, resting heart rate, VO₂ max, blood oxygen and respiratory rate, each with a trend against your recent baseline and a detail page with history.
+
+**Journal**
+
+- **Daily check-in.** Mood, energy and habits like caffeine, alcohol or late meals, with a weekly overview. Entries are stored only on your phone.
+
+**Settings**
+
+- Tap the ••• button to re-sync your health data on demand and choose a dark, light or system theme.
 
 Units follow your region (for example mg/dL or mmol/L for glucose, kcal or kJ for energy), and times follow your phone's 12 or 24 hour setting.
 

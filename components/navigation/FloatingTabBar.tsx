@@ -12,14 +12,15 @@ import type { RefObject } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing } from "@/theme/tokens";
+import { cn } from "@/utils/cn";
 
 const items = [
   { route: "index", label: "Home", Icon: House },
   { route: "journal", label: "Journal", Icon: BookOpen },
   { route: "fitness", label: "Fitness", Icon: Activity },
-  { route: "biology", label: "Biology", Icon: ScanHeart },
+  { route: "biomarkers", label: "Biomarkers", Icon: ScanHeart },
 ] as const;
 
 type FloatingTabBarProps = {
@@ -40,15 +41,15 @@ export function FloatingTabBar({
   navigation,
   blurTarget,
 }: FloatingTabBarProps) {
-  const { colors, gradients, scheme } = useTheme();
-  const styles = useStyles();
+  const { colors, glow, gradients, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.dockPosition, { bottom: insets.bottom + spacing.lg }]}
+      className="absolute left-margin right-margin items-center"
+      style={{ bottom: insets.bottom + spacing.lg }}
     >
-      <View style={styles.dockBorder}>
+      <View className="w-full rounded-full border border-outline-glass overflow-hidden">
         <LinearGradient
           colors={gradients.glassEdge}
           style={StyleSheet.absoluteFill}
@@ -58,7 +59,7 @@ export function FloatingTabBar({
           intensity={38}
           tint={scheme}
           blurMethod="dimezisBlurViewSdk31Plus"
-          style={styles.dock}
+          className="h-[70px] px-sm flex-row items-center justify-between bg-glass-fill"
         >
           {items.map(({ route, label, Icon }) => {
             const routeIndex = state.routes.findIndex(
@@ -81,13 +82,14 @@ export function FloatingTabBar({
                   if (!selected && !event.defaultPrevented)
                     navigation.navigate(route);
                 }}
-                style={({ pressed }) => [
-                  styles.item,
-                  pressed && styles.pressed,
-                ]}
+                className="flex-1 h-14 items-center justify-center gap-0.5 active:opacity-70"
               >
                 <View
-                  style={[styles.iconWrap, selected && styles.iconWrapActive]}
+                  className={cn(
+                    "min-w-[38px] min-h-[34px] items-center justify-center rounded-full",
+                    selected && "bg-primary-wash-strong",
+                  )}
+                  style={selected && glow.recovery}
                 >
                   <Icon
                     size={18}
@@ -96,7 +98,10 @@ export function FloatingTabBar({
                   />
                 </View>
                 <Text
-                  style={[styles.itemLabel, selected && styles.itemLabelActive]}
+                  className={cn(
+                    "type-badge text-text-subtle",
+                    selected && "text-primary-bright",
+                  )}
                 >
                   {label}
                 </Text>
@@ -109,10 +114,7 @@ export function FloatingTabBar({
             onPress={() =>
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
             }
-            style={({ pressed }) => [
-              styles.addButton,
-              pressed && styles.pressed,
-            ]}
+            className="w-[42px] h-[42px] rounded-full bg-primary-bright items-center justify-center ml-xs active:opacity-70"
           >
             <CirclePlus color={colors.canvas} size={21} strokeWidth={2.4} />
           </Pressable>
@@ -121,59 +123,3 @@ export function FloatingTabBar({
     </View>
   );
 }
-
-const useStyles = makeStyles(({ colors, glow }) =>
-  StyleSheet.create({
-    dockPosition: {
-      position: "absolute",
-      left: spacing.margin,
-      right: spacing.margin,
-      alignItems: "center",
-    },
-    dockBorder: {
-      width: "100%",
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineGlass,
-      overflow: "hidden",
-    },
-    dock: {
-      height: 70,
-      paddingHorizontal: spacing.sm,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: colors.glassFill,
-    },
-    item: {
-      flex: 1,
-      height: 56,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 2,
-    },
-    iconWrap: {
-      minWidth: 38,
-      minHeight: 34,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.full,
-    },
-    iconWrapActive: {
-      backgroundColor: colors.primaryWashStrong,
-      ...glow.recovery,
-    },
-    itemLabel: { ...typography.badge, color: colors.textSubtle },
-    itemLabelActive: { color: colors.primaryBright },
-    addButton: {
-      width: 42,
-      height: 42,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryBright,
-      alignItems: "center",
-      justifyContent: "center",
-      marginLeft: spacing.xs,
-    },
-    pressed: { opacity: 0.7 },
-  }),
-);

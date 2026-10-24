@@ -17,8 +17,8 @@ import {
 } from "react-native";
 
 import type { PermissionState } from "@/services/health/types";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
 
 export function HealthPermissionSheet({
   visible,
@@ -38,7 +38,6 @@ export function HealthPermissionSheet({
   onConnect: () => void;
 }) {
   const { colors, scheme } = useTheme();
-  const styles = useStyles();
   const [requested, setRequested] = useState(false);
   const connected = permissionState === "granted";
   const partial = permissionState === "partial";
@@ -50,34 +49,42 @@ export function HealthPermissionSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View className="flex-1 justify-end bg-scrim">
         <Pressable
           accessibilityLabel="Close connection sheet"
           style={StyleSheet.absoluteFill}
           onPress={onClose}
         />
-        <BlurView intensity={25} tint={scheme} style={styles.sheet}>
-          <View style={styles.grabber} />
-          <View style={styles.topRow}>
-            <View style={styles.iconHalo}>
+        <BlurView
+          intensity={25}
+          tint={scheme}
+          className="px-2xl pt-md pb-3xl rounded-tl-xl rounded-tr-xl overflow-hidden bg-surface-elevated-prose border border-outline-glass"
+        >
+          <View className="self-center w-9 h-1 rounded-full bg-text-subtle mb-xl" />
+          <View className="flex-row justify-between items-center mb-lg">
+            <View className="w-11 h-11 items-center justify-center rounded-full bg-primary-wash">
               <HeartPulse color={colors.primary} size={22} />
             </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close"
               onPress={onClose}
-              style={styles.closeButton}
+              className="w-10 h-10 items-center justify-center rounded-full bg-surface-high"
             >
               <X color={colors.textMuted} size={18} />
             </Pressable>
           </View>
-          <Text style={styles.eyebrow}>ON-DEVICE HEALTH DATA</Text>
-          <Text style={styles.title}>Connect your signals</Text>
-          <Text style={styles.description}>
+          <Text className="type-badge text-primary mb-sm">
+            ON-DEVICE HEALTH DATA
+          </Text>
+          <Text className="type-title text-text mb-sm">
+            Connect your signals
+          </Text>
+          <Text className="type-body-small text-text-muted mb-xl">
             Choose what {sourceName} can share. Your health data stays on this
             device and is never sent to a server.
           </Text>
-          <View style={styles.permissionList}>
+          <View className="gap-lg py-lg border-t border-b border-outline-soft mb-lg">
             <PermissionRow
               title="Recovery & sleep"
               detail="Heart rate, HRV, sleep, respiration"
@@ -87,17 +94,24 @@ export function HealthPermissionSheet({
               detail="Active energy and exercise intensity"
             />
             <PermissionRow
+              title="Body & fitness"
+              detail="Weight, body composition, VO2 max, blood oxygen"
+            />
+            <PermissionRow
               title="Metabolic signals"
               detail="Nutrition and glucose, when available"
             />
           </View>
           {permissionMessage ? (
-            <Text accessibilityRole="alert" style={styles.message}>
+            <Text
+              accessibilityRole="alert"
+              className="type-body-small text-error mb-md"
+            >
               {permissionMessage}
             </Text>
           ) : null}
           {connected || partial || requested ? (
-            <Text style={styles.stateText}>
+            <Text className="type-body-small text-primary mb-md">
               {connected
                 ? "Connection request completed."
                 : partial
@@ -112,11 +126,11 @@ export function HealthPermissionSheet({
               setRequested(true);
               onConnect();
             }}
-            style={({ pressed }) => [
-              styles.connectButton,
-              (connecting || connected) && styles.disabled,
-              pressed && styles.pressed,
-            ]}
+            className={cn(
+              "min-h-[52px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm",
+              (connecting || connected) && "opacity-70",
+              "active:opacity-[0.78]",
+            )}
           >
             {connecting ? (
               <ActivityIndicator color={colors.canvas} />
@@ -125,7 +139,7 @@ export function HealthPermissionSheet({
             ) : (
               <Activity color={colors.canvas} size={18} />
             )}
-            <Text style={styles.connectText}>
+            <Text className="type-subheading text-canvas">
               {connecting
                 ? "Connecting…"
                 : connected
@@ -135,9 +149,9 @@ export function HealthPermissionSheet({
                     : "Continue to permissions"}
             </Text>
           </Pressable>
-          <View style={styles.privacyNote}>
+          <View className="flex-row items-center justify-center gap-xs mt-md">
             <LockKeyhole size={13} color={colors.textSubtle} />
-            <Text style={styles.privacyText}>
+            <Text className="type-caption text-text-subtle">
               Read-only access · stored on this device
             </Text>
           </View>
@@ -149,136 +163,15 @@ export function HealthPermissionSheet({
 
 function PermissionRow({ title, detail }: { title: string; detail: string }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   return (
-    <View style={styles.permissionRow}>
-      <View style={styles.checkMark}>
+    <View className="flex-row items-center gap-md">
+      <View className="w-7 h-7 rounded-full items-center justify-center bg-primary-wash">
         <Check size={13} color={colors.primary} />
       </View>
-      <View style={styles.permissionCopy}>
-        <Text style={styles.permissionTitle}>{title}</Text>
-        <Text style={styles.permissionDetail}>{detail}</Text>
+      <View className="flex-1 gap-2xs">
+        <Text className="type-body-small text-text">{title}</Text>
+        <Text className="type-caption text-text-subtle">{detail}</Text>
       </View>
     </View>
   );
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: "flex-end",
-      backgroundColor: colors.scrim,
-    },
-    sheet: {
-      paddingHorizontal: spacing["2xl"],
-      paddingTop: spacing.md,
-      paddingBottom: spacing["3xl"],
-      borderTopLeftRadius: radii.xl,
-      borderTopRightRadius: radii.xl,
-      overflow: "hidden",
-      backgroundColor: colors.surfaceElevatedProse,
-      borderWidth: 1,
-      borderColor: colors.outlineGlass,
-    },
-    grabber: {
-      alignSelf: "center",
-      width: 36,
-      height: 4,
-      borderRadius: radii.full,
-      backgroundColor: colors.textSubtle,
-      marginBottom: spacing.xl,
-    },
-    topRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: spacing.lg,
-    },
-    iconHalo: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryWash,
-    },
-    closeButton: {
-      width: 40,
-      height: 40,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceHigh,
-    },
-    eyebrow: {
-      ...typography.badge,
-      color: colors.primary,
-      marginBottom: spacing.sm,
-    },
-    title: {
-      ...typography.title,
-      color: colors.text,
-      marginBottom: spacing.sm,
-    },
-    description: {
-      ...typography.bodySmall,
-      color: colors.textMuted,
-      marginBottom: spacing.xl,
-    },
-    permissionList: {
-      gap: spacing.lg,
-      paddingVertical: spacing.lg,
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: colors.outlineSoft,
-      marginBottom: spacing.lg,
-    },
-    permissionRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-    },
-    checkMark: {
-      width: 28,
-      height: 28,
-      borderRadius: radii.full,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.primaryWash,
-    },
-    permissionCopy: { flex: 1, gap: spacing["2xs"] },
-    permissionTitle: { ...typography.bodySmall, color: colors.text },
-    permissionDetail: { ...typography.caption, color: colors.textSubtle },
-    message: {
-      ...typography.bodySmall,
-      color: colors.error,
-      marginBottom: spacing.md,
-    },
-    stateText: {
-      ...typography.bodySmall,
-      color: colors.primary,
-      marginBottom: spacing.md,
-    },
-    connectButton: {
-      minHeight: 52,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryBright,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-    },
-    connectText: { ...typography.subheading, color: colors.canvas },
-    disabled: { opacity: 0.7 },
-    pressed: { opacity: 0.78 },
-    privacyNote: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.xs,
-      marginTop: spacing.md,
-    },
-    privacyText: { ...typography.caption, color: colors.textSubtle },
-  }),
-);

@@ -1,6 +1,6 @@
 # Local development
 
-This guide covers running Allo Health from source on an iOS or Android device or simulator. The app is built with Expo (SDK 57), Expo Router, React Native, TypeScript, React Query and Zustand. It targets iOS and Android only; the web target is not supported.
+This guide covers running Allo Health from source on an iOS or Android device or simulator. The app is built with Expo (SDK 57), Expo Router, React Native, TypeScript, NativeWind (Tailwind CSS), React Query and Zustand. It targets iOS and Android only; the web target is not supported.
 
 ## Requirements
 
@@ -96,56 +96,98 @@ npm run lint        # expo lint
 npm test            # jest, run in band
 ```
 
-Tests cover the pure logic in `services/` (metrics, coaching and data loading) and the health store. They run in Node and do not need a simulator.
+Tests cover the pure logic in `services/` (metrics, coaching and data loading), the health store, and the styling setup: `theme/nativewind.test.tsx` compiles the Tailwind config the way the iOS and Android builds do and checks every color, type, spacing and radius class against `theme/tokens.ts`. They run in Node and do not need a simulator.
 
 ## Project layout
 
 ```
 app/                 Expo Router routes; every file is a screen
-  (tabs)/            Bottom tabs: Home, Journal, Fitness, Biology
-components/          UI: ui/ primitives, charts/, home/, navigation/, permissions/
-hooks/               React Query hooks: useHealthDashboard, useFitnessDashboard
+  (tabs)/            Bottom tabs: Home, Journal, Fitness, Biomarkers
+  biomarkers/, fitness/  Detail pages
+components/          UI: ui/ primitives, charts/, detail/, and one folder per screen
+hooks/               React Query hooks: useHealthDashboard, useFitnessDashboard, useBiomarkers
 services/health/     HealthProvider contract, HealthKit / Health Connect / mock adapters, data loaders
 services/metrics/    Pure estimates: sleep, recovery, strain, stress, energy (index.ts), training load and zones (fitness.ts)
 services/coaching/   Deterministic daily training guidance
 stores/              Zustand stores (active health provider and connection state, journal, settings)
 theme/tokens.ts      Design tokens: dark and light palettes, spacing, radii, typography
-theme/ThemeProvider  useTheme() and makeStyles() for themed styles
-utils/               Formatting helpers (units, dates, locale)
+theme/ThemeProvider  Applies the saved theme; useTheme() for colors outside className
+theme/variables.ts   The CSS variables behind the color classes, per theme
+theme/interop.ts     Registers third-party views (SafeAreaView, BlurView, ...) for className
+tailwind.config.ts   Tailwind theme generated from theme/tokens.ts
+global.css           Tailwind entry file, imported once in app/_layout.tsx
+utils/               Formatting helpers (units, dates, locale) and cn() for class names
 design/              DESIGN.md design system and reference screenshots
 ```
 
 ### Adding a screen
 
 1. Add a route under `app/(tabs)/` and register it in `app/(tabs)/_layout.tsx`.
-2. Build it from `components/ui`, `theme/tokens.ts` and the platform-independent services. Style it with `makeStyles` so it follows the light and dark themes (see below).
+2. Build it from `components/ui` and the platform-independent services. Style it with `className` and the token classes so it follows the light and dark themes (see below).
 3. Read health data through the `HealthProvider` (via a hook like `hooks/useHealthDashboard`), never by importing a platform health library directly from a screen.
 
 ### Design tokens
 
 Tokens follow `design/DESIGN.md`. Its YAML frontmatter uses `#101319` / `#191c22` surface roles, while the prose describes a darker `#0D0F12` / `#14171D` / `#1C2029` hierarchy. `theme/tokens.ts` keeps both as named tokens: the frontmatter roles for canvas and text, the prose surfaces for cards, and the prose biometric hues.
 
+### Styling with NativeWind
+
+Components are styled with [NativeWind](https://www.nativewind.dev/) v4, which brings Tailwind CSS (v3) classes to React Native through a `className` prop. The Tailwind theme in `tailwind.config.ts` is generated from `theme/tokens.ts`, so the tokens stay the single source of truth.
+
+| Tokens | Classes | Example |
+| --- | --- | --- |
+| Colors (`colors.surfaceProse`) | `bg-`, `text-`, `border-` + the token in kebab case | `bg-surface-prose`, `text-text-muted`, `border-outline-soft` |
+| Typography (`typography.heading`) | `type-` + the style name, sets family, size, line height and weight | `type-heading`, `type-body-small`, `type-metric-lg` |
+| Spacing (`spacing.lg`) | Any spacing utility with the token name | `p-lg`, `gap-2xs`, `px-margin`, `pb-nav-clearance` |
+| Radii (`radii.card`) | `rounded-` + the token name | `rounded-card`, `rounded-full`, `rounded` (`DEFAULT`) |
+| Hairlines | `hairline` | `h-hairline`, `border-b-hairline` |
+
+Tailwind's numeric scale is in pixels (`w-11` is 44, `gap-0.5` is 2). Use an arbitrary value for anything off the scale, such as `h-[70px]` or `text-[11px]`. Size utilities override a `type-` class, so `type-badge text-[11px]` is the badge style at 11px.
+
+```tsx
+import { cn } from "@/utils/cn";
+
+function Tag({ active, label }: { active: boolean; label: string }) {
+  return (
+    <View
+      className={cn(
+        "rounded-full border border-outline-soft px-md py-xs",
+        active && "border-primary-border bg-primary-wash",
+      )}
+    >
+      <Text
+        className={cn("type-badge text-text-muted", active && "text-primary")}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+```
+
+- Combine classes with `cn()` from `utils/cn.ts`. It knows the app's token names, so a later class wins over an earlier one that sets the same thing (`cn("p-lg", compact && "p-sm")`).
+- Use `active:` for pressed states on `Pressable`, for example `active:opacity-70`.
+- Shared primitives (`Card`, `Hairline`, `MetricLabel`, `StatValue`) accept `className` for extra classes.
+- Keep `style` for values computed at runtime, such as a width from a chart, a color picked from data, or an animated style.
+- Third-party views need registering once in `theme/interop.ts` before `className` works on them. `SafeAreaView`, `LinearGradient`, `BlurView` and Reanimated's `Animated.View` are registered.
+- `tabular-nums` works on iOS and Android through a custom utility in `tailwind.config.ts`, since React Native has no `font-variant-numeric`.
+
 ### Light and dark themes
 
 Settings offers Dark (the default), Light and System. The choice is saved on the device in `settings.db` and applied before the first frame. `theme/tokens.ts` holds `darkColors` and `lightColors` with the same keys. Light mode keeps the same accent families, a step deeper so they still read on pale surfaces.
 
-Never import a palette directly into a component. Read colors from the active theme instead:
+Every color class points at a CSS variable (`bg-canvas` uses `--color-canvas`). `ThemeProvider` sets the variables for the active theme at the root of the app, so classes switch theme without any `dark:` variants. It also sets NativeWind's color scheme, so `dark:` variants work if you need one.
+
+Never write a hex value or import a palette in a component. For props that don't take a class, such as icon colors, SVG fills and strokes, gradient stops, `BlurView` tint or the glow shadows, read the active theme instead:
 
 ```tsx
-const useStyles = makeStyles(({ colors, glow }) =>
-  StyleSheet.create({
-    card: { backgroundColor: colors.surfaceProse, ...glow.recovery },
-  }),
-);
-
-function MyCard() {
-  const styles = useStyles();
-  const { colors, scheme } = useTheme(); // for icon colors, SVG fills, BlurView tint
-  // ...
-}
+const { colors, gradients, glow, scheme } = useTheme();
+<HeartPulse color={colors.primary} size={18} />;
 ```
 
 Helpers outside components that pick a color take `colors: ColorTokens` as a parameter.
+
+After changing `tailwind.config.ts` or a token, restart Metro with `--clear` so the styles are rebuilt.
 
 ## Privacy rules for contributors
 
