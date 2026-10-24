@@ -12,8 +12,12 @@ Everything is computed on your device. Your health data never leaves your phone.
 - **Stress and energy.** An estimate of today's stress load and an energy "battery" that charges with sleep and drains with strain and stress.
 - **Nutrition and glucose.** Calories, macros and glucose readings, shown when your health source shares them.
 
+**Fitness**
+- **Activity summary.** Active time over the last 30 days compared with the 30 before, and an activity calendar shaded by how many sessions you did each day.
+- **Cardio.** Acute:chronic workload ratio, training-load change, time in heart-rate zones and one-minute heart-rate recovery.
+- **Strength and training mix.** Strength sessions per week and your split between cardio, strength and mobility.
+
 **In progress**
-- **Fitness.** Training load, cardio zones, heart-rate recovery, an activity calendar and your strength and cardio mix.
 - **Journal.** A quick daily check-in for mood, energy and habits like caffeine, alcohol or late meals, with a weekly overview.
 - **Biology.** Longer-term biomarkers and trends.
 
@@ -37,7 +41,7 @@ Privacy is the core design rule of Allo Health, not a setting.
 
 Any app or wearable that syncs into Apple Health or Health Connect, such as Apple Watch, Garmin, Oura, Withings or Samsung Health, can feed the dashboard.
 
-Until you connect a health source, Allo Health shows realistic sample data so you can explore the app first. It only asks for permissions when you tap connect, and if access is not granted it says so clearly and keeps showing sample data.
+Until you connect a health source, Allo Health shows realistic sample data so you can explore the app first. It only asks for permissions when you tap connect, and if access is not granted it says so clearly and keeps showing sample data. Once connected, it reconnects on its own each time you open it, without asking again.
 
 A note on Apple Health: iOS does not tell apps which individual data types you declined. If a card shows a signal as unavailable, check that Allo Health is allowed to read it under Settings › Health › Data Access & Devices.
 

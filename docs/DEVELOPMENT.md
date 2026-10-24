@@ -44,7 +44,7 @@ The data source is chosen with `EXPO_PUBLIC_HEALTH_PROVIDER` in `.env.local`:
 | Value | Behaviour |
 | --- | --- |
 | `mock` (default) | The app uses realistic local sample data and never asks for health permissions. Best for UI work. |
-| `native` | The app starts in an unconnected state. Tapping connect requests read access to Apple Health on iOS or Health Connect on Android, then switches to real data. |
+| `native` | The app starts in an unconnected state. Tapping connect requests read access to Apple Health on iOS or Health Connect on Android, then switches to real data. On later launches the app re-attaches to an existing grant without a prompt. |
 
 `EXPO_PUBLIC_` variables are inlined into the JavaScript bundle at build time, so restart Metro with a cleared cache after changing it:
 
@@ -59,6 +59,7 @@ If permission is denied, the request fails, or every native read fails, the app 
 - The HealthKit entitlement and usage strings (`NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription`) come from the HealthKit config plugin in `app.json`. Access is read only.
 - The iOS simulator supports HealthKit but starts with no data. Open the Health app in the simulator and add samples by hand (for example resting heart rate, HRV and sleep), or use a real iPhone that already has data.
 - iOS never reports which individual read types the user declined. The app treats a completed permission request as connected and shows an empty signal as unavailable.
+- Workouts are read from `HKWorkoutType` for the Fitness tab.
 - To see the permission sheet again, delete the app or reset access under Settings › Health › Data Access & Devices › Allo Health.
 
 ### Health Connect (Android)
@@ -66,6 +67,7 @@ If permission is denied, the request fails, or every native read fails, the app 
 - `minSdkVersion` is 26 (Android 8.0). On Android 14 and newer Health Connect is part of the system. On older versions install the Health Connect app from Google Play.
 - Use an emulator image **with Google Play** so Health Connect is available.
 - Read permissions are declared in `app.json` under `android.permissions` and wired up by the `react-native-health-connect` plugin. Add new record types there and rebuild.
+- The app also requests `READ_HEALTH_DATA_HISTORY` so the Fitness tab can read a 60-day window, and `READ_EXERCISE` for workouts.
 - Unlike iOS, Health Connect reports exactly which permissions were granted.
 - Seed test data with any app that writes to Health Connect, or through the Health Connect toolbox app.
 - Revoke or re-grant access from Settings › Health Connect › App permissions › Allo Health.
@@ -77,6 +79,8 @@ Rebuild with `npm run ios` / `npm run android` whenever you:
 - add or upgrade a package that contains native code (for example `expo-sqlite`),
 - change native config in `app.json` (permissions, plugins, bundle identifier, icons),
 - pull changes from someone else that did either of the above.
+
+When a change adds new health read types, existing installs keep their old grant. Tap connect again (or reinstall) to grant the new types.
 
 JavaScript-only changes reload instantly through Metro. If the app crashes on launch with a missing native module error, a rebuild is almost always the fix.
 
@@ -92,7 +96,7 @@ npm run lint        # expo lint
 npm test            # jest, run in band
 ```
 
-Tests cover the pure logic in `services/` (metrics, coaching and data loading). They run in Node and do not need a simulator.
+Tests cover the pure logic in `services/` (metrics, coaching and data loading) and the health store. They run in Node and do not need a simulator.
 
 ## Project layout
 
@@ -100,9 +104,9 @@ Tests cover the pure logic in `services/` (metrics, coaching and data loading). 
 app/                 Expo Router routes; every file is a screen
   (tabs)/            Bottom tabs: Home, Journal, Fitness, Biology
 components/          UI: ui/ primitives, charts/, home/, navigation/, permissions/
-hooks/               React Query hooks such as useHealthDashboard
-services/health/     HealthProvider contract plus HealthKit, Health Connect and mock adapters
-services/metrics/    Pure score estimates: sleep, recovery, strain, stress, energy
+hooks/               React Query hooks: useHealthDashboard, useFitnessDashboard
+services/health/     HealthProvider contract, HealthKit / Health Connect / mock adapters, data loaders
+services/metrics/    Pure estimates: sleep, recovery, strain, stress, energy (index.ts), training load and zones (fitness.ts)
 services/coaching/   Deterministic daily training guidance
 stores/              Zustand stores (active health provider and connection state)
 theme/tokens.ts      Design tokens
