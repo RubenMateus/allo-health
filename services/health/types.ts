@@ -51,6 +51,30 @@ export type StressSample = {
   hrv: number;
 };
 
+export type WorkoutCategory = "cardio" | "strength" | "mixed";
+
+export type MuscleGroup = "chest" | "back" | "legs" | "core" | "arms";
+
+export type WorkoutHeartRate = {
+  average: number | null;
+  /** Heart rate at the end of the effort. */
+  peak: number | null;
+  /** Heart rate about one minute after the effort ended. */
+  recovery: number | null;
+};
+
+export type Workout = {
+  id: string;
+  activity: string;
+  category: WorkoutCategory;
+  startedAt: string;
+  endedAt: string;
+  activeEnergyKcal: number | null;
+  heartRate: WorkoutHeartRate;
+  /** Kilograms lifted per muscle group, when the source records sets. */
+  strengthVolumeKg?: Partial<Record<MuscleGroup, number>>;
+};
+
 export interface HealthProvider {
   readonly kind: "mock" | "apple" | "health-connect";
   requestPermissions(): Promise<PermissionResult>;
@@ -64,4 +88,5 @@ export interface HealthProvider {
   getNutrition(): Promise<NutritionData | null>;
   getGlucose(): Promise<GlucoseData | null>;
   getStressSamples(): Promise<StressSample[]>;
+  getWorkouts(since: Date): Promise<Workout[]>;
 }

@@ -24,7 +24,8 @@
         "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
         "android.permission.health.READ_NUTRITION",
         "android.permission.health.READ_BLOOD_GLUCOSE",
-        "android.permission.health.READ_RESPIRATORY_RATE"
+        "android.permission.health.READ_RESPIRATORY_RATE",
+        "android.permission.health.READ_EXERCISE"
       ],
       "package": "com.kineticbiometrics.app",
       "adaptiveIcon": {

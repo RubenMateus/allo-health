@@ -7,7 +7,10 @@ import type {
   SleepData,
   StrainInputs,
   StressSample,
+  Workout,
+  WorkoutCategory,
 } from "./types";
+import { summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
 
 const now = () => new Date();
 const todayStart = () => {
@@ -15,6 +18,28 @@ const todayStart = () => {
   start.setHours(0, 0, 0, 0);
   return start;
 };
+
+// HKWorkoutActivityType raw values.
+const workoutLabels: Record<number, string> = {
+  11: "Cross training",
+  13: "Ride",
+  20: "Strength",
+  24: "Hike",
+  29: "Mind & body",
+  35: "Row",
+  37: "Run",
+  46: "Swim",
+  50: "Strength",
+  52: "Walk",
+  57: "Yoga",
+  59: "Core",
+  62: "Flexibility",
+  63: "Intervals",
+  66: "Pilates",
+  73: "Mixed cardio",
+};
+const strengthTypes = new Set([20, 50, 59]);
+const mixedTypes = new Set([29, 33, 57, 62, 66, 80]);
 
 type QuantitySample = {
   quantity: number;
@@ -40,6 +65,7 @@ export class AppleHealthProvider implements HealthProvider {
       "HKQuantityTypeIdentifierDietaryFatTotal",
       "HKQuantityTypeIdentifierBloodGlucose",
       "HKQuantityTypeIdentifierRespiratoryRate",
+      "HKWorkoutTypeIdentifier",
     ] as const;
     const completed = await healthKit.requestAuthorization({
       toRead: readTypes,
@@ -56,12 +82,17 @@ export class AppleHealthProvider implements HealthProvider {
     T extends Parameters<
       (typeof import("@kingstinct/react-native-healthkit"))["queryQuantitySamples"]
     >[0],
-  >(identifier: T, unit?: string): Promise<QuantitySample[]> {
+  >(
+    identifier: T,
+    unit?: string,
+    date?: { startDate: Date; endDate: Date },
+  ): Promise<QuantitySample[]> {
     const healthKit = await import("@kingstinct/react-native-healthkit");
     const result = await healthKit.queryQuantitySamples(identifier, {
       limit: 0,
       ascending: false,
       ...(unit ? { unit } : {}),
+      ...(date ? { filter: { date } } : {}),
     } as never);
     return result as unknown as QuantitySample[];
   }
@@ -226,5 +257,61 @@ export class AppleHealthProvider implements HealthProvider {
       heartRate: sample.value,
       hrv: hrv[Math.min(index, Math.max(hrv.length - 1, 0))]?.value ?? 0,
     }));
+  }
+
+  async getWorkouts(since: Date): Promise<Workout[]> {
+    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const workouts = await healthKit.queryWorkoutSamples({
+      limit: 0,
+      ascending: true,
+      filter: { date: { startDate: since, endDate: now() } },
+    });
+    return Promise.all(
+      workouts.map(async (workout): Promise<Workout> => {
+        const type = Number(workout.workoutActivityType);
+        const category: WorkoutCategory = strengthTypes.has(type)
+          ? "strength"
+          : mixedTypes.has(type)
+            ? "mixed"
+            : "cardio";
+        const [average, endSamples] = await Promise.all([
+          workout
+            .getStatistic("HKQuantityTypeIdentifierHeartRate", "count/min")
+            .catch(() => undefined),
+          // Only the minute before and two minutes after the end are needed for recovery.
+          this.quantity("HKQuantityTypeIdentifierHeartRate", "count/min", {
+            startDate: new Date(workout.endDate.getTime() - 60_000),
+            endDate: new Date(workout.endDate.getTime() + 120_000),
+          }).catch(() => []),
+        ]);
+        const endHeartRate = summarizeWorkoutHeartRate(
+          endSamples.map((sample) => ({
+            value: sample.quantity,
+            unit: "bpm",
+            timestamp: sample.endDate.toISOString(),
+          })),
+          new Date(workout.endDate.getTime() - 60_000).toISOString(),
+          workout.endDate.toISOString(),
+        );
+        const energy = workout.totalEnergyBurned;
+        return {
+          id: workout.uuid,
+          activity: workoutLabels[type] ?? "Workout",
+          category,
+          startedAt: workout.startDate.toISOString(),
+          endedAt: workout.endDate.toISOString(),
+          activeEnergyKcal: energy
+            ? energy.unit === "kJ"
+              ? energy.quantity / 4.184
+              : energy.quantity
+            : null,
+          heartRate: {
+            average: average?.averageQuantity?.quantity ?? null,
+            peak: endHeartRate.peak,
+            recovery: endHeartRate.recovery,
+          },
+        };
+      }),
+    );
   }
 }

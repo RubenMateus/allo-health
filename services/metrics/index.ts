@@ -160,3 +160,5 @@ export function averageSamples(
     ? average(samples.map((sample) => sample.value))
     : fallback;
 }
+
+export * from "./fitness";

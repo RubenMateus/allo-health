@@ -57,3 +57,39 @@ export function convertGlucose(
   if (!usesMetricDisplay && sourceUnit === "mmol/L") return value * 18.018;
   return value;
 }
+
+export function formatDuration(minutes: number): string {
+  const rounded = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(rounded / 60);
+  const rest = rounded % 60;
+  if (hours === 0) return `${rest}m`;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
+
+/** Formats a local YYYY-MM-DD day key, e.g. "28 Aug" or "Aug 28" by locale. */
+export function formatDay(dayKey: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${dayKey}T12:00:00`));
+}
+
+export function formatMonth(date: Date): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+export function formatMass(kilograms: number): {
+  value: string;
+  unit: "kg" | "lb";
+} {
+  const value = usesMetricDisplay ? kilograms : kilograms * 2.20462;
+  return {
+    value: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
+      Math.round(value),
+    ),
+    unit: usesMetricDisplay ? "kg" : "lb",
+  };
+}

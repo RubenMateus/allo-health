@@ -7,6 +7,7 @@ import type {
   SleepData,
   StrainInputs,
   StressSample,
+  Workout,
 } from "./types";
 
 const minutesAgo = (minutes: number) =>
@@ -45,6 +46,80 @@ const glucoseValues = makeSeries(
   16,
   "mg/dL",
 );
+
+// A repeating two-week training block: [days ago % 14, activity, minutes, avg HR].
+const trainingBlock = [
+  [0, "Run", 48, 148],
+  [1, "Strength", 55, 118],
+  [2, "Ride", 70, 136],
+  [4, "Intervals", 38, 166],
+  [4, "Strength", 45, 115],
+  [5, "Run", 42, 152],
+  [7, "Long run", 95, 142],
+  [8, "Strength", 60, 120],
+  [9, "Run", 35, 150],
+  [10, "Ride", 80, 134],
+  [11, "Intervals", 32, 170],
+  [11, "Mobility", 25, 96],
+  [12, "Strength", 50, 117],
+  [13, "Run", 40, 146],
+] as const;
+
+const strengthSplits = [
+  { chest: 640, back: 520, arms: 340, core: 120 },
+  { legs: 760, back: 330, core: 180 },
+  { chest: 480, arms: 420, core: 140, back: 260 },
+] as const;
+
+function mockWorkouts(since: Date): Workout[] {
+  const workouts: Workout[] = [];
+  const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
+  for (let daysAgo = 0; daysAgo <= days; daysAgo += 1) {
+    trainingBlock.forEach(
+      ([slot, activity, minutes, averageHeartRate], index) => {
+        if (slot !== daysAgo % 14) return;
+        // Earlier weeks are slightly lighter so the block shows progression.
+        const scale = 1 - Math.floor(daysAgo / 14) * 0.04;
+        const start = new Date();
+        start.setDate(start.getDate() - daysAgo);
+        start.setHours(index % 2 ? 18 : 7, 15, 0, 0);
+        if (start.getTime() > Date.now() || start < since) return;
+        const duration = Math.round(minutes * scale);
+        const strength = activity === "Strength";
+        const peak = averageHeartRate + (strength ? 14 : 22);
+        workouts.push({
+          id: `mock-${daysAgo}-${index}`,
+          activity,
+          category: strength
+            ? "strength"
+            : activity === "Mobility"
+              ? "mixed"
+              : "cardio",
+          startedAt: start.toISOString(),
+          endedAt: new Date(start.getTime() + duration * 60_000).toISOString(),
+          activeEnergyKcal: Math.round(
+            duration * (averageHeartRate - 50) * 0.09,
+          ),
+          heartRate: {
+            average: Math.round(averageHeartRate * (0.97 + scale * 0.03)),
+            peak,
+            recovery: peak - (38 + ((daysAgo * 7) % 13)),
+          },
+          ...(strength
+            ? {
+                strengthVolumeKg: Object.fromEntries(
+                  Object.entries(strengthSplits[daysAgo % 3]!).map(
+                    ([group, kg]) => [group, Math.round(kg * scale)],
+                  ),
+                ),
+              }
+            : {}),
+        });
+      },
+    );
+  }
+  return workouts;
+}
 
 export class MockHealthProvider implements HealthProvider {
   readonly kind = "mock" as const;
@@ -111,5 +186,9 @@ export class MockHealthProvider implements HealthProvider {
       heartRate: sample.value,
       hrv: hrvValues[Math.min(index, hrvValues.length - 1)]?.value ?? 48,
     }));
+  }
+
+  async getWorkouts(since: Date): Promise<Workout[]> {
+    return mockWorkouts(since);
   }
 }

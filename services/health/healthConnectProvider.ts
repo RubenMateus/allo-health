@@ -8,7 +8,10 @@ import type {
   SleepData,
   StrainInputs,
   StressSample,
+  Workout,
+  WorkoutCategory,
 } from "./types";
+import { summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
 
 const now = () => new Date();
 const todayStart = () => {
@@ -26,7 +29,26 @@ const requestedRecords = [
   "Nutrition",
   "BloodGlucose",
   "RespiratoryRate",
+  "ExerciseSession",
 ] as const;
+
+// Health Connect ExerciseSessionRecord exercise types.
+const exerciseLabels: Record<number, string> = {
+  8: "Ride",
+  13: "Calisthenics",
+  36: "Intervals",
+  53: "Row",
+  56: "Run",
+  70: "Strength",
+  74: "Swim",
+  79: "Walk",
+  81: "Strength",
+  83: "Yoga",
+  48: "Pilates",
+  37: "Hike",
+};
+const strengthExercises = new Set([13, 70, 81]);
+const mixedExercises = new Set([48, 83]);
 
 type HealthConnectModule = typeof import("react-native-health-connect");
 
@@ -71,13 +93,15 @@ export class HealthConnectProvider implements HealthProvider {
 
   private async read<T extends RecordType>(
     recordType: T,
+    startTime = new Date(Date.now() - 36 * 60 * 60_000),
+    endTime = now(),
   ): Promise<RecordResult<T>[]> {
     const api = await this.api();
     const result = await api.readRecords(recordType, {
       timeRangeFilter: {
         operator: "between",
-        startTime: new Date(Date.now() - 36 * 60 * 60_000).toISOString(),
-        endTime: now().toISOString(),
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
       },
     });
     return result.records;
@@ -222,5 +246,55 @@ export class HealthConnectProvider implements HealthProvider {
       heartRate: sample.value,
       hrv: hrv[Math.min(index, Math.max(hrv.length - 1, 0))]?.value ?? 0,
     }));
+  }
+
+  async getWorkouts(since: Date): Promise<Workout[]> {
+    const sessions = await this.read("ExerciseSession", since);
+    return Promise.all(
+      sessions.map(async (session): Promise<Workout> => {
+        const start = new Date(session.startTime);
+        const end = new Date(session.endTime);
+        const [heartRate, calories] = await Promise.all([
+          this.read(
+            "HeartRate",
+            start,
+            new Date(end.getTime() + 120_000),
+          ).catch(() => []),
+          this.read("ActiveCaloriesBurned", start, end).catch(() => []),
+        ]);
+        const category: WorkoutCategory = strengthExercises.has(
+          session.exerciseType,
+        )
+          ? "strength"
+          : mixedExercises.has(session.exerciseType)
+            ? "mixed"
+            : "cardio";
+        return {
+          id: session.metadata?.id ?? session.startTime,
+          activity:
+            session.title ?? exerciseLabels[session.exerciseType] ?? "Workout",
+          category,
+          startedAt: session.startTime,
+          endedAt: session.endTime,
+          activeEnergyKcal: calories.length
+            ? calories.reduce(
+                (total, record) => total + record.energy.inKilocalories,
+                0,
+              )
+            : null,
+          heartRate: summarizeWorkoutHeartRate(
+            heartRate.flatMap((record) =>
+              record.samples.map((sample) => ({
+                value: sample.beatsPerMinute,
+                unit: "bpm",
+                timestamp: sample.time,
+              })),
+            ),
+            session.startTime,
+            session.endTime,
+          ),
+        };
+      }),
+    );
   }
 }

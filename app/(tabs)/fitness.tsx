@@ -1,5 +1,3 @@
-import { Screen } from "@/components/ui/primitives";
+import { FitnessScreen } from "@/components/fitness/FitnessScreen";
 
-export default function FitnessScreen() {
-  return <Screen />;
-}
+export default FitnessScreen;
