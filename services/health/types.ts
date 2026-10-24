@@ -51,6 +51,25 @@ export type StressSample = {
   hrv: number;
 };
 
+export type BiomarkerKind =
+  | "weight"
+  | "hrv"
+  | "restingHeartRate"
+  | "bodyFat"
+  | "leanBodyMass"
+  | "vo2Max"
+  | "bloodOxygen"
+  | "respiratoryRate";
+
+export type BiologicalSex = "female" | "male";
+
+/** Age and sex, used only on-device to rate biomarkers against reference ranges. */
+export type HealthProfile = {
+  /** Local YYYY-MM-DD. */
+  birthDate: string | null;
+  sex: BiologicalSex | null;
+};
+
 export type WorkoutCategory = "cardio" | "strength" | "mixed";
 
 export type WorkoutHeartRate = {
@@ -69,6 +88,8 @@ export type Workout = {
   endedAt: string;
   activeEnergyKcal: number | null;
   heartRate: WorkoutHeartRate;
+  /** Average heart rate for each minute of the workout; 0 where there was no reading. */
+  heartRateByMinute?: number[];
 };
 
 export interface HealthProvider {
@@ -87,4 +108,11 @@ export interface HealthProvider {
   getGlucose(): Promise<GlucoseData | null>;
   getStressSamples(): Promise<StressSample[]>;
   getWorkouts(since: Date): Promise<Workout[]>;
+  /** One value per day (the daily average), oldest first. */
+  getBiomarkerHistory(
+    kind: BiomarkerKind,
+    since: Date,
+  ): Promise<HealthSample[]>;
+  /** Age and sex from the health source, where the platform shares them. */
+  getProfile(): Promise<HealthProfile>;
 }

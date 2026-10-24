@@ -39,6 +39,11 @@ export type FitnessDay = {
   minutes: number;
   sessions: number;
   load: number;
+  /** Load from cardio and mixed sessions. */
+  cardioLoad: number;
+  /** Load from strength sessions. */
+  muscularLoad: number;
+  energyKcal: number;
 };
 
 export type ActivitySummary = {
@@ -130,7 +135,15 @@ export function buildFitnessDays(
   for (let offset = days - 1; offset >= 0; offset -= 1) {
     const date = new Date(end);
     date.setDate(end.getDate() - offset);
-    const day = { date: dayKey(date), minutes: 0, sessions: 0, load: 0 };
+    const day = {
+      date: dayKey(date),
+      minutes: 0,
+      sessions: 0,
+      load: 0,
+      cardioLoad: 0,
+      muscularLoad: 0,
+      energyKcal: 0,
+    };
     buckets.set(day.date, day);
     result.push(day);
   }
@@ -139,7 +152,11 @@ export function buildFitnessDays(
     if (!day) continue;
     day.minutes += workoutMinutes(workout);
     day.sessions += 1;
-    day.load += calculateTrainingLoad(workout, profile);
+    const load = calculateTrainingLoad(workout, profile);
+    day.load += load;
+    if (workout.category === "strength") day.muscularLoad += load;
+    else day.cardioLoad += load;
+    day.energyKcal += workout.activeEnergyKcal ?? 0;
   }
   return result;
 }
@@ -284,6 +301,29 @@ export function summarizeWorkoutHeartRate(
     peak,
     recovery: peak === null ? null : (after[0]?.value ?? null),
   };
+}
+
+/** Averages heart-rate samples into one value per minute of the workout (0 = no reading). */
+export function heartRateByMinute(
+  samples: HealthSample[],
+  startedAt: string,
+  endedAt: string,
+): number[] {
+  const start = new Date(startedAt).getTime();
+  const minutes = Math.ceil((new Date(endedAt).getTime() - start) / 60_000);
+  if (minutes <= 0) return [];
+  const totals = Array.from({ length: minutes }, () => ({ sum: 0, count: 0 }));
+  for (const sample of samples) {
+    const index = Math.floor(
+      (new Date(sample.timestamp).getTime() - start) / 60_000,
+    );
+    if (index < 0 || index >= minutes) continue;
+    totals[index]!.sum += sample.value;
+    totals[index]!.count += 1;
+  }
+  return totals.map(({ sum: total, count }) =>
+    count ? Math.round(total / count) : 0,
+  );
 }
 
 /** One-minute heart-rate recovery (bpm drop) for each workout that has it, oldest first. */

@@ -87,6 +87,10 @@ export function HealthPermissionSheet({
               detail="Active energy and exercise intensity"
             />
             <PermissionRow
+              title="Body & fitness"
+              detail="Weight, body composition, VO2 max, blood oxygen"
+            />
+            <PermissionRow
               title="Metabolic signals"
               detail="Nutrition and glucose, when available"
             />

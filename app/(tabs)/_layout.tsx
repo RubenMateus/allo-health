@@ -27,7 +27,7 @@ export default function TabLayout() {
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="journal" options={{ title: "Journal" }} />
         <Tabs.Screen name="fitness" options={{ title: "Fitness" }} />
-        <Tabs.Screen name="biology" options={{ title: "Biology" }} />
+        <Tabs.Screen name="biomarkers" options={{ title: "Biomarkers" }} />
       </Tabs>
     </BlurTargetView>
   );

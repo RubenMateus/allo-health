@@ -1,5 +1,7 @@
 import type {
+  BiomarkerKind,
   GlucoseData,
+  HealthProfile,
   HealthProvider,
   HealthSample,
   NutritionData,
@@ -65,6 +67,23 @@ const trainingBlock = [
   [13, "Run", 40, 146],
 ] as const;
 
+/** Warm-up, steady work (or 3-minute intervals) and cool-down around an average. */
+function mockHeartRateTrace(
+  minutes: number,
+  average: number,
+  intervals: boolean,
+): number[] {
+  return Array.from({ length: minutes }, (_, minute) => {
+    const warmUp = Math.min(1, (minute + 1) / 8);
+    const coolDown = Math.min(1, (minutes - minute) / 5);
+    const surge = intervals ? (Math.floor(minute / 3) % 2 ? 14 : -10) : 0;
+    const drift = Math.sin(minute * 0.9) * 4;
+    return Math.round(
+      (average + surge + drift) * (0.72 + 0.28 * Math.min(warmUp, coolDown)),
+    );
+  });
+}
+
 function mockWorkouts(since: Date): Workout[] {
   const workouts: Workout[] = [];
   const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
@@ -99,11 +118,59 @@ function mockWorkouts(since: Date): Workout[] {
             peak,
             recovery: peak - (38 + ((daysAgo * 7) % 13)),
           },
+          heartRateByMinute: mockHeartRateTrace(
+            duration,
+            averageHeartRate,
+            activity === "Intervals",
+          ),
         });
       },
     );
   }
   return workouts;
+}
+
+// [value a year ago, value today, day-to-day wobble, days between readings, unit]
+const biomarkerShapes: Record<
+  BiomarkerKind,
+  [start: number, end: number, wobble: number, every: number, unit: string]
+> = {
+  weight: [87.6, 84.8, 0.35, 1, "kg"],
+  hrv: [58, 66, 6, 1, "ms"],
+  restingHeartRate: [56, 52, 1.5, 1, "bpm"],
+  bodyFat: [20.4, 17.2, 0.4, 7, "%"],
+  leanBodyMass: [66.1, 67.4, 0.3, 7, "kg"],
+  vo2Max: [41.6, 44.2, 0.4, 3, "ml/kg/min"],
+  bloodOxygen: [97.4, 97.8, 0.6, 1, "%"],
+  respiratoryRate: [14.6, 14.2, 0.4, 1, "br/min"],
+};
+
+function mockBiomarkerHistory(
+  kind: BiomarkerKind,
+  since: Date,
+): HealthSample[] {
+  const [start, end, wobble, every, unit] = biomarkerShapes[kind];
+  const days = Math.min(
+    365,
+    Math.ceil((Date.now() - since.getTime()) / 86_400_000),
+  );
+  const samples: HealthSample[] = [];
+  for (let daysAgo = days; daysAgo >= 0; daysAgo -= 1) {
+    if (daysAgo % every !== 0) continue;
+    const progress = 1 - daysAgo / 365;
+    // Two out-of-step sine waves give repeatable noise without a random seed.
+    const noise =
+      Math.sin(daysAgo * 1.7) * 0.6 + Math.sin(daysAgo * 0.37) * 0.4;
+    const day = new Date();
+    day.setDate(day.getDate() - daysAgo);
+    day.setHours(0, 0, 0, 0);
+    samples.push({
+      value: start + (end - start) * progress + noise * wobble,
+      unit,
+      timestamp: day.toISOString(),
+    });
+  }
+  return samples;
 }
 
 export class MockHealthProvider implements HealthProvider {
@@ -179,5 +246,16 @@ export class MockHealthProvider implements HealthProvider {
 
   async getWorkouts(since: Date): Promise<Workout[]> {
     return mockWorkouts(since);
+  }
+
+  async getBiomarkerHistory(
+    kind: BiomarkerKind,
+    since: Date,
+  ): Promise<HealthSample[]> {
+    return mockBiomarkerHistory(kind, since);
+  }
+
+  async getProfile(): Promise<HealthProfile> {
+    return { birthDate: "1990-03-14", sex: "male" };
   }
 }
