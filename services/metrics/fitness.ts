@@ -1,7 +1,7 @@
 import type {
   HealthSample,
-  MuscleGroup,
   Workout,
+  WorkoutCategory,
   WorkoutHeartRate,
 } from "@/services/health/types";
 
@@ -12,13 +12,21 @@ const sum = (values: number[]) =>
 const mean = (values: number[]) =>
   values.length ? sum(values) / values.length : 0;
 
-export const muscleGroups: MuscleGroup[] = [
-  "chest",
-  "back",
-  "legs",
-  "core",
-  "arms",
-];
+/** Largest-remainder rounding so whole-number shares always add up to 100. */
+function percentages(values: number[]): number[] {
+  const total = sum(values);
+  if (total <= 0) return values.map(() => 0);
+  const exact = values.map((value) => (value / total) * 100);
+  const rounded = exact.map(Math.floor);
+  const order = exact
+    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
+    .sort((a, b) => b.remainder - a.remainder);
+  const missing = 100 - sum(rounded);
+  for (let i = 0; i < missing; i += 1) {
+    rounded[order[i]!.index]! += 1;
+  }
+  return rounded;
+}
 
 export type HeartRateProfile = {
   restingHeartRate: number;
@@ -56,8 +64,18 @@ export type CardioFocus = {
 };
 
 export type StrengthSummary = {
-  byGroup: Record<MuscleGroup, number>;
-  totalKg: number;
+  sessions: number;
+  minutes: number;
+  activeEnergyKcal: number | null;
+  averageHeartRate: number | null;
+  /** Strength sessions per rolling week, oldest first. */
+  weekly: number[];
+};
+
+export type TrainingMixEntry = {
+  category: WorkoutCategory;
+  minutes: number;
+  share: number;
 };
 
 export function dayKey(date: Date): string {
@@ -222,16 +240,11 @@ export function calculateCardioFocus(
   }
   const total = minutes.aerobic + minutes.threshold + minutes.anaerobic;
   if (total <= 0) return null;
-  // Largest-remainder rounding so the three shares always add up to 100.
-  const keys = ["aerobic", "threshold", "anaerobic"] as const;
-  const exact = keys.map((key) => (minutes[key] / total) * 100);
-  const rounded = exact.map(Math.floor);
-  const order = exact
-    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
-    .sort((a, b) => b.remainder - a.remainder);
-  for (let i = 0; i < 100 - sum(rounded); i += 1) {
-    rounded[order[i]!.index]! += 1;
-  }
+  const rounded = percentages([
+    minutes.aerobic,
+    minutes.threshold,
+    minutes.anaerobic,
+  ]);
   return {
     aerobic: rounded[0]!,
     threshold: rounded[1]!,
@@ -295,23 +308,56 @@ export function heartRateRecoveryRating(bpm: number): string {
         : "Low";
 }
 
-export function summarizeStrengthVolume(
+export function summarizeStrength(
   workouts: Workout[],
-): StrengthSummary | null {
-  const byGroup = Object.fromEntries(
-    muscleGroups.map((group) => [group, 0]),
-  ) as Record<MuscleGroup, number>;
-  let recorded = false;
-  for (const workout of workouts) {
-    if (!workout.strengthVolumeKg) continue;
-    for (const group of muscleGroups) {
-      const volume = workout.strengthVolumeKg[group];
-      if (volume === undefined) continue;
-      byGroup[group] += volume;
-      recorded = true;
-    }
+  end: Date,
+  weeks = 4,
+): StrengthSummary {
+  const strength = workouts.filter(
+    (workout) => workout.category === "strength",
+  );
+  const weekly = Array.from({ length: weeks }, () => 0);
+  const endDay = new Date(end);
+  endDay.setHours(23, 59, 59, 999);
+  for (const workout of strength) {
+    // Rolling 7-day weeks ending today, oldest first.
+    const weeksAgo = Math.floor(
+      (endDay.getTime() - new Date(workout.startedAt).getTime()) /
+        (7 * 86_400_000),
+    );
+    if (weeksAgo >= 0 && weeksAgo < weeks) weekly[weeks - 1 - weeksAgo]! += 1;
   }
-  if (!recorded) return null;
-  for (const group of muscleGroups) byGroup[group] = Math.round(byGroup[group]);
-  return { byGroup, totalKg: sum(Object.values(byGroup)) };
+  const energy = strength.flatMap((workout) =>
+    workout.activeEnergyKcal === null ? [] : [workout.activeEnergyKcal],
+  );
+  const heartRates = strength.flatMap((workout) =>
+    workout.heartRate.average === null ? [] : [workout.heartRate.average],
+  );
+  return {
+    sessions: strength.length,
+    minutes: Math.round(sum(strength.map(workoutMinutes))),
+    activeEnergyKcal: energy.length ? Math.round(sum(energy)) : null,
+    averageHeartRate: heartRates.length ? Math.round(mean(heartRates)) : null,
+    weekly,
+  };
+}
+
+/** Share of training minutes per workout category, adding up to 100. */
+export function summarizeTrainingMix(workouts: Workout[]): TrainingMixEntry[] {
+  const categories: WorkoutCategory[] = ["cardio", "strength", "mixed"];
+  const minutes = categories.map((category) =>
+    sum(
+      workouts
+        .filter((workout) => workout.category === category)
+        .map(workoutMinutes),
+    ),
+  );
+  const shares = percentages(minutes);
+  return categories
+    .map((category, index) => ({
+      category,
+      minutes: Math.round(minutes[index]!),
+      share: shares[index]!,
+    }))
+    .filter((entry) => entry.minutes > 0);
 }

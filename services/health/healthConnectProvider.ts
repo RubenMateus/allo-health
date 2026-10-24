@@ -70,15 +70,42 @@ export class HealthConnectProvider implements HealthProvider {
         grantedTypes: 0,
         requestedTypes: requestedRecords.length,
       };
-    const permissions = await api.requestPermission(
-      requestedRecords.map((recordType) => ({
+    const permissions = await api.requestPermission([
+      ...requestedRecords.map((recordType) => ({
         accessType: "read" as const,
         recordType,
       })),
-    );
-    const count = permissions.filter(
-      (permission) => permission.accessType === "read",
-    ).length;
+      // Without this, Health Connect only returns data from 30 days before the first grant,
+      // which would cut off the Fitness tab's previous-period comparison.
+      {
+        accessType: "read" as const,
+        recordType: "ReadHealthDataHistory" as const,
+      },
+    ]);
+    return this.toResult(permissions);
+  }
+
+  async getConnectionStatus(): Promise<PermissionResult | null> {
+    const api = await this.api();
+    if (!(await api.initialize())) return null;
+    const result = this.toResult(await api.getGrantedPermissions());
+    return result.grantedTypes > 0 ? result : null;
+  }
+
+  private toResult(
+    permissions: Array<{ accessType: string; recordType: string }>,
+  ): PermissionResult {
+    const count = new Set(
+      permissions
+        .filter(
+          (permission) =>
+            permission.accessType === "read" &&
+            (requestedRecords as readonly string[]).includes(
+              permission.recordType,
+            ),
+        )
+        .map((permission) => permission.recordType),
+    ).size;
     return {
       state:
         count === 0
@@ -97,14 +124,22 @@ export class HealthConnectProvider implements HealthProvider {
     endTime = now(),
   ): Promise<RecordResult<T>[]> {
     const api = await this.api();
-    const result = await api.readRecords(recordType, {
-      timeRangeFilter: {
-        operator: "between",
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-      },
-    });
-    return result.records;
+    const records: RecordResult<T>[] = [];
+    let pageToken: string | undefined;
+    // readRecords returns at most one page (1,000 records by default).
+    do {
+      const page = await api.readRecords(recordType, {
+        timeRangeFilter: {
+          operator: "between",
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+        },
+        ...(pageToken ? { pageToken } : {}),
+      });
+      records.push(...page.records);
+      pageToken = page.pageToken || undefined;
+    } while (pageToken);
+    return records;
   }
 
   async getSleep(): Promise<SleepData | null> {

@@ -1,6 +1,5 @@
 import * as Haptics from "expo-haptics";
 import {
-  ArrowRight,
   ArrowDownRight,
   ArrowUpRight,
   CalendarDays,
@@ -27,7 +26,6 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { CumulativeChart } from "@/components/charts/CumulativeChart";
-import { RadarChart } from "@/components/charts/RadarChart";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { ActivityCalendar } from "@/components/fitness/ActivityCalendar";
 import {
@@ -41,11 +39,10 @@ import { useFitnessDashboard } from "@/hooks/useFitnessDashboard";
 import type { FitnessData } from "@/services/health/fitness";
 import {
   heartRateRecoveryRating,
-  muscleGroups,
   type AcuteChronicSummary,
 } from "@/services/metrics";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
-import { formatDay, formatDuration, formatMass } from "@/utils/formatters";
+import { formatDay, formatDuration, formatEnergy } from "@/utils/formatters";
 
 export function FitnessScreen() {
   const { width } = useWindowDimensions();
@@ -294,47 +291,19 @@ function FitnessSections({
 
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Strength & Muscular Strain</Text>
+          <Text style={styles.sectionTitle}>Strength & Training Mix</Text>
         </View>
         <Card style={styles.flushCard}>
-          {data.strength ? (
+          {data.workoutCount ? (
             <>
-              <View style={styles.radarWrap}>
-                <RadarChart
-                  size={Math.min(contentWidth, 320)}
-                  accessibilityLabel={`Strength volume by muscle group, ${formatMass(data.strength.totalKg).value} ${formatMass(data.strength.totalKg).unit} total`}
-                  axes={muscleGroups.map((group) => {
-                    const mass = formatMass(data.strength!.byGroup[group]);
-                    return {
-                      label: group,
-                      value: data.strength!.byGroup[group],
-                      display: `${mass.value} ${mass.unit}`,
-                    };
-                  })}
-                />
-              </View>
+              <StrengthBlock strength={data.strength} />
               <Hairline />
-              <View style={styles.volumeRow}>
-                <View style={styles.volumeIcon}>
-                  <Dumbbell color={colors.primary} size={18} />
-                </View>
-                <View style={styles.volumeCopy}>
-                  <Text style={styles.volumeLabel}>TOTAL VOLUME</Text>
-                  <Text style={styles.volumeCaption}>Muscular Load</Text>
-                </View>
-                <Text style={styles.volumeValue}>
-                  {formatMass(data.strength.totalKg).value}
-                  <Text style={styles.volumeUnit}>
-                    {" "}
-                    {formatMass(data.strength.totalKg).unit}
-                  </Text>
-                </Text>
-              </View>
+              <TrainingMixBlock mix={data.trainingMix} />
             </>
           ) : (
             <EmptyState
-              title="No strength volume"
-              detail="Apple Health and Health Connect don't share sets and weights yet, so lifting volume per muscle group isn't available from this source."
+              title="No workouts yet"
+              detail="Strength sessions and your training mix will appear once workouts are recorded."
             />
           )}
         </Card>
@@ -363,9 +332,173 @@ function CardHeading({
     <View style={styles.cardHeading}>
       {icon}
       <Text style={styles.cardLabel}>{label}</Text>
-      <View style={styles.cardTrailing}>
-        {trailing}
-        <ArrowRight color={colors.textSubtle} size={15} />
+      <View style={styles.cardTrailing}>{trailing}</View>
+    </View>
+  );
+}
+
+const WEEK_LABELS = ["3w ago", "2w ago", "Last wk", "This wk"];
+
+const mixStyles: Record<
+  FitnessData["trainingMix"][number]["category"],
+  { label: string; color: string }
+> = {
+  cardio: { label: "Cardio", color: colors.primary },
+  strength: { label: "Strength", color: colors.fat },
+  mixed: { label: "Mobility & other", color: colors.salmon },
+};
+
+function StrengthBlock({ strength }: { strength: FitnessData["strength"] }) {
+  const peak = Math.max(...strength.weekly, 1);
+  const energy =
+    strength.activeEnergyKcal === null
+      ? null
+      : formatEnergy(strength.activeEnergyKcal);
+  return (
+    <View style={styles.metricBlock}>
+      <CardHeading
+        icon={<Dumbbell color={colors.text} size={15} />}
+        label="STRENGTH SESSIONS"
+      />
+      {strength.sessions === 0 ? (
+        <Text style={styles.cellEmpty}>
+          No strength workouts in the last 30 days.
+        </Text>
+      ) : (
+        <>
+          <View style={styles.metricRow}>
+            <View style={styles.metricCopy}>
+              <View style={styles.inlineValue}>
+                <Text style={styles.metricValue}>{strength.sessions}</Text>
+                <Text style={styles.metricCaption}>
+                  {strength.sessions === 1 ? "session" : "sessions"}
+                </Text>
+              </View>
+              <Text style={styles.metricCaption}>
+                {formatDuration(strength.minutes)} under load
+              </Text>
+            </View>
+            <View
+              style={styles.weekBars}
+              accessible
+              accessibilityLabel={`Strength sessions per week, oldest first: ${strength.weekly.join(", ")}`}
+            >
+              {strength.weekly.map((count, index) => (
+                <View key={WEEK_LABELS[index]} style={styles.weekColumn}>
+                  <Text style={styles.weekCount}>{count}</Text>
+                  <View style={styles.weekTrack}>
+                    <View
+                      style={[
+                        styles.weekFill,
+                        {
+                          height: `${(count / peak) * 100}%`,
+                          backgroundColor:
+                            index === strength.weekly.length - 1
+                              ? colors.primaryBright
+                              : colors.fat,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.weekLabel}>{WEEK_LABELS[index]}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.statRow}>
+            <MiniStat
+              label="AVG HR"
+              value={
+                strength.averageHeartRate === null
+                  ? "--"
+                  : `${strength.averageHeartRate}`
+              }
+              unit="bpm"
+            />
+            <MiniStat
+              label="ACTIVE ENERGY"
+              value={energy?.value ?? "--"}
+              unit={energy?.unit ?? "kcal"}
+            />
+            <MiniStat
+              label="AVG SESSION"
+              value={formatDuration(strength.minutes / strength.sessions)}
+            />
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) {
+  return (
+    <View style={styles.miniStat}>
+      <Text style={styles.miniLabel}>{label}</Text>
+      <Text style={styles.miniValue}>
+        {value}
+        {unit ? <Text style={styles.miniUnit}> {unit}</Text> : null}
+      </Text>
+    </View>
+  );
+}
+
+function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
+  return (
+    <View style={styles.metricBlock}>
+      <CardHeading
+        icon={<Layers color={colors.text} size={15} />}
+        label="TRAINING MIX"
+      />
+      <View style={styles.mixBar}>
+        {mix.map((entry) => (
+          <View
+            key={entry.category}
+            style={{
+              flex: entry.minutes,
+              backgroundColor: mixStyles[entry.category].color,
+            }}
+          />
+        ))}
+      </View>
+      <View style={styles.mixLegend}>
+        {mix.map((entry) => (
+          <View
+            key={entry.category}
+            style={styles.mixRow}
+            accessible
+            accessibilityLabel={`${mixStyles[entry.category].label} ${entry.share} percent, ${formatDuration(entry.minutes)}`}
+          >
+            <View
+              style={[
+                styles.mixDot,
+                { backgroundColor: mixStyles[entry.category].color },
+              ]}
+            />
+            <Text style={styles.mixLabel}>
+              {mixStyles[entry.category].label}
+            </Text>
+            <Text style={styles.mixMinutes}>
+              {formatDuration(entry.minutes)}
+            </Text>
+            <Text
+              style={[
+                styles.mixShare,
+                { color: mixStyles[entry.category].color },
+              ]}
+            >
+              {entry.share}%
+            </Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -642,31 +775,52 @@ const styles = StyleSheet.create({
   hrrRating: { ...typography.caption, color: colors.primary, marginTop: -6 },
   hrrWindow: { ...typography.mono, color: colors.textSubtle },
   hrrChart: { marginTop: spacing.sm },
-  radarWrap: { alignItems: "center", paddingVertical: spacing.lg },
-  volumeRow: {
+  weekBars: { flexDirection: "row", gap: spacing.sm },
+  weekColumn: { alignItems: "center", gap: spacing["2xs"], width: 40 },
+  weekCount: { ...typography.mono, color: colors.text },
+  weekTrack: {
+    width: 14,
+    height: 48,
+    borderRadius: radii.sm,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+    backgroundColor: colors.track,
+  },
+  weekFill: { width: "100%", borderRadius: radii.sm },
+  weekLabel: { ...typography.monoSmall, fontSize: 9, color: colors.textSubtle },
+  statRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevatedProse,
+    justifyContent: "space-between",
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineSoft,
   },
-  volumeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceHigh,
-  },
-  volumeCopy: { flex: 1, gap: spacing["2xs"] },
-  volumeLabel: { ...typography.badge, color: colors.text },
-  volumeCaption: { ...typography.caption, color: colors.textMuted },
-  volumeValue: {
-    ...typography.metricXL,
+  miniStat: { gap: spacing.xs },
+  miniLabel: { ...typography.badge, color: colors.textSubtle },
+  miniValue: {
+    ...typography.subheading,
     color: colors.text,
     fontVariant: ["tabular-nums"],
   },
-  volumeUnit: { ...typography.mono, color: colors.textMuted },
+  miniUnit: { ...typography.mono, color: colors.textSubtle },
+  mixBar: {
+    flexDirection: "row",
+    height: 8,
+    gap: 3,
+    borderRadius: radii.full,
+    overflow: "hidden",
+  },
+  mixLegend: { gap: spacing.sm },
+  mixRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  mixDot: { width: 7, height: 7, borderRadius: radii.full },
+  mixLabel: { ...typography.caption, color: colors.text, flex: 1 },
+  mixMinutes: { ...typography.mono, color: colors.textMuted },
+  mixShare: {
+    ...typography.mono,
+    width: 40,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
+  },
   footerNote: {
     flexDirection: "row",
     alignItems: "center",

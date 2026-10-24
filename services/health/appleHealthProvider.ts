@@ -13,6 +13,10 @@ import type {
 import { summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
 
 const now = () => new Date();
+const recentWindow = () => ({
+  startDate: new Date(Date.now() - 36 * 60 * 60_000),
+  endDate: now(),
+});
 const todayStart = () => {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -48,25 +52,32 @@ type QuantitySample = {
   endDate: Date;
 };
 
+const readTypes = [
+  "HKCategoryTypeIdentifierSleepAnalysis",
+  "HKQuantityTypeIdentifierHeartRate",
+  "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+  "HKQuantityTypeIdentifierRestingHeartRate",
+  "HKQuantityTypeIdentifierActiveEnergyBurned",
+  "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+  "HKQuantityTypeIdentifierDietaryProtein",
+  "HKQuantityTypeIdentifierDietaryCarbohydrates",
+  "HKQuantityTypeIdentifierDietaryFatTotal",
+  "HKQuantityTypeIdentifierBloodGlucose",
+  "HKQuantityTypeIdentifierRespiratoryRate",
+  "HKWorkoutTypeIdentifier",
+] as const;
+
 export class AppleHealthProvider implements HealthProvider {
   readonly kind = "apple" as const;
 
   async requestPermissions(): Promise<PermissionResult> {
     const healthKit = await import("@kingstinct/react-native-healthkit");
-    const readTypes = [
-      "HKCategoryTypeIdentifierSleepAnalysis",
-      "HKQuantityTypeIdentifierHeartRate",
-      "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
-      "HKQuantityTypeIdentifierRestingHeartRate",
-      "HKQuantityTypeIdentifierActiveEnergyBurned",
-      "HKQuantityTypeIdentifierDietaryEnergyConsumed",
-      "HKQuantityTypeIdentifierDietaryProtein",
-      "HKQuantityTypeIdentifierDietaryCarbohydrates",
-      "HKQuantityTypeIdentifierDietaryFatTotal",
-      "HKQuantityTypeIdentifierBloodGlucose",
-      "HKQuantityTypeIdentifierRespiratoryRate",
-      "HKWorkoutTypeIdentifier",
-    ] as const;
+    if (!(await healthKit.isHealthDataAvailableAsync()))
+      return {
+        state: "denied",
+        grantedTypes: 0,
+        requestedTypes: readTypes.length,
+      };
     const completed = await healthKit.requestAuthorization({
       toRead: readTypes,
     });
@@ -78,6 +89,23 @@ export class AppleHealthProvider implements HealthProvider {
     };
   }
 
+  async getConnectionStatus(): Promise<PermissionResult | null> {
+    const healthKit = await import("@kingstinct/react-native-healthkit");
+    if (!(await healthKit.isHealthDataAvailableAsync())) return null;
+    // "unnecessary" means the prompt was already answered; HealthKit hides read grants,
+    // so re-attaching is safe and simply returns no samples for declined types.
+    const status = await healthKit.getRequestStatusForAuthorization({
+      toRead: readTypes,
+    });
+    return status === healthKit.AuthorizationRequestStatus.unnecessary
+      ? {
+          state: "granted",
+          grantedTypes: readTypes.length,
+          requestedTypes: readTypes.length,
+        }
+      : null;
+  }
+
   private async quantity<
     T extends Parameters<
       (typeof import("@kingstinct/react-native-healthkit"))["queryQuantitySamples"]
@@ -85,11 +113,18 @@ export class AppleHealthProvider implements HealthProvider {
   >(
     identifier: T,
     unit?: string,
-    date?: { startDate: Date; endDate: Date },
+    {
+      date = recentWindow(),
+      limit = 0,
+    }: {
+      date?: { startDate: Date; endDate: Date } | null;
+      limit?: number;
+    } = {},
   ): Promise<QuantitySample[]> {
     const healthKit = await import("@kingstinct/react-native-healthkit");
+    // Always bound queries: an unfiltered heart-rate query returns years of samples.
     const result = await healthKit.queryQuantitySamples(identifier, {
-      limit: 0,
+      limit,
       ascending: false,
       ...(unit ? { unit } : {}),
       ...(date ? { filter: { date } } : {}),
@@ -101,7 +136,7 @@ export class AppleHealthProvider implements HealthProvider {
     const healthKit = await import("@kingstinct/react-native-healthkit");
     const samples = await healthKit.queryCategorySamples(
       "HKCategoryTypeIdentifierSleepAnalysis",
-      { limit: 0, ascending: false },
+      { limit: 0, ascending: false, filter: { date: recentWindow() } },
     );
     const cutoff = new Date(Date.now() - 36 * 60 * 60_000);
     const recent = samples.filter(
@@ -165,6 +200,7 @@ export class AppleHealthProvider implements HealthProvider {
     const samples = await this.quantity(
       "HKQuantityTypeIdentifierRestingHeartRate",
       "count/min",
+      { date: null, limit: 1 },
     );
     return samples[0]?.quantity ?? null;
   }
@@ -173,6 +209,7 @@ export class AppleHealthProvider implements HealthProvider {
     const samples = await this.quantity(
       "HKQuantityTypeIdentifierRespiratoryRate",
       "count/min",
+      { date: null, limit: 1 },
     );
     return samples[0]?.quantity ?? null;
   }
@@ -280,8 +317,10 @@ export class AppleHealthProvider implements HealthProvider {
             .catch(() => undefined),
           // Only the minute before and two minutes after the end are needed for recovery.
           this.quantity("HKQuantityTypeIdentifierHeartRate", "count/min", {
-            startDate: new Date(workout.endDate.getTime() - 60_000),
-            endDate: new Date(workout.endDate.getTime() + 120_000),
+            date: {
+              startDate: new Date(workout.endDate.getTime() - 60_000),
+              endDate: new Date(workout.endDate.getTime() + 120_000),
+            },
           }).catch(() => []),
         ]);
         const endHeartRate = summarizeWorkoutHeartRate(

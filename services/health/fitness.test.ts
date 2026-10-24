@@ -12,7 +12,11 @@ describe("loadFitnessData", () => {
     expect(data.cardioLoad.ratio).not.toBeNull();
     expect(data.cardioFocus).not.toBeNull();
     expect(data.heartRateRecovery.length).toBeGreaterThan(0);
-    expect(data.strength?.totalKg).toBeGreaterThan(0);
+    expect(data.strength.sessions).toBeGreaterThan(0);
+    expect(data.strength.weekly).toHaveLength(4);
+    expect(
+      data.trainingMix.reduce((total, entry) => total + entry.share, 0),
+    ).toBe(100);
   });
 
   it("returns empty sections when no workouts are recorded", async () => {
@@ -30,6 +34,7 @@ describe("loadFitnessData", () => {
     expect(data.cardioLoad.status).toBe("NO DATA");
     expect(data.cardioFocus).toBeNull();
     expect(data.heartRateRecovery).toEqual([]);
-    expect(data.strength).toBeNull();
+    expect(data.strength).toMatchObject({ sessions: 0, weekly: [0, 0, 0, 0] });
+    expect(data.trainingMix).toEqual([]);
   });
 });

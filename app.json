@@ -25,7 +25,8 @@
         "android.permission.health.READ_NUTRITION",
         "android.permission.health.READ_BLOOD_GLUCOSE",
         "android.permission.health.READ_RESPIRATORY_RATE",
-        "android.permission.health.READ_EXERCISE"
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_HEALTH_DATA_HISTORY"
       ],
       "package": "com.kineticbiometrics.app",
       "adaptiveIcon": {
@@ -70,8 +71,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#101319"
         }
-      ],
-      "expo-build-properties"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

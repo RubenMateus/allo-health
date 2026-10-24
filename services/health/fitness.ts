@@ -5,12 +5,14 @@ import {
   calculateLoadChange,
   heartRateRecoveries,
   summarizeActivity,
-  summarizeStrengthVolume,
+  summarizeStrength,
+  summarizeTrainingMix,
   type AcuteChronicSummary,
   type ActivitySummary,
   type CardioFocus,
   type FitnessDay,
   type StrengthSummary,
+  type TrainingMixEntry,
 } from "@/services/metrics";
 
 import type { HealthProvider, PermissionState } from "./types";
@@ -29,7 +31,8 @@ export type FitnessData = {
   dailyLoads: number[];
   cardioFocus: CardioFocus | null;
   heartRateRecovery: number[];
-  strength: StrengthSummary | null;
+  strength: StrengthSummary;
+  trainingMix: TrainingMixEntry[];
   workoutCount: number;
 };
 
@@ -79,7 +82,8 @@ export async function loadFitnessData(
     dailyLoads,
     cardioFocus: calculateCardioFocus(recent, profile),
     heartRateRecovery: heartRateRecoveries(recent).slice(-10),
-    strength: summarizeStrengthVolume(recent),
+    strength: summarizeStrength(recent, now),
+    trainingMix: summarizeTrainingMix(recent),
     workoutCount: recent.length,
   };
 }

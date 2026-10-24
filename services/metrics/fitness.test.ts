@@ -8,7 +8,8 @@ import {
   heartRateRecoveries,
   heartRateRecoveryRating,
   summarizeActivity,
-  summarizeStrengthVolume,
+  summarizeStrength,
+  summarizeTrainingMix,
   summarizeWorkoutHeartRate,
 } from "./index";
 import type { Workout } from "@/services/health/types";
@@ -123,6 +124,17 @@ describe("fitness metrics", () => {
       profile,
     );
     expect(focus).toEqual({ aerobic: 67, threshold: 22, anaerobic: 11 });
+    // Three equal thirds need two units of remainder to reach 100.
+    expect(
+      calculateCardioFocus(
+        [
+          workout({ minutes: 30, heartRate: hr(130) }),
+          workout({ minutes: 30, heartRate: hr(160) }),
+          workout({ minutes: 30, heartRate: hr(180) }),
+        ],
+        profile,
+      ),
+    ).toEqual({ aerobic: 34, threshold: 33, anaerobic: 33 });
     expect(calculateCardioFocus([workout()], profile)).toBeNull();
   });
 
@@ -151,22 +163,51 @@ describe("fitness metrics", () => {
     expect(heartRateRecoveryRating(10)).toBe("Low");
   });
 
-  it("totals strength volume per muscle group", () => {
-    expect(summarizeStrengthVolume([workout()])).toBeNull();
+  it("summarizes strength sessions per rolling week", () => {
+    const end = new Date("2026-10-24T12:00:00.000");
+    const lift = (
+      startedAt: string,
+      kcal: number | null,
+      average: number | null,
+    ) =>
+      workout({
+        category: "strength",
+        startedAt,
+        minutes: 45,
+        activeEnergyKcal: kcal,
+        heartRate: { average, peak: null, recovery: null },
+      });
     expect(
-      summarizeStrengthVolume([
-        workout({
-          category: "strength",
-          strengthVolumeKg: { chest: 1200.4, arms: 300 },
-        }),
-        workout({
-          category: "strength",
-          strengthVolumeKg: { chest: 800, legs: 1500 },
-        }),
-      ]),
+      summarizeStrength(
+        [
+          lift("2026-10-24T07:00:00.000", 300, 120),
+          lift("2026-10-20T07:00:00.000", null, 110),
+          lift("2026-10-10T07:00:00.000", 250, null),
+          lift("2026-09-01T07:00:00.000", 200, 100),
+          workout({ startedAt: "2026-10-23T07:00:00.000" }),
+        ],
+        end,
+      ),
     ).toEqual({
-      byGroup: { chest: 2000, back: 0, legs: 1500, core: 0, arms: 300 },
-      totalKg: 3800,
+      sessions: 4,
+      minutes: 180,
+      activeEnergyKcal: 750,
+      averageHeartRate: 110,
+      weekly: [0, 1, 0, 2],
     });
+  });
+
+  it("splits training minutes by category", () => {
+    expect(
+      summarizeTrainingMix([
+        workout({ minutes: 100 }),
+        workout({ minutes: 50, category: "strength" }),
+        workout({ minutes: 50, category: "cardio" }),
+      ]),
+    ).toEqual([
+      { category: "cardio", minutes: 150, share: 75 },
+      { category: "strength", minutes: 50, share: 25 },
+    ]);
+    expect(summarizeTrainingMix([])).toEqual([]);
   });
 });

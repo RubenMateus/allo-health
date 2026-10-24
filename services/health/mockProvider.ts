@@ -65,12 +65,6 @@ const trainingBlock = [
   [13, "Run", 40, 146],
 ] as const;
 
-const strengthSplits = [
-  { chest: 640, back: 520, arms: 340, core: 120 },
-  { legs: 760, back: 330, core: 180 },
-  { chest: 480, arms: 420, core: 140, back: 260 },
-] as const;
-
 function mockWorkouts(since: Date): Workout[] {
   const workouts: Workout[] = [];
   const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
@@ -105,15 +99,6 @@ function mockWorkouts(since: Date): Workout[] {
             peak,
             recovery: peak - (38 + ((daysAgo * 7) % 13)),
           },
-          ...(strength
-            ? {
-                strengthVolumeKg: Object.fromEntries(
-                  Object.entries(strengthSplits[daysAgo % 3]!).map(
-                    ([group, kg]) => [group, Math.round(kg * scale)],
-                  ),
-                ),
-              }
-            : {}),
         });
       },
     );
@@ -126,6 +111,10 @@ export class MockHealthProvider implements HealthProvider {
 
   async requestPermissions(): Promise<PermissionResult> {
     return { state: "granted", grantedTypes: 8, requestedTypes: 8 };
+  }
+
+  async getConnectionStatus(): Promise<PermissionResult> {
+    return this.requestPermissions();
   }
 
   async getSleep(): Promise<SleepData> {
