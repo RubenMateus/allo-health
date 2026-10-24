@@ -10,6 +10,14 @@ export function formatToday(date = new Date()): string {
   }).format(date);
 }
 
+export function formatDayLabel(date: Date): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 export function formatTime(value: string): string {
   return new Intl.DateTimeFormat(locale, {
     hour: "numeric",

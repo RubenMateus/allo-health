@@ -1,5 +1,3 @@
-import { Screen } from "@/components/ui/primitives";
+import { JournalScreen } from "@/components/journal/JournalScreen";
 
-export default function JournalScreen() {
-  return <Screen />;
-}
+export default JournalScreen;
