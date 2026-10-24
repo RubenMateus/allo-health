@@ -1,9 +1,12 @@
 import {
   ageOn,
+  bucketAverages,
   bodyFatRating,
   calculateTrend,
   dailyAverages,
   fitnessAge,
+  personalBaseline,
+  rangeStats,
   summarizeBiomarker,
   vo2MaxPercentile,
   vo2MaxRating,
@@ -89,5 +92,33 @@ describe("biomarker metrics", () => {
       now,
     );
     expect(known.status?.basis).toBe("rating");
+  });
+
+  it("summarizes a range of readings", () => {
+    expect(rangeStats(daily([86, 84, 85]))).toEqual({
+      average: 85,
+      min: 84,
+      max: 86,
+      change: -1,
+    });
+    expect(rangeStats([])).toBeNull();
+  });
+
+  it("builds a baseline band from the month before the last week", () => {
+    const history = daily(
+      [...Array(15).fill(50), ...Array(15).fill(60), ...Array(7).fill(90)],
+      "ms",
+    );
+    expect(personalBaseline(history, now)).toEqual([50, 60]);
+    expect(personalBaseline(daily([50, 50, 50], "ms"), now)).toBeNull();
+  });
+
+  it("averages into buckets that end on the newest reading", () => {
+    const weeks = bucketAverages(
+      daily([1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3]),
+      7,
+    );
+    expect(weeks.map((sample) => sample.value)).toEqual([1, 3]);
+    expect(weeks.at(-1)?.timestamp).toBe(daily([0]).at(-1)?.timestamp);
   });
 });

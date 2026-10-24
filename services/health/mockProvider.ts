@@ -118,7 +118,7 @@ const biomarkerShapes: Record<
   restingHeartRate: [56, 52, 1.5, 1, "bpm"],
   bodyFat: [20.4, 17.2, 0.4, 7, "%"],
   leanBodyMass: [66.1, 67.4, 0.3, 7, "kg"],
-  vo2Max: [46.2, 49.8, 0.4, 3, "ml/kg/min"],
+  vo2Max: [41.6, 44.2, 0.4, 3, "ml/kg/min"],
   bloodOxygen: [97.4, 97.8, 0.6, 1, "%"],
   respiratoryRate: [14.6, 14.2, 0.4, 1, "br/min"],
 };

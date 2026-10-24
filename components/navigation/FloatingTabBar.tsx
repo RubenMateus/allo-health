@@ -19,7 +19,7 @@ const items = [
   { route: "index", label: "Home", Icon: House },
   { route: "journal", label: "Journal", Icon: BookOpen },
   { route: "fitness", label: "Fitness", Icon: Activity },
-  { route: "biology", label: "Biology", Icon: ScanHeart },
+  { route: "biomarkers", label: "Biomarkers", Icon: ScanHeart },
 ] as const;
 
 type FloatingTabBarProps = {
