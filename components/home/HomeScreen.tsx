@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Activity,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
@@ -28,6 +27,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { AlloMark } from "@/components/brand/AlloMark";
 import { GlowRing, type RingMetric } from "@/components/charts/GlowRing";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { HealthPermissionSheet } from "@/components/permissions/HealthPermissionSheet";
@@ -107,7 +107,7 @@ export function HomeScreen() {
       >
         <View className="flex-row items-center gap-md mb-2xl">
           <View className="w-[38px] h-[38px] rounded-md bg-surface-high items-center justify-center border border-outline-soft">
-            <Activity color={colors.primary} size={17} strokeWidth={2.3} />
+            <AlloMark size={24} />
           </View>
           <View className="flex-1 gap-2xs">
             <Text className="type-badge text-primary uppercase">
