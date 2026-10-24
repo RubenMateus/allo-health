@@ -48,3 +48,7 @@ Allo Health's scores and guidance are informational estimates to help you notice
 ## Running it yourself
 
 Allo Health is not in the App Store or Google Play yet. To build and run it on your own device or a simulator, follow the [local development guide](docs/DEVELOPMENT.md).
+
+## License
+
+Allo Health is open source under the [MIT License](LICENSE).
