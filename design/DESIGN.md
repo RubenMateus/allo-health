@@ -1,5 +1,5 @@
 ---
-name: Kinetic BioMetrics
+name: Allo Health
 colors:
   surface: '#101319'
   surface-dim: '#101319'
