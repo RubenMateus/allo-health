@@ -5,7 +5,11 @@ import { useHealthStore } from "@/stores/healthStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 /** Queries that read from HealthKit / Health Connect. */
-export const HEALTH_QUERY_KEYS = ["health-dashboard", "fitness-dashboard"];
+export const HEALTH_QUERY_KEYS = [
+  "health-dashboard",
+  "fitness-dashboard",
+  "biomarkers",
+];
 
 const isHealthQuery = (query: { queryKey: readonly unknown[] }) =>
   HEALTH_QUERY_KEYS.includes(query.queryKey[0] as string);
