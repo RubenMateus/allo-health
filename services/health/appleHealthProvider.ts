@@ -17,6 +17,16 @@ import {
   heartRateByMinute,
   summarizeWorkoutHeartRate,
 } from "@/services/metrics/fitness";
+import {
+  LATEST_READING_DAYS,
+  SAMPLE_BUCKET_MINUTES,
+  bucketSamples,
+  buildStressSamples,
+  clusterIntervals,
+  dedupeWorkouts,
+  pickMainSleep,
+  unionMinutes,
+} from "./nativeSamples";
 
 const now = () => new Date();
 const recentWindow = () => ({
@@ -36,6 +46,7 @@ const workoutLabels: Record<number, string> = {
   20: "Strength",
   24: "Hike",
   29: "Mind & body",
+  33: "Recovery",
   35: "Row",
   37: "Run",
   46: "Swim",
@@ -47,6 +58,7 @@ const workoutLabels: Record<number, string> = {
   63: "Intervals",
   66: "Pilates",
   73: "Mixed cardio",
+  80: "Cooldown",
 };
 const strengthTypes = new Set([20, 50, 59]);
 const mixedTypes = new Set([29, 33, 57, 62, 66, 80]);
@@ -57,6 +69,27 @@ type QuantitySample = {
   startDate: Date;
   endDate: Date;
 };
+
+// HKCategoryValueSleepAnalysis raw values.
+const sleepValues = {
+  inBed: 0,
+  asleepUnspecified: 1,
+  awake: 2,
+  asleepCore: 3,
+  asleepDeep: 4,
+  asleepREM: 5,
+} as const;
+const asleepValues = new Set<number>([
+  sleepValues.asleepUnspecified,
+  sleepValues.asleepCore,
+  sleepValues.asleepDeep,
+  sleepValues.asleepREM,
+]);
+const stagedValues = new Set<number>([
+  sleepValues.asleepCore,
+  sleepValues.asleepDeep,
+  sleepValues.asleepREM,
+]);
 
 // The types the app has asked for since the first release. A launch only re-attaches
 // when these were answered, so adding new types never drops an existing connection.
@@ -132,11 +165,19 @@ const readTypes = [
   "HKCharacteristicTypeIdentifierBiologicalSex",
 ] as const;
 
+type HealthKitModule = typeof import("@kingstinct/react-native-healthkit");
+
 export class AppleHealthProvider implements HealthProvider {
   readonly kind = "apple" as const;
 
+  constructor(
+    // Loaded lazily so other platforms never touch the native module.
+    private readonly loadHealthKit: () => Promise<HealthKitModule> = () =>
+      import("@kingstinct/react-native-healthkit"),
+  ) {}
+
   async requestPermissions(): Promise<PermissionResult> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     if (!(await healthKit.isHealthDataAvailableAsync()))
       return {
         state: "denied",
@@ -155,7 +196,7 @@ export class AppleHealthProvider implements HealthProvider {
   }
 
   async getConnectionStatus(): Promise<PermissionResult | null> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     if (!(await healthKit.isHealthDataAvailableAsync())) return null;
     // "unnecessary" means the prompt was already answered; HealthKit hides read grants,
     // so re-attaching is safe and simply returns no samples for declined types.
@@ -181,59 +222,126 @@ export class AppleHealthProvider implements HealthProvider {
     {
       date = recentWindow(),
       limit = 0,
+      ascending = true,
     }: {
-      date?: { startDate: Date; endDate: Date } | null;
+      date?: { startDate: Date; endDate: Date };
       limit?: number;
+      ascending?: boolean;
     } = {},
   ): Promise<QuantitySample[]> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     // Always bound queries: an unfiltered heart-rate query returns years of samples.
     const result = await healthKit.queryQuantitySamples(identifier, {
       limit,
-      ascending: false,
+      ascending,
       ...(unit ? { unit } : {}),
-      ...(date ? { filter: { date } } : {}),
+      filter: { date },
     } as never);
     return result as unknown as QuantitySample[];
   }
 
+  /** HealthKit's own sum for the window, which counts iPhone and Watch overlap once. */
+  private async sum(
+    identifier: Parameters<
+      (typeof import("@kingstinct/react-native-healthkit"))["queryStatisticsForQuantity"]
+    >[0],
+    unit: string,
+    startDate: Date,
+    endDate = now(),
+  ): Promise<number> {
+    const healthKit = await this.loadHealthKit();
+    const result = await healthKit.queryStatisticsForQuantity(
+      identifier,
+      ["cumulativeSum"],
+      { unit, filter: { date: { startDate, endDate } } } as never,
+    );
+    return result.sumQuantity?.quantity ?? 0;
+  }
+
+  /** The newest reading from the last week; an older one isn't today's value. */
+  private async latest(
+    identifier: Parameters<
+      (typeof import("@kingstinct/react-native-healthkit"))["queryQuantitySamples"]
+    >[0],
+    unit: string,
+  ): Promise<number | null> {
+    const samples = await this.quantity(identifier, unit, {
+      date: {
+        startDate: new Date(Date.now() - LATEST_READING_DAYS * 86_400_000),
+        endDate: now(),
+      },
+      limit: 1,
+      ascending: false,
+    });
+    return samples[0]?.quantity ?? null;
+  }
+
   async getSleep(): Promise<SleepData | null> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     const samples = await healthKit.queryCategorySamples(
       "HKCategoryTypeIdentifierSleepAnalysis",
-      { limit: 0, ascending: false, filter: { date: recentWindow() } },
+      { limit: 0, ascending: true, filter: { date: recentWindow() } },
     );
-    const cutoff = new Date(Date.now() - 36 * 60 * 60_000);
-    const recent = samples.filter(
-      (sample) => sample.endDate >= cutoff && sample.endDate <= now(),
+    const intervals = samples.map((sample) => ({
+      start: sample.startDate.getTime(),
+      end: sample.endDate.getTime(),
+      value: Number(sample.value),
+      source: sample.sourceRevision?.source?.bundleIdentifier ?? "",
+    }));
+    // The Watch, the iPhone and sleep apps each write the same night. Adding them up
+    // doubled the total, so read one source: the one with stages, else the most sleep.
+    const sources = new Map<string, typeof intervals>();
+    for (const interval of intervals)
+      sources.set(interval.source, [
+        ...(sources.get(interval.source) ?? []),
+        interval,
+      ]);
+    const nights = [...sources.values()].flatMap((sourceIntervals) =>
+      clusterIntervals(sourceIntervals).map((night) => {
+        const asleep = night.filter((interval) =>
+          asleepValues.has(interval.value),
+        );
+        return {
+          night,
+          asleep,
+          staged: asleep.some((interval) => stagedValues.has(interval.value)),
+          start: Math.min(...night.map((interval) => interval.start)),
+          end: Math.max(...night.map((interval) => interval.end)),
+          asleepMinutes: unionMinutes(asleep),
+        };
+      }),
     );
-    const asleep = recent.filter((sample) =>
-      [1, 3, 4, 5].includes(Number(sample.value)),
-    );
-    if (asleep.length === 0) return null;
-    const minutes = (sample: (typeof asleep)[number]) =>
-      Math.max(
-        0,
-        (sample.endDate.getTime() - sample.startDate.getTime()) / 60_000,
+    const main = pickMainSleep(nights, now());
+    if (!main) return null;
+    // Prefer staged data (Watch) for the same night over another source's summary.
+    const chosen =
+      nights
+        .filter(
+          (night) =>
+            night.staged &&
+            night.start < main.end &&
+            night.end > main.start &&
+            night.asleepMinutes >= main.asleepMinutes * 0.5,
+        )
+        .sort((a, b) => b.asleepMinutes - a.asleepMinutes)[0] ?? main;
+    const stageMinutes = (value: number) =>
+      unionMinutes(
+        chosen.asleep.filter((interval) => interval.value === value),
       );
-    const durationMinutes = asleep.reduce(
-      (sum, sample) => sum + minutes(sample),
-      0,
-    );
-    const inBed = recent
-      .filter((sample) => Number(sample.value) === 0)
-      .reduce((sum, sample) => sum + minutes(sample), 0);
     return {
-      durationMinutes,
+      durationMinutes: chosen.asleepMinutes,
       needMinutes: 480,
-      efficiency: inBed > 0 ? Math.min(durationMinutes / inBed, 1) : 0.88,
-      deepMinutes: asleep
-        .filter((sample) => Number(sample.value) === 4)
-        .reduce((sum, sample) => sum + minutes(sample), 0),
-      remMinutes: asleep
-        .filter((sample) => Number(sample.value) === 5)
-        .reduce((sum, sample) => sum + minutes(sample), 0),
-      lastSleepAt: asleep.at(-1)?.endDate.toISOString() ?? now().toISOString(),
+      // Time asleep over the whole night, in bed and awake included.
+      efficiency: Math.min(
+        chosen.asleepMinutes /
+          Math.max((chosen.end - chosen.start) / 60_000, 1),
+        1,
+      ),
+      deepMinutes: stageMinutes(sleepValues.asleepDeep),
+      remMinutes: stageMinutes(sleepValues.asleepREM),
+      lastSleepAt: new Date(
+        Math.max(...chosen.asleep.map((interval) => interval.end)),
+      ).toISOString(),
     };
   }
 
@@ -262,32 +370,19 @@ export class AppleHealthProvider implements HealthProvider {
   }
 
   async getRestingHR(): Promise<number | null> {
-    const samples = await this.quantity(
-      "HKQuantityTypeIdentifierRestingHeartRate",
-      "count/min",
-      { date: null, limit: 1 },
-    );
-    return samples[0]?.quantity ?? null;
+    return this.latest("HKQuantityTypeIdentifierRestingHeartRate", "count/min");
   }
 
   async getRespiratoryRate(): Promise<number | null> {
-    const samples = await this.quantity(
-      "HKQuantityTypeIdentifierRespiratoryRate",
-      "count/min",
-      { date: null, limit: 1 },
-    );
-    return samples[0]?.quantity ?? null;
+    return this.latest("HKQuantityTypeIdentifierRespiratoryRate", "count/min");
   }
 
   async getActiveEnergy(): Promise<number> {
-    const samples = await this.quantity(
+    return this.sum(
       "HKQuantityTypeIdentifierActiveEnergyBurned",
       "kcal",
+      todayStart(),
     );
-    const start = todayStart().getTime();
-    return samples
-      .filter((sample) => sample.endDate.getTime() >= start)
-      .reduce((total, sample) => total + sample.quantity, 0);
   }
 
   async getStrainInputs(): Promise<StrainInputs> {
@@ -297,10 +392,12 @@ export class AppleHealthProvider implements HealthProvider {
       this.getRestingHR(),
     ]);
     return {
-      heartRateSamples: heartRateSamples.map((sample) => ({
-        ...sample,
-        sampleMinutes: 5,
-      })),
+      // Today's heart rate only, in five-minute buckets.
+      heartRateSamples: bucketSamples(
+        heartRateSamples,
+        todayStart(),
+        now(),
+      ).map((sample) => ({ ...sample, sampleMinutes: SAMPLE_BUCKET_MINUTES })),
       activeEnergyKcal,
       restingHeartRate: resting ?? 60,
       maxHeartRate: 190,
@@ -308,28 +405,20 @@ export class AppleHealthProvider implements HealthProvider {
   }
 
   async getNutrition(): Promise<NutritionData | null> {
-    const [calories, protein, carbs, fat] = await Promise.all([
-      this.quantity("HKQuantityTypeIdentifierDietaryEnergyConsumed", "kcal"),
-      this.quantity("HKQuantityTypeIdentifierDietaryProtein", "g"),
-      this.quantity("HKQuantityTypeIdentifierDietaryCarbohydrates", "g"),
-      this.quantity("HKQuantityTypeIdentifierDietaryFatTotal", "g"),
-    ]);
-    const start = todayStart().getTime();
-    const sumToday = (samples: QuantitySample[]) =>
-      samples
-        .filter((sample) => sample.endDate.getTime() >= start)
-        .reduce((total, sample) => total + sample.quantity, 0);
-    const result = {
-      calories: sumToday(calories),
-      proteinGrams: sumToday(protein),
-      carbohydrateGrams: sumToday(carbs),
-      fatGrams: sumToday(fat),
-    };
-    return result.calories ||
-      result.proteinGrams ||
-      result.carbohydrateGrams ||
-      result.fatGrams
-      ? result
+    const start = todayStart();
+    const [calories, proteinGrams, carbohydrateGrams, fatGrams] =
+      await Promise.all([
+        this.sum(
+          "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+          "kcal",
+          start,
+        ),
+        this.sum("HKQuantityTypeIdentifierDietaryProtein", "g", start),
+        this.sum("HKQuantityTypeIdentifierDietaryCarbohydrates", "g", start),
+        this.sum("HKQuantityTypeIdentifierDietaryFatTotal", "g", start),
+      ]);
+    return calories || proteinGrams || carbohydrateGrams || fatGrams
+      ? { calories, proteinGrams, carbohydrateGrams, fatGrams }
       : null;
   }
 
@@ -338,14 +427,11 @@ export class AppleHealthProvider implements HealthProvider {
       "HKQuantityTypeIdentifierBloodGlucose",
       "mg/dL",
     );
-    const recent = samples
-      .slice(0, 48)
-      .reverse()
-      .map((sample) => ({
-        value: sample.quantity,
-        unit: "mg/dL",
-        timestamp: sample.endDate.toISOString(),
-      }));
+    const recent = samples.slice(-48).map((sample) => ({
+      value: sample.quantity,
+      unit: "mg/dL",
+      timestamp: sample.endDate.toISOString(),
+    }));
     return recent.length ? { samples: recent, unit: "mg/dL" } : null;
   }
 
@@ -354,21 +440,17 @@ export class AppleHealthProvider implements HealthProvider {
       this.getHeartRate(),
       this.getHRV(),
     ]);
-    return heartRate.slice(0, 48).map((sample, index) => ({
-      timestamp: sample.timestamp,
-      heartRate: sample.value,
-      hrv: hrv[Math.min(index, Math.max(hrv.length - 1, 0))]?.value ?? 0,
-    }));
+    return buildStressSamples(heartRate, hrv, now());
   }
 
   async getWorkouts(since: Date): Promise<Workout[]> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     const workouts = await healthKit.queryWorkoutSamples({
       limit: 0,
       ascending: true,
       filter: { date: { startDate: since, endDate: now() } },
     });
-    return Promise.all(
+    const results = await Promise.all(
       workouts.map(async (workout): Promise<Workout> => {
         const type = Number(workout.workoutActivityType);
         const category: WorkoutCategory = strengthTypes.has(type)
@@ -405,11 +487,8 @@ export class AppleHealthProvider implements HealthProvider {
           category,
           startedAt: workout.startDate.toISOString(),
           endedAt: workout.endDate.toISOString(),
-          activeEnergyKcal: energy
-            ? energy.unit === "kJ"
-              ? energy.quantity / 4.184
-              : energy.quantity
-            : null,
+          // The library always reports workout energy in kcal.
+          activeEnergyKcal: energy ? energy.quantity : null,
           heartRate: {
             average: average?.averageQuantity?.quantity ?? null,
             peak: endHeartRate.peak,
@@ -423,13 +502,14 @@ export class AppleHealthProvider implements HealthProvider {
         };
       }),
     );
+    return dedupeWorkouts(results);
   }
 
   async getBiomarkerHistory(
     kind: BiomarkerKind,
     since: Date,
   ): Promise<HealthSample[]> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     const { identifier, unit } = biomarkerTypes[kind];
     const anchor = new Date(since);
     anchor.setHours(0, 0, 0, 0);
@@ -459,7 +539,7 @@ export class AppleHealthProvider implements HealthProvider {
   }
 
   async getProfile(): Promise<HealthProfile> {
-    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const healthKit = await this.loadHealthKit();
     const [birthDate, sex] = await Promise.all([
       healthKit.getDateOfBirthAsync().catch(() => undefined),
       healthKit.getBiologicalSexAsync().catch(() => undefined),

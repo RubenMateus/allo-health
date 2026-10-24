@@ -73,6 +73,19 @@ If permission is denied, the request fails, or every native read fails, the app 
 - Seed test data with any app that writes to Health Connect, or through the Health Connect toolbox app.
 - Revoke or re-grant access from Settings › Health Connect › App permissions › Allo Health.
 
+### How native reads avoid double counting
+
+Several devices and apps usually write the same data (a Watch and an iPhone, or a watch app and Strava). The adapters handle that the same way on both platforms, with the shared helpers in `services/health/nativeSamples.ts`:
+
+- **Daily totals** (active energy, nutrition) come from the platform's own sum from local midnight: HealthKit statistics queries and Health Connect `aggregateRecord`. Never add up raw samples.
+- **Sleep** is last night only: the latest session that ended in the past 24 hours with at least three hours asleep (else the longest one). On iOS one source is read per night, preferring staged Watch data.
+- **Heart rate** for strain and stress is averaged into five-minute buckets, because a watch writes a sample every few seconds during workouts. Stress pairs each bucket with the nearest HRV reading.
+- **Resting heart rate and respiratory rate** are the newest reading from the last 7 days.
+- **Workouts** that overlap by more than half are one workout recorded twice; the copy with heart rate is kept.
+- HRV is SDNN on iOS and RMSSD on Android. They are different measures, so values differ between platforms for the same person.
+
+`appleHealthProvider.test.ts` and `healthConnectProvider.test.ts` cover these cases with native payload fixtures.
+
 ## When to rebuild the development client
 
 Rebuild with `bun run ios` / `bun run android` whenever you:
