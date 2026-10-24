@@ -12,7 +12,11 @@ import type {
   Workout,
   WorkoutCategory,
 } from "./types";
-import { dayKey, summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
+import {
+  dayKey,
+  heartRateByMinute,
+  summarizeWorkoutHeartRate,
+} from "@/services/metrics/fitness";
 
 const now = () => new Date();
 const recentWindow = () => ({
@@ -372,24 +376,25 @@ export class AppleHealthProvider implements HealthProvider {
           : mixedTypes.has(type)
             ? "mixed"
             : "cardio";
-        const [average, endSamples] = await Promise.all([
+        const [average, samples] = await Promise.all([
           workout
             .getStatistic("HKQuantityTypeIdentifierHeartRate", "count/min")
             .catch(() => undefined),
-          // Only the minute before and two minutes after the end are needed for recovery.
+          // The whole session for time in zones, plus two minutes after for recovery.
           this.quantity("HKQuantityTypeIdentifierHeartRate", "count/min", {
             date: {
-              startDate: new Date(workout.endDate.getTime() - 60_000),
+              startDate: workout.startDate,
               endDate: new Date(workout.endDate.getTime() + 120_000),
             },
           }).catch(() => []),
         ]);
+        const heartRateSamples = samples.map((sample) => ({
+          value: sample.quantity,
+          unit: "bpm",
+          timestamp: sample.endDate.toISOString(),
+        }));
         const endHeartRate = summarizeWorkoutHeartRate(
-          endSamples.map((sample) => ({
-            value: sample.quantity,
-            unit: "bpm",
-            timestamp: sample.endDate.toISOString(),
-          })),
+          heartRateSamples,
           new Date(workout.endDate.getTime() - 60_000).toISOString(),
           workout.endDate.toISOString(),
         );
@@ -410,6 +415,11 @@ export class AppleHealthProvider implements HealthProvider {
             peak: endHeartRate.peak,
             recovery: endHeartRate.recovery,
           },
+          heartRateByMinute: heartRateByMinute(
+            heartRateSamples,
+            workout.startDate.toISOString(),
+            workout.endDate.toISOString(),
+          ),
         };
       }),
     );
