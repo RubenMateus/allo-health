@@ -54,7 +54,7 @@ export function ReadinessScreen() {
       <DetailSection title="What the target means">
         <Card className="gap-md">
           <Text className="type-body-small text-text-muted">
-            Strain is how hard your heart worked today, on a 0–{MAX_STRAIN}{" "}
+            Strain is how hard your heart worked today, on a 0 to {MAX_STRAIN}{" "}
             scale built from time in heart rate zones and active energy. Aim to
             end the day inside the highlighted band.
           </Text>
