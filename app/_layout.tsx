@@ -16,6 +16,9 @@ import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import "react-native-reanimated";
+
+import "../global.css";
+import "@/theme/interop";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useHealthStore } from "@/stores/healthStore";
@@ -97,6 +100,8 @@ function ThemedStack() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="biomarkers/[kind]" />
+        <Stack.Screen name="fitness/[metric]" />
       </Stack>
     </>
   );

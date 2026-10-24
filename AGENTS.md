@@ -29,6 +29,16 @@ Run lint and typecheck before declaring any task done.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md
 
+## Styling
+
+- Style with NativeWind (`className`, Tailwind CSS v3 classes). Do not add `StyleSheet.create` blocks for static styles, and do not reintroduce a style hook.
+- Use the token classes generated from `theme/tokens.ts` by `tailwind.config.ts`: colors as `bg-surface-prose` / `text-text-muted` / `border-outline-soft`, type as `type-heading`, spacing as `p-lg` / `gap-2xs`, radii as `rounded-card`. Never hardcode hex colors; add a token to both `darkColors` and `lightColors` instead.
+- Merge conditional classes with `cn()` from `@/utils/cn`. Pressed states use `active:` on `Pressable`.
+- Use `useTheme()` only for values that can't be a class: icon colors, SVG fills, gradients, `BlurView` tint, glow shadows. Use `style` only for runtime values (measured sizes, data-driven colors, animations).
+- Before using `className` on a third-party view, register it in `theme/interop.ts`.
+- Some CSS has no React Native equivalent and is silently dropped on device even though it works in a browser. `theme/nativewind.test.tsx` checks the token classes on native; extend it when adding a custom utility.
+- Full guide: `docs/DEVELOPMENT.md` (Styling with NativeWind).
+
 ## Building with EAS
 
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.

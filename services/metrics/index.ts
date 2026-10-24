@@ -162,3 +162,5 @@ export function averageSamples(
 }
 
 export * from "./fitness";
+export * from "./biomarkers";
+export * from "./training";

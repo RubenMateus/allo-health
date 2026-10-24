@@ -1,5 +1,5 @@
 import { useId, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -79,7 +79,7 @@ export function Sparkline({
       accessible
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}
-      style={styles.frame}
+      className="w-full overflow-hidden"
     >
       <Svg width={width} height={height}>
         <Defs>
@@ -117,7 +117,3 @@ export function Sparkline({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  frame: { width: "100%", overflow: "hidden" },
-});

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -8,8 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -32,7 +31,6 @@ export function GlowRing({
   strokeWidth?: number;
 }) {
   const { colors, glow } = useTheme();
-  const styles = useStyles();
   const progress = useSharedValue(0);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -71,9 +69,13 @@ export function GlowRing({
       accessible
       accessibilityRole="image"
       accessibilityLabel={`${metric.label} ${accessibilityValue}, ${metric.status.toLowerCase()}`}
-      style={[styles.wrap, { width: size }]}
+      className="items-center gap-2"
+      style={{ width: size }}
     >
-      <View style={[styles.ring, { width: size, height: size }, glowStyle]}>
+      <View
+        className="items-center justify-center rounded-full"
+        style={[{ width: size, height: size }, glowStyle]}
+      >
         <Svg width={size} height={size}>
           <Defs>
             <LinearGradient
@@ -115,44 +117,22 @@ export function GlowRing({
             animatedProps={beadProps}
           />
         </Svg>
-        <View style={styles.center}>
-          <Text adjustsFontSizeToFit numberOfLines={1} style={styles.value}>
+        <View className="absolute items-center justify-center w-full">
+          <Text
+            adjustsFontSizeToFit
+            numberOfLines={1}
+            className="type-metric-lg text-text tabular-nums"
+          >
             {metric.value === null ? "--" : metric.value}
           </Text>
-          <Text numberOfLines={1} style={styles.label}>
+          <Text numberOfLines={1} className="type-caption text-text-muted">
             {metric.label}
           </Text>
         </View>
       </View>
-      <Text style={styles.status}>{metric.status}</Text>
+      <Text className="type-badge text-text-subtle uppercase">
+        {metric.status}
+      </Text>
     </View>
   );
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    wrap: { alignItems: "center", gap: 8 },
-    ring: {
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.full,
-    },
-    center: {
-      position: "absolute",
-      alignItems: "center",
-      justifyContent: "center",
-      width: "100%",
-    },
-    value: {
-      ...typography.metricLG,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    label: { ...typography.caption, color: colors.textMuted },
-    status: {
-      ...typography.badge,
-      color: colors.textSubtle,
-      textTransform: "uppercase",
-    },
-  }),
-);

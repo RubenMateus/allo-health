@@ -9,8 +9,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 
 const AXIS_WIDTH = 34;
 const INSET = 8;
@@ -29,7 +28,6 @@ export function CumulativeChart({
   accessibilityLabel: string;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const id = useId().replace(/[^a-zA-Z0-9-]/g, "");
   const plotWidth = Math.max(width - AXIS_WIDTH, 1);
   const chart = useMemo(() => {
@@ -69,7 +67,7 @@ export function CumulativeChart({
       accessible
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}
-      style={styles.frame}
+      className="w-full"
     >
       <Svg width={width} height={height}>
         <Defs>
@@ -160,6 +158,7 @@ export function CumulativeChart({
       {[2, 1, 0].map((tick) => (
         <Text
           key={tick}
+          className="type-mono-small text-text-subtle absolute right-0 text-right"
           style={[
             styles.axisLabel,
             { top: chart.y(tick * chart.step * 60) - 7 },
@@ -172,16 +171,6 @@ export function CumulativeChart({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    frame: { width: "100%" },
-    axisLabel: {
-      ...typography.monoSmall,
-      color: colors.textSubtle,
-      position: "absolute",
-      right: 0,
-      width: AXIS_WIDTH - 6,
-      textAlign: "right",
-    },
-  }),
-);
+const styles = StyleSheet.create({
+  axisLabel: { width: AXIS_WIDTH - 6 },
+});
