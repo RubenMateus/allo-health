@@ -313,3 +313,73 @@ export function summarizeBiomarker(
   status ??= trend ? trendStatus(kind, trend) : null;
   return { kind, latest, trend, status };
 }
+
+export type RangeStats = {
+  average: number;
+  min: number;
+  max: number;
+  /** Last reading minus the first one in the range. */
+  change: number;
+};
+
+export function rangeStats(samples: HealthSample[]): RangeStats | null {
+  if (samples.length === 0) return null;
+  const values = samples.map((sample) => sample.value);
+  return {
+    average: values.reduce((total, value) => total + value, 0) / values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    change: values.at(-1)! - values[0]!,
+  };
+}
+
+/**
+ * The usual range from the same window the trend compares against (the 30 days
+ * before the last week): the mean plus or minus one standard deviation.
+ */
+export function personalBaseline(
+  history: HealthSample[],
+  now = new Date(),
+): readonly [number, number] | null {
+  const window = history.filter((sample) => {
+    const age = (now.getTime() - new Date(sample.timestamp).getTime()) / DAY_MS;
+    return age >= 7 && age < 37;
+  });
+  if (window.length < 7) return null;
+  const mean =
+    window.reduce((total, sample) => total + sample.value, 0) / window.length;
+  const deviation = Math.sqrt(
+    window.reduce((total, sample) => total + (sample.value - mean) ** 2, 0) /
+      window.length,
+  );
+  return [mean - deviation, mean + deviation];
+}
+
+/**
+ * Averages daily values into buckets of `days`, counted back from the newest
+ * reading so the last bucket always ends on it. Oldest first.
+ */
+export function bucketAverages(
+  samples: HealthSample[],
+  days: number,
+): HealthSample[] {
+  const newest = samples.at(-1);
+  if (!newest || days <= 1) return samples;
+  const end = new Date(newest.timestamp).getTime();
+  const buckets = new Map<number, HealthSample[]>();
+  for (const sample of samples) {
+    const index = Math.floor(
+      (end - new Date(sample.timestamp).getTime()) / (days * DAY_MS),
+    );
+    buckets.set(index, [...(buckets.get(index) ?? []), sample]);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => b - a)
+    .map(([, bucket]) => ({
+      value:
+        bucket.reduce((total, sample) => total + sample.value, 0) /
+        bucket.length,
+      unit: newest.unit,
+      timestamp: bucket.at(-1)!.timestamp,
+    }));
+}

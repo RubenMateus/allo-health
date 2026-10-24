@@ -89,15 +89,16 @@ export function formatMonth(date: Date): string {
   }).format(date);
 }
 
-export function formatMass(kilograms: number): {
+export function formatMass(
+  kilograms: number,
+  fractionDigits = 0,
+): {
   value: string;
   unit: "kg" | "lb";
 } {
   const value = usesMetricDisplay ? kilograms : kilograms * 2.20462;
   return {
-    value: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
-      Math.round(value),
-    ),
+    value: formatNumber(value, fractionDigits),
     unit: usesMetricDisplay ? "kg" : "lb",
   };
 }
@@ -108,4 +109,16 @@ export function formatSyncedAt(value: string, now = new Date()): string {
   return date.toDateString() === now.toDateString()
     ? `Today, ${time}`
     : `${formatDayLabel(date)}, ${time}`;
+}
+
+export function formatNumber(value: number, fractionDigits = 0): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
+/** Converts kilograms to the display unit without formatting, for charts. */
+export function massInDisplayUnit(kilograms: number): number {
+  return usesMetricDisplay ? kilograms : kilograms * 2.20462;
 }
