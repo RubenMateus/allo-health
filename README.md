@@ -1,47 +1,50 @@
 # Allo Health
 
-An Expo Router / React Native health dashboard. Health reads stay on-device; the app makes no network requests with health data and includes no analytics.
+Allo Health is a personal health dashboard for iPhone and Android. It reads the data your phone and wearables already collect, such as heart rate, HRV, sleep, activity and nutrition, and turns it into one calm daily view of how recovered you are and how hard to push today.
 
-## Requirements
+Everything is computed on your device. Your health data never leaves your phone.
 
-- Node.js 22.13 or newer
-- Xcode 26.4+ for iOS builds, Android Studio with SDK 36 for Android builds
-- A physical device or simulator; native health APIs require a development build, not Expo Go
+## What you get
 
-## Setup
+**Today**
+- **Daily readiness.** Recovery, sleep and strain scores built from your resting heart rate, heart rate variability, sleep and active energy.
+- **Training guidance.** A daily recommendation to push, maintain or recover, with a target strain range for the day.
+- **Stress and energy.** An estimate of today's stress load and an energy "battery" that charges with sleep and drains with strain and stress.
+- **Nutrition and glucose.** Calories, macros and glucose readings, shown when your health source shares them.
 
-```sh
-npm install
-cp .env.example .env.local
-npx expo install --check
-npm run typecheck
-npm test
-```
+**In progress**
+- **Fitness.** Training load, cardio zones, heart-rate recovery, an activity calendar and your strength and cardio mix.
+- **Journal.** A quick daily check-in for mood, energy and habits like caffeine, alcohol or late meals, with a weekly overview.
+- **Biology.** Longer-term biomarkers and trends.
 
-`EXPO_PUBLIC_HEALTH_PROVIDER` defaults to `mock`. The app opens with realistic local sample data and does not ask for permissions until the connect control is used.
+Units follow your region (for example mg/dL or mmol/L for glucose, kcal or kJ for energy), and times follow your phone's 12 or 24 hour setting.
 
-To connect a device health source, set `EXPO_PUBLIC_HEALTH_PROVIDER=native` in `.env.local`, then make a development build:
+## Your data stays on your phone
 
-```sh
-npx expo run:ios
-npx expo run:android
-npx expo start --dev-client
-```
+Privacy is the core design rule of Allo Health, not a setting.
 
-The iOS build includes HealthKit usage strings and capability configuration. Android includes Health Connect read permissions and a minimum SDK of 26. After changing native config or native dependencies, rebuild the development client.
+- **Read only.** The app asks Apple Health or Health Connect for read access only. It never writes to your health records.
+- **No network requests with health data.** Scores, estimates and guidance are calculated locally. Nothing is uploaded to a server.
+- **No analytics or tracking.** There are no analytics SDKs, crash reporters or ad trackers in the app.
+- **You stay in control.** You can revoke access at any time in the Health app on iPhone or in Health Connect on Android.
 
-Apple Health does not disclose whether an individual read permission was denied. The app treats a completed HealthKit permission request as a connection attempt and reports an empty signal as unavailable; Health Connect reports exact granted permission counts. If permission requests fail or all native reads fail, the dashboard clearly falls back to mock data.
+## Where the data comes from
 
-## Adding a screen
+| Platform | Health source |
+| --- | --- |
+| iPhone | Apple Health (HealthKit) |
+| Android 8.0 and newer | Health Connect |
 
-Add a route under `app/(tabs)/` and register it in `app/(tabs)/_layout.tsx`. Build the screen from `components/ui`, `theme/tokens.ts`, and the platform-independent services. Screens should consume `HealthProvider` through `hooks/useHealthDashboard` rather than import platform libraries directly.
+Any app or wearable that syncs into Apple Health or Health Connect, such as Apple Watch, Garmin, Oura, Withings or Samsung Health, can feed the dashboard.
 
-## Data and estimates
+Until you connect a health source, Allo Health shows realistic sample data so you can explore the app first. It only asks for permissions when you tap connect, and if access is not granted it says so clearly and keeps showing sample data.
 
-`services/health/` owns the platform adapters and shared provider contract. `services/metrics/` contains pure estimates for sleep, recovery, strain, stress, and energy. `services/coaching/` contains deterministic daily guidance behind a replaceable engine interface. These scores are informational estimates, not medical output.
+A note on Apple Health: iOS does not tell apps which individual data types you declined. If a card shows a signal as unavailable, check that Allo Health is allowed to read it under Settings › Health › Data Access & Devices.
 
-Nutrition and glucose appear only when the connected source shares those samples. Glucose and energy units follow the device locale's regional convention; the time display follows the device's 12/24-hour preference.
+## Not medical advice
 
-## Design source
+Allo Health's scores and guidance are informational estimates to help you notice trends. They are not a diagnosis or a substitute for advice from a doctor or other qualified professional.
 
-Tokens follow `design/DESIGN.md`. Its YAML frontmatter uses `#101319` / `#191c22` surface roles, while the prose describes a darker `#0D0F12` / `#14171D` / `#1C2029` hierarchy. The app retains both sets as named tokens and uses the frontmatter roles for the canvas/text and prose surface colors for cards, with the prose-defined biometric hues.
+## Running it yourself
+
+Allo Health is not in the App Store or Google Play yet. To build and run it on your own device or a simulator, follow the [local development guide](docs/DEVELOPMENT.md).
