@@ -15,10 +15,10 @@ Everything is computed on your device. Your health data never leaves your phone.
 
 Shown with the built-in sample data. Allo Health follows a dark or light theme, or your phone's setting.
 
-| | Today | Fitness | Biomarkers | VO₂ max | Journal |
-| --- | --- | --- | --- | --- | --- |
-| **Dark** | <img src="docs/images/dark-today.png" width="160" alt="Today, dark theme"> | <img src="docs/images/dark-fitness.png" width="160" alt="Fitness, dark theme"> | <img src="docs/images/dark-biomarkers.png" width="160" alt="Biomarkers, dark theme"> | <img src="docs/images/dark-vo2-max.png" width="160" alt="VO2 max detail, dark theme"> | <img src="docs/images/dark-journal.png" width="160" alt="Journal, dark theme"> |
-| **Light** | <img src="docs/images/light-today.png" width="160" alt="Today, light theme"> | <img src="docs/images/light-fitness.png" width="160" alt="Fitness, light theme"> | <img src="docs/images/light-biomarkers.png" width="160" alt="Biomarkers, light theme"> | <img src="docs/images/light-vo2-max.png" width="160" alt="VO2 max detail, light theme"> | <img src="docs/images/light-journal.png" width="160" alt="Journal, light theme"> |
+| | Today | Fitness | Biomarkers | VO₂ max | Journal | Readiness | Quick add |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Dark** | <img src="docs/images/dark-today.png" width="160" alt="Today, dark theme"> | <img src="docs/images/dark-fitness.png" width="160" alt="Fitness, dark theme"> | <img src="docs/images/dark-biomarkers.png" width="160" alt="Biomarkers, dark theme"> | <img src="docs/images/dark-vo2-max.png" width="160" alt="VO2 max detail, dark theme"> | <img src="docs/images/dark-journal.png" width="160" alt="Journal, dark theme"> | <img src="docs/images/dark-readiness.png" width="160" alt="Readiness detail, dark theme"> | <img src="docs/images/dark-quick-add.png" width="160" alt="Quick add sheet, dark theme"> |
+| **Light** | <img src="docs/images/light-today.png" width="160" alt="Today, light theme"> | <img src="docs/images/light-fitness.png" width="160" alt="Fitness, light theme"> | <img src="docs/images/light-biomarkers.png" width="160" alt="Biomarkers, light theme"> | <img src="docs/images/light-vo2-max.png" width="160" alt="VO2 max detail, light theme"> | <img src="docs/images/light-journal.png" width="160" alt="Journal, light theme"> | <img src="docs/images/light-readiness.png" width="160" alt="Readiness detail, light theme"> | <img src="docs/images/light-quick-add.png" width="160" alt="Quick add sheet, light theme"> |
 
 ## What you get
 

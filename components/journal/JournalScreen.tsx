@@ -1,9 +1,10 @@
 import * as Haptics from "expo-haptics";
-import { BookOpen, Check, Flame, Lock, Trash2 } from "lucide-react-native";
+import { Check, Flame, Lock, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
-import { SettingsButton } from "@/components/settings/SettingsButton";
+import { TabHeader } from "@/components/navigation/TabHeader";
+import { useHealthConnectSheet } from "@/components/permissions/useHealthConnectSheet";
 import {
   Card,
   EmptyState,
@@ -31,7 +32,7 @@ import { useJournalStore } from "@/stores/journalStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { type ColorTokens } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
-import { formatDayLabel, formatToday } from "@/utils/formatters";
+import { formatDayLabel } from "@/utils/formatters";
 
 const ratings: Rating[] = [1, 2, 3, 4, 5];
 
@@ -70,105 +71,96 @@ export function JournalScreen() {
     );
   };
 
+  const healthSheet = useHealthConnectSheet();
+
   return (
-    <Screen>
-      <View className="flex-row items-center gap-md mb-2xl">
-        <View className="w-[38px] h-[38px] rounded-md bg-surface-high items-center justify-center border border-outline-soft">
-          <BookOpen color={colors.primary} size={17} strokeWidth={2.3} />
-        </View>
-        <View className="flex-1 gap-2xs">
-          <Text className="type-badge text-primary uppercase">
-            ALLO / JOURNAL
-          </Text>
-          <Text
-            className="type-heading text-text"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-          >
-            {formatToday()}
-          </Text>
-        </View>
-        <View className="flex-row items-center gap-2xs px-md py-xs rounded-full border border-primary-border bg-primary-wash">
-          <Lock color={colors.primary} size={12} strokeWidth={2.4} />
-          <Text className="type-badge text-primary">ON-DEVICE</Text>
-        </View>
-        <SettingsButton />
-      </View>
+    <>
+      <Screen>
+        <TabHeader section="Journal" onConnectPress={healthSheet.open} />
 
-      <View className="gap-2xs mb-xl">
-        <Text className="type-display text-text tracking-[-1px]">Journal</Text>
-        <Text className="type-body-small text-text-muted">
-          Daily check-ins, stored only on this phone
-        </Text>
-      </View>
+        <View className="flex-row items-end gap-md mb-xl">
+          <View className="flex-1 gap-2xs">
+            <Text className="type-display text-text tracking-[-1px]">
+              Journal
+            </Text>
+            <Text className="type-body-small text-text-muted">
+              Daily check-ins, stored only on this phone
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-2xs px-md py-xs rounded-full border border-primary-border bg-primary-wash">
+            <Lock color={colors.primary} size={12} strokeWidth={2.4} />
+            <Text className="type-badge text-primary">ON-DEVICE</Text>
+          </View>
+        </View>
 
-      <WeekCard week={week} today={today} />
+        <WeekCard week={week} today={today} />
 
-      <View className="gap-md mt-section">
-        <SectionHeader
-          title="Today's check-in"
-          trailing={
-            todayEntry ? <Pill tone="positive">Logged</Pill> : undefined
-          }
-        />
-        {loadFailed ? (
-          <Card>
-            <EmptyState
-              title="Journal unavailable"
-              detail="Your saved entries couldn't be read from this device. Restart the app to try again."
-            />
-          </Card>
-        ) : hydrated ? (
-          <CheckInCard
-            // Remount when the stored entry changes so the form shows it.
-            key={`${today}:${todayEntry?.updatedAt ?? "new"}`}
-            date={today}
-            entry={todayEntry}
-            onSave={(draft) => {
-              saveEntry(draft);
-              void Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success,
-              );
-            }}
+        <View className="gap-md mt-section">
+          <SectionHeader
+            title="Today's check-in"
+            trailing={
+              todayEntry ? <Pill tone="positive">Logged</Pill> : undefined
+            }
           />
-        ) : (
-          <Card>
-            <View className="h-[220px] rounded-md bg-surface-elevated-prose" />
-          </Card>
-        )}
-      </View>
+          {loadFailed ? (
+            <Card>
+              <EmptyState
+                title="Journal unavailable"
+                detail="Your saved entries couldn't be read from this device. Restart the app to try again."
+              />
+            </Card>
+          ) : hydrated ? (
+            <CheckInCard
+              // Remount when the stored entry changes so the form shows it.
+              key={`${today}:${todayEntry?.updatedAt ?? "new"}`}
+              date={today}
+              entry={todayEntry}
+              onSave={(draft) => {
+                saveEntry(draft);
+                void Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Success,
+                );
+              }}
+            />
+          ) : (
+            <Card>
+              <View className="h-[220px] rounded-md bg-surface-elevated-prose" />
+            </Card>
+          )}
+        </View>
 
-      <View className="gap-md mt-section">
-        <SectionHeader
-          title="Past entries"
-          trailing={
-            pastEntries.length ? (
-              <Text className="type-mono text-text-subtle">
-                {pastEntries.length}{" "}
-                {pastEntries.length === 1 ? "entry" : "entries"}
-              </Text>
-            ) : undefined
-          }
-        />
-        {pastEntries.length ? (
-          pastEntries.map((entry) => (
-            <EntryCard
-              key={entry.date}
-              entry={entry}
-              onDelete={() => confirmDelete(entry)}
-            />
-          ))
-        ) : (
-          <Card>
-            <EmptyState
-              title="No past entries yet"
-              detail="Check in each day to see how mood and energy track with your recovery."
-            />
-          </Card>
-        )}
-      </View>
-    </Screen>
+        <View className="gap-md mt-section">
+          <SectionHeader
+            title="Past entries"
+            trailing={
+              pastEntries.length ? (
+                <Text className="type-mono text-text-subtle">
+                  {pastEntries.length}{" "}
+                  {pastEntries.length === 1 ? "entry" : "entries"}
+                </Text>
+              ) : undefined
+            }
+          />
+          {pastEntries.length ? (
+            pastEntries.map((entry) => (
+              <EntryCard
+                key={entry.date}
+                entry={entry}
+                onDelete={() => confirmDelete(entry)}
+              />
+            ))
+          ) : (
+            <Card>
+              <EmptyState
+                title="No past entries yet"
+                detail="Check in each day to see how mood and energy track with your recovery."
+              />
+            </Card>
+          )}
+        </View>
+      </Screen>
+      {healthSheet.sheet}
+    </>
   );
 }
 

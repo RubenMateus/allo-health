@@ -8,10 +8,11 @@ import {
   House,
   ScanHeart,
 } from "lucide-react-native";
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { QuickAddSheet } from "@/components/navigation/QuickAddSheet";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
@@ -43,11 +44,12 @@ export function FloatingTabBar({
 }: FloatingTabBarProps) {
   const { colors, glow, gradients, scheme } = useTheme();
   const insets = useSafeAreaInsets();
+  const [quickAdd, setQuickAdd] = useState(false);
   return (
     <View
       pointerEvents="box-none"
       className="absolute left-margin right-margin items-center"
-      style={{ bottom: insets.bottom + spacing.lg }}
+      style={{ bottom: Math.max(insets.bottom, spacing.lg) }}
     >
       <View className="w-full rounded-full border border-outline-glass overflow-hidden">
         <LinearGradient
@@ -111,15 +113,17 @@ export function FloatingTabBar({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Quick add"
-            onPress={() =>
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            }
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setQuickAdd(true);
+            }}
             className="w-[42px] h-[42px] rounded-full bg-primary-bright items-center justify-center ml-xs active:opacity-70"
           >
             <CirclePlus color={colors.canvas} size={21} strokeWidth={2.4} />
           </Pressable>
         </BlurView>
       </View>
+      <QuickAddSheet visible={quickAdd} onClose={() => setQuickAdd(false)} />
     </View>
   );
 }
