@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/logo-lockup-dark.svg">
+    <img src="assets/logo/logo-lockup-light.svg" alt="Allo Health" width="360">
+  </picture>
+</p>
+
 # Allo Health
 
 Allo Health is a personal health dashboard for iPhone and Android. It reads the data your phone and wearables already collect, such as heart rate, HRV, sleep, activity and nutrition, and turns it into one calm daily view of how recovered you are and how hard to push today.
