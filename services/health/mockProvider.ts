@@ -1,5 +1,7 @@
 import type {
+  BiomarkerKind,
   GlucoseData,
+  HealthProfile,
   HealthProvider,
   HealthSample,
   NutritionData,
@@ -106,6 +108,49 @@ function mockWorkouts(since: Date): Workout[] {
   return workouts;
 }
 
+// [value a year ago, value today, day-to-day wobble, days between readings, unit]
+const biomarkerShapes: Record<
+  BiomarkerKind,
+  [start: number, end: number, wobble: number, every: number, unit: string]
+> = {
+  weight: [87.6, 84.8, 0.35, 1, "kg"],
+  hrv: [58, 66, 6, 1, "ms"],
+  restingHeartRate: [56, 52, 1.5, 1, "bpm"],
+  bodyFat: [20.4, 17.2, 0.4, 7, "%"],
+  leanBodyMass: [66.1, 67.4, 0.3, 7, "kg"],
+  vo2Max: [46.2, 49.8, 0.4, 3, "ml/kg/min"],
+  bloodOxygen: [97.4, 97.8, 0.6, 1, "%"],
+  respiratoryRate: [14.6, 14.2, 0.4, 1, "br/min"],
+};
+
+function mockBiomarkerHistory(
+  kind: BiomarkerKind,
+  since: Date,
+): HealthSample[] {
+  const [start, end, wobble, every, unit] = biomarkerShapes[kind];
+  const days = Math.min(
+    365,
+    Math.ceil((Date.now() - since.getTime()) / 86_400_000),
+  );
+  const samples: HealthSample[] = [];
+  for (let daysAgo = days; daysAgo >= 0; daysAgo -= 1) {
+    if (daysAgo % every !== 0) continue;
+    const progress = 1 - daysAgo / 365;
+    // Two out-of-step sine waves give repeatable noise without a random seed.
+    const noise =
+      Math.sin(daysAgo * 1.7) * 0.6 + Math.sin(daysAgo * 0.37) * 0.4;
+    const day = new Date();
+    day.setDate(day.getDate() - daysAgo);
+    day.setHours(0, 0, 0, 0);
+    samples.push({
+      value: start + (end - start) * progress + noise * wobble,
+      unit,
+      timestamp: day.toISOString(),
+    });
+  }
+  return samples;
+}
+
 export class MockHealthProvider implements HealthProvider {
   readonly kind = "mock" as const;
 
@@ -179,5 +224,16 @@ export class MockHealthProvider implements HealthProvider {
 
   async getWorkouts(since: Date): Promise<Workout[]> {
     return mockWorkouts(since);
+  }
+
+  async getBiomarkerHistory(
+    kind: BiomarkerKind,
+    since: Date,
+  ): Promise<HealthSample[]> {
+    return mockBiomarkerHistory(kind, since);
+  }
+
+  async getProfile(): Promise<HealthProfile> {
+    return { birthDate: "1990-03-14", sex: "male" };
   }
 }

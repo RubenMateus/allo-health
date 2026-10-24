@@ -1,5 +1,7 @@
 import type {
+  BiomarkerKind,
   GlucoseData,
+  HealthProfile,
   HealthProvider,
   HealthSample,
   NutritionData,
@@ -10,7 +12,7 @@ import type {
   Workout,
   WorkoutCategory,
 } from "./types";
-import { summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
+import { dayKey, summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
 
 const now = () => new Date();
 const recentWindow = () => ({
@@ -52,7 +54,9 @@ type QuantitySample = {
   endDate: Date;
 };
 
-const readTypes = [
+// The types the app has asked for since the first release. A launch only re-attaches
+// when these were answered, so adding new types never drops an existing connection.
+const coreReadTypes = [
   "HKCategoryTypeIdentifierSleepAnalysis",
   "HKQuantityTypeIdentifierHeartRate",
   "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
@@ -65,6 +69,63 @@ const readTypes = [
   "HKQuantityTypeIdentifierBloodGlucose",
   "HKQuantityTypeIdentifierRespiratoryRate",
   "HKWorkoutTypeIdentifier",
+] as const;
+
+const biomarkerTypes = {
+  weight: { identifier: "HKQuantityTypeIdentifierBodyMass", unit: "kg" },
+  hrv: {
+    identifier: "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+    unit: "ms",
+  },
+  restingHeartRate: {
+    identifier: "HKQuantityTypeIdentifierRestingHeartRate",
+    unit: "count/min",
+  },
+  bodyFat: {
+    identifier: "HKQuantityTypeIdentifierBodyFatPercentage",
+    unit: "%",
+  },
+  leanBodyMass: {
+    identifier: "HKQuantityTypeIdentifierLeanBodyMass",
+    unit: "kg",
+  },
+  vo2Max: { identifier: "HKQuantityTypeIdentifierVO2Max", unit: "ml/(kg*min)" },
+  bloodOxygen: {
+    identifier: "HKQuantityTypeIdentifierOxygenSaturation",
+    unit: "%",
+  },
+  respiratoryRate: {
+    identifier: "HKQuantityTypeIdentifierRespiratoryRate",
+    unit: "count/min",
+  },
+} as const satisfies Record<
+  BiomarkerKind,
+  { identifier: string; unit: string }
+>;
+
+const biomarkerUnits: Record<BiomarkerKind, string> = {
+  weight: "kg",
+  hrv: "ms",
+  restingHeartRate: "bpm",
+  bodyFat: "%",
+  leanBodyMass: "kg",
+  vo2Max: "ml/kg/min",
+  bloodOxygen: "%",
+  respiratoryRate: "br/min",
+};
+
+// HealthKit reports percentages as fractions (0.278 for 27.8%).
+const fractionKinds = new Set<BiomarkerKind>(["bodyFat", "bloodOxygen"]);
+
+const readTypes = [
+  ...coreReadTypes,
+  "HKQuantityTypeIdentifierBodyMass",
+  "HKQuantityTypeIdentifierBodyFatPercentage",
+  "HKQuantityTypeIdentifierLeanBodyMass",
+  "HKQuantityTypeIdentifierVO2Max",
+  "HKQuantityTypeIdentifierOxygenSaturation",
+  "HKCharacteristicTypeIdentifierDateOfBirth",
+  "HKCharacteristicTypeIdentifierBiologicalSex",
 ] as const;
 
 export class AppleHealthProvider implements HealthProvider {
@@ -95,7 +156,7 @@ export class AppleHealthProvider implements HealthProvider {
     // "unnecessary" means the prompt was already answered; HealthKit hides read grants,
     // so re-attaching is safe and simply returns no samples for declined types.
     const status = await healthKit.getRequestStatusForAuthorization({
-      toRead: readTypes,
+      toRead: coreReadTypes,
     });
     return status === healthKit.AuthorizationRequestStatus.unnecessary
       ? {
@@ -352,5 +413,55 @@ export class AppleHealthProvider implements HealthProvider {
         };
       }),
     );
+  }
+
+  async getBiomarkerHistory(
+    kind: BiomarkerKind,
+    since: Date,
+  ): Promise<HealthSample[]> {
+    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const { identifier, unit } = biomarkerTypes[kind];
+    const anchor = new Date(since);
+    anchor.setHours(0, 0, 0, 0);
+    // Daily statistics keep a year of HRV or respiratory rate to ~365 values.
+    const days = await healthKit.queryStatisticsCollectionForQuantity(
+      identifier,
+      ["discreteAverage"],
+      anchor,
+      { day: 1 },
+      {
+        unit,
+        filter: { date: { startDate: anchor, endDate: now() } },
+      } as never,
+    );
+    const scale = fractionKinds.has(kind) ? 100 : 1;
+    return days.flatMap((day) =>
+      day.averageQuantity && day.startDate
+        ? [
+            {
+              value: day.averageQuantity.quantity * scale,
+              unit: biomarkerUnits[kind],
+              timestamp: day.startDate.toISOString(),
+            },
+          ]
+        : [],
+    );
+  }
+
+  async getProfile(): Promise<HealthProfile> {
+    const healthKit = await import("@kingstinct/react-native-healthkit");
+    const [birthDate, sex] = await Promise.all([
+      healthKit.getDateOfBirthAsync().catch(() => undefined),
+      healthKit.getBiologicalSexAsync().catch(() => undefined),
+    ]);
+    return {
+      birthDate: birthDate ? dayKey(birthDate) : null,
+      sex:
+        sex === healthKit.BiologicalSex.female
+          ? "female"
+          : sex === healthKit.BiologicalSex.male
+            ? "male"
+            : null,
+    };
   }
 }

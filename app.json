@@ -26,6 +26,11 @@
         "android.permission.health.READ_BLOOD_GLUCOSE",
         "android.permission.health.READ_RESPIRATORY_RATE",
         "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_BODY_FAT",
+        "android.permission.health.READ_LEAN_BODY_MASS",
+        "android.permission.health.READ_VO2_MAX",
+        "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_HEALTH_DATA_HISTORY"
       ],
       "package": "com.rubenmateus.allohealth",
