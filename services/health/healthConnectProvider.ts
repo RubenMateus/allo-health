@@ -18,6 +18,14 @@ import {
   heartRateByMinute,
   summarizeWorkoutHeartRate,
 } from "@/services/metrics/fitness";
+import {
+  LATEST_READING_DAYS,
+  SAMPLE_BUCKET_MINUTES,
+  bucketSamples,
+  buildStressSamples,
+  dedupeWorkouts,
+  pickMainSleep,
+} from "./nativeSamples";
 
 const now = () => new Date();
 const todayStart = () => {
@@ -57,17 +65,24 @@ const biomarkerUnits: Record<BiomarkerKind, string> = {
 // Health Connect ExerciseSessionRecord exercise types.
 const exerciseLabels: Record<number, string> = {
   8: "Ride",
+  9: "Ride",
   13: "Calisthenics",
+  25: "Elliptical",
   36: "Intervals",
+  37: "Hike",
+  48: "Pilates",
   53: "Row",
+  54: "Row",
   56: "Run",
+  57: "Run",
+  68: "Stairs",
+  69: "Stairs",
   70: "Strength",
+  73: "Swim",
   74: "Swim",
   79: "Walk",
   81: "Strength",
   83: "Yoga",
-  48: "Pilates",
-  37: "Hike",
 };
 const strengthExercises = new Set([13, 70, 81]);
 const mixedExercises = new Set([48, 83]);
@@ -78,8 +93,14 @@ export class HealthConnectProvider implements HealthProvider {
   readonly kind = "health-connect" as const;
   private healthConnect: HealthConnectModule | null = null;
 
+  constructor(
+    // Loaded lazily so other platforms never touch the native module.
+    private readonly loadHealthConnect: () => Promise<HealthConnectModule> = () =>
+      import("react-native-health-connect"),
+  ) {}
+
   private async api() {
-    this.healthConnect ??= await import("react-native-health-connect");
+    this.healthConnect ??= await this.loadHealthConnect();
     return this.healthConnect;
   }
 
@@ -144,11 +165,12 @@ export class HealthConnectProvider implements HealthProvider {
     recordType: T,
     startTime = new Date(Date.now() - 36 * 60 * 60_000),
     endTime = now(),
+    dataOriginFilter?: string[],
   ): Promise<RecordResult<T>[]> {
     const api = await this.api();
     const records: RecordResult<T>[] = [];
     let pageToken: string | undefined;
-    // readRecords returns at most one page (1,000 records by default).
+    // readRecords returns at most one page (1,000 records by default), oldest first.
     do {
       const page = await api.readRecords(recordType, {
         timeRangeFilter: {
@@ -156,6 +178,8 @@ export class HealthConnectProvider implements HealthProvider {
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString(),
         },
+        ascendingOrder: true,
+        ...(dataOriginFilter ? { dataOriginFilter } : {}),
         ...(pageToken ? { pageToken } : {}),
       });
       records.push(...page.records);
@@ -164,35 +188,70 @@ export class HealthConnectProvider implements HealthProvider {
     return records;
   }
 
+  /** Health Connect's own total, which applies the user's app priority instead of adding every app's copy. */
+  private async activeCalories(startTime: Date, endTime = now()) {
+    const api = await this.api();
+    const result = await api.aggregateRecord({
+      recordType: "ActiveCaloriesBurned",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      },
+    });
+    return {
+      kcal: result.ACTIVE_CALORIES_TOTAL?.inKilocalories ?? 0,
+      hasData: result.dataOrigins.length > 0,
+    };
+  }
+
+  private async latest<T extends "RestingHeartRate" | "RespiratoryRate">(
+    recordType: T,
+  ): Promise<RecordResult<T> | null> {
+    const records = await this.read(
+      recordType,
+      new Date(Date.now() - LATEST_READING_DAYS * 86_400_000),
+    );
+    return records.at(-1) ?? null;
+  }
+
   async getSleep(): Promise<SleepData | null> {
-    const sessions = await this.read("SleepSession");
-    const session = sessions.at(-1);
-    if (!session) return null;
-    const stages = session.stages ?? [];
-    const duration = (stage: (typeof stages)[number]) =>
+    const minutesBetween = (start: string, end: string) =>
       Math.max(
         0,
-        (new Date(stage.endTime).getTime() -
-          new Date(stage.startTime).getTime()) /
-          60_000,
+        (new Date(end).getTime() - new Date(start).getTime()) / 60_000,
       );
-    const asleep = stages.filter((stage) => [2, 4, 5, 6].includes(stage.stage));
-    const durationMinutes =
-      asleep.reduce((sum, stage) => sum + duration(stage), 0) ||
-      (new Date(session.endTime).getTime() -
-        new Date(session.startTime).getTime()) /
-        60_000;
+    const sessions = (await this.read("SleepSession")).map((session) => {
+      const asleep = (session.stages ?? []).filter((stage) =>
+        [2, 4, 5, 6].includes(stage.stage),
+      );
+      return {
+        session,
+        end: new Date(session.endTime).getTime(),
+        // A session without stages counts as asleep from start to end.
+        asleepMinutes: asleep.length
+          ? asleep.reduce(
+              (sum, stage) =>
+                sum + minutesBetween(stage.startTime, stage.endTime),
+              0,
+            )
+          : minutesBetween(session.startTime, session.endTime),
+      };
+    });
+    // A 36-hour window can hold a nap or, in the morning, the night before too.
+    const main = pickMainSleep(sessions, now());
+    if (!main) return null;
+    const { session } = main;
+    const stages = session.stages ?? [];
+    const duration = (stage: (typeof stages)[number]) =>
+      minutesBetween(stage.startTime, stage.endTime);
+    const durationMinutes = main.asleepMinutes;
     return {
       durationMinutes,
       needMinutes: 480,
       efficiency: Math.min(
         durationMinutes /
-          Math.max(
-            (new Date(session.endTime).getTime() -
-              new Date(session.startTime).getTime()) /
-              60_000,
-            1,
-          ),
+          Math.max(minutesBetween(session.startTime, session.endTime), 1),
         1,
       ),
       deepMinutes: stages
@@ -226,21 +285,15 @@ export class HealthConnectProvider implements HealthProvider {
   }
 
   async getRestingHR(): Promise<number | null> {
-    const records = await this.read("RestingHeartRate");
-    return records.at(-1)?.beatsPerMinute ?? null;
+    return (await this.latest("RestingHeartRate"))?.beatsPerMinute ?? null;
   }
 
   async getRespiratoryRate(): Promise<number | null> {
-    const records = await this.read("RespiratoryRate");
-    return records.at(-1)?.rate ?? null;
+    return (await this.latest("RespiratoryRate"))?.rate ?? null;
   }
 
   async getActiveEnergy(): Promise<number> {
-    const records = await this.read("ActiveCaloriesBurned");
-    const start = todayStart().getTime();
-    return records
-      .filter((record) => new Date(record.endTime).getTime() >= start)
-      .reduce((sum, record) => sum + record.energy.inKilocalories, 0);
+    return (await this.activeCalories(todayStart())).kcal;
   }
 
   async getStrainInputs(): Promise<StrainInputs> {
@@ -250,10 +303,12 @@ export class HealthConnectProvider implements HealthProvider {
       this.getRestingHR(),
     ]);
     return {
-      heartRateSamples: heartRateSamples.map((sample) => ({
-        ...sample,
-        sampleMinutes: 5,
-      })),
+      // Today's heart rate only, in five-minute buckets.
+      heartRateSamples: bucketSamples(
+        heartRateSamples,
+        todayStart(),
+        now(),
+      ).map((sample) => ({ ...sample, sampleMinutes: SAMPLE_BUCKET_MINUTES })),
       activeEnergyKcal,
       restingHeartRate: resting ?? 60,
       maxHeartRate: 190,
@@ -261,22 +316,22 @@ export class HealthConnectProvider implements HealthProvider {
   }
 
   async getNutrition(): Promise<NutritionData | null> {
-    const records = await this.read("Nutrition");
-    const start = todayStart().getTime();
-    const today = records.filter(
-      (record) => new Date(record.endTime).getTime() >= start,
-    );
-    if (today.length === 0) return null;
-    return today.reduce<NutritionData>(
-      (total, record) => ({
-        calories: total.calories + (record.energy?.inKilocalories ?? 0),
-        proteinGrams: total.proteinGrams + (record.protein?.inGrams ?? 0),
-        carbohydrateGrams:
-          total.carbohydrateGrams + (record.totalCarbohydrate?.inGrams ?? 0),
-        fatGrams: total.fatGrams + (record.totalFat?.inGrams ?? 0),
-      }),
-      { calories: 0, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0 },
-    );
+    const api = await this.api();
+    const result = await api.aggregateRecord({
+      recordType: "Nutrition",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: todayStart().toISOString(),
+        endTime: now().toISOString(),
+      },
+    });
+    if (result.dataOrigins.length === 0) return null;
+    return {
+      calories: result.ENERGY_TOTAL?.inKilocalories ?? 0,
+      proteinGrams: result.PROTEIN_TOTAL?.inGrams ?? 0,
+      carbohydrateGrams: result.TOTAL_CARBOHYDRATE_TOTAL?.inGrams ?? 0,
+      fatGrams: result.TOTAL_FAT_TOTAL?.inGrams ?? 0,
+    };
   }
 
   async getGlucose(): Promise<GlucoseData | null> {
@@ -298,27 +353,30 @@ export class HealthConnectProvider implements HealthProvider {
       this.getHeartRate(),
       this.getHRV(),
     ]);
-    return heartRate.slice(-48).map((sample, index) => ({
-      timestamp: sample.timestamp,
-      heartRate: sample.value,
-      hrv: hrv[Math.min(index, Math.max(hrv.length - 1, 0))]?.value ?? 0,
-    }));
+    return buildStressSamples(heartRate, hrv, now());
   }
 
   async getWorkouts(since: Date): Promise<Workout[]> {
     const sessions = await this.read("ExerciseSession", since);
-    return Promise.all(
+    const workouts = await Promise.all(
       sessions.map(async (session): Promise<Workout> => {
         const start = new Date(session.startTime);
         const end = new Date(session.endTime);
-        const [heartRate, calories] = await Promise.all([
-          this.read(
-            "HeartRate",
-            start,
-            new Date(end.getTime() + 120_000),
-          ).catch(() => []),
-          this.read("ActiveCaloriesBurned", start, end).catch(() => []),
+        const heartRateUntil = new Date(end.getTime() + 120_000);
+        const origin = session.metadata?.dataOrigin;
+        const [ownHeartRate, calories] = await Promise.all([
+          // The app that recorded the session usually recorded its heart rate too;
+          // reading only that app avoids mixing in a second device's readings.
+          origin
+            ? this.read("HeartRate", start, heartRateUntil, [origin]).catch(
+                () => [],
+              )
+            : Promise.resolve([]),
+          this.activeCalories(start, end).catch(() => null),
         ]);
+        const heartRate = ownHeartRate.length
+          ? ownHeartRate
+          : await this.read("HeartRate", start, heartRateUntil).catch(() => []);
         const heartRateSamples = heartRate.flatMap((record) =>
           record.samples.map((sample) => ({
             value: sample.beatsPerMinute,
@@ -340,12 +398,7 @@ export class HealthConnectProvider implements HealthProvider {
           category,
           startedAt: session.startTime,
           endedAt: session.endTime,
-          activeEnergyKcal: calories.length
-            ? calories.reduce(
-                (total, record) => total + record.energy.inKilocalories,
-                0,
-              )
-            : null,
+          activeEnergyKcal: calories?.hasData ? calories.kcal : null,
           heartRate: summarizeWorkoutHeartRate(
             heartRateSamples,
             session.startTime,
@@ -359,6 +412,7 @@ export class HealthConnectProvider implements HealthProvider {
         };
       }),
     );
+    return dedupeWorkouts(workouts);
   }
 
   private async readBiomarker(
