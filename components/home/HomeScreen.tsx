@@ -18,7 +18,6 @@ import { useState } from "react";
 import {
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   useWindowDimensions,
   View,
@@ -47,8 +46,8 @@ import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { coachingEngine } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
 import { useHealthStore } from "@/stores/healthStore";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing } from "@/theme/tokens";
 import {
   convertGlucose,
   formatEnergy,
@@ -59,7 +58,6 @@ import {
 
 export function HomeScreen() {
   const { colors } = useTheme();
-  const styles = useStyles();
   const dimensions = useWindowDimensions();
   const queryClient = useQueryClient();
   const { data, isLoading, isFetching, isError, refetch } =
@@ -107,14 +105,16 @@ export function HomeScreen() {
           void refetch();
         }}
       >
-        <View style={styles.topBar}>
-          <View style={styles.brandMark}>
+        <View className="flex-row items-center gap-md mb-2xl">
+          <View className="w-[38px] h-[38px] rounded-md bg-surface-high items-center justify-center border border-outline-soft">
             <Activity color={colors.primary} size={17} strokeWidth={2.3} />
           </View>
-          <View style={styles.topBarCopy}>
-            <Text style={styles.topOverline}>ALLO / DAILY SYSTEMS</Text>
+          <View className="flex-1 gap-2xs">
+            <Text className="type-badge text-primary uppercase">
+              ALLO / DAILY SYSTEMS
+            </Text>
             <Text
-              style={styles.date}
+              className="type-heading text-text"
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.8}
@@ -126,10 +126,7 @@ export function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Connect health data"
             onPress={() => setShowPermissions(true)}
-            style={({ pressed }) => [
-              styles.connectIcon,
-              pressed && styles.pressed,
-            ]}
+            className="w-[42px] h-[42px] rounded-full border border-outline-soft bg-surface-prose items-center justify-center active:opacity-70"
           >
             <Link2 color={colors.textMuted} size={18} />
           </Pressable>
@@ -142,10 +139,10 @@ export function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => setShowPermissions(true)}
-            style={styles.accessBanner}
+            className="min-h-[42px] px-md mb-lg rounded-md border border-stress-border bg-stress-wash flex-row items-center gap-sm -mt-lg"
           >
-            <View style={styles.bannerDot} />
-            <Text style={styles.bannerText}>
+            <View className="w-1.5 h-1.5 rounded-full bg-stress" />
+            <Text className="type-caption text-text flex-1">
               {permissionMessage ??
                 (permissionState === "partial"
                   ? "Limited health data access"
@@ -198,7 +195,6 @@ function DashboardSections({
   chartWidth: number;
 }) {
   const { colors, gradients } = useTheme();
-  const styles = useStyles();
   const strainStatus =
     data.strainScore === null
       ? "NO DATA"
@@ -256,7 +252,7 @@ function DashboardSections({
   });
 
   return (
-    <View style={styles.sections}>
+    <View className="gap-2xl">
       <SectionHeader
         title="Daily readiness"
         eyebrow={
@@ -280,8 +276,8 @@ function DashboardSections({
           </Pill>
         }
       />
-      <Card style={styles.ringCard}>
-        <View style={styles.ringRow}>
+      <Card className="px-md py-xl">
+        <View className="flex-row justify-between items-start gap-md">
           {rings.map((metric) => (
             <GlowRing
               key={metric.label}
@@ -291,9 +287,9 @@ function DashboardSections({
             />
           ))}
         </View>
-        <Hairline style={styles.cardDivider} />
-        <View style={styles.recoveryMeta}>
-          <View style={styles.metaItem}>
+        <Hairline className="my-lg" />
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1 items-center gap-xs">
             <MetricLabel>RESTING HR</MetricLabel>
             <StatValue unit="bpm">
               {data.restingHeartRate === null
@@ -301,15 +297,15 @@ function DashboardSections({
                 : Math.round(data.restingHeartRate)}
             </StatValue>
           </View>
-          <View style={styles.metaDivider} />
-          <View style={styles.metaItem}>
+          <View className="w-hairline h-[30px] bg-outline-soft" />
+          <View className="flex-1 items-center gap-xs">
             <MetricLabel>HRV</MetricLabel>
             <StatValue unit="ms">
               {data.hrv === null ? "--" : Math.round(data.hrv)}
             </StatValue>
           </View>
-          <View style={styles.metaDivider} />
-          <View style={styles.metaItem}>
+          <View className="w-hairline h-[30px] bg-outline-soft" />
+          <View className="flex-1 items-center gap-xs">
             <MetricLabel>RESP. RATE</MetricLabel>
             <StatValue unit="/min">
               {data.respiratoryRate === null
@@ -320,14 +316,14 @@ function DashboardSections({
         </View>
       </Card>
 
-      <View style={styles.sectionBlock}>
+      <View className="gap-md">
         <SectionHeader
           title="AI readiness"
           eyebrow="TRAINING GUIDANCE"
           trailing={<Sparkles color={colors.primary} size={17} />}
         />
-        <Card elevated style={styles.coachingCard}>
-          <View style={styles.coachTopline}>
+        <Card elevated className="gap-md">
+          <View className="flex-row items-center justify-between gap-sm">
             <Pill
               tone={
                 coaching.mode === "push"
@@ -339,29 +335,31 @@ function DashboardSections({
             >
               {coaching.mode}
             </Pill>
-            <Text style={styles.targetRange}>
+            <Text className="type-mono-small text-text-subtle shrink text-right">
               TARGET STRAIN {coaching.targetStrain[0]}–
               {coaching.targetStrain[1]}
             </Text>
           </View>
-          <Text style={styles.coachTitle}>
+          <Text className="type-heading text-text">
             {data.recoveryScore === null || data.sleepScore === null
               ? "Waiting for enough signals"
               : coaching.title}
           </Text>
-          <Text style={styles.coachCopy}>
+          <Text className="type-body-small text-text-muted">
             {data.recoveryScore === null || data.sleepScore === null
               ? "Connect or sync more health data to personalize your daily recommendation."
               : coaching.message}
           </Text>
-          <View style={styles.coachFoot}>
-            <Text style={styles.disclaimer}>ESTIMATE / NOT MEDICAL ADVICE</Text>
+          <View className="flex-row items-center justify-between mt-xs">
+            <Text className="type-badge text-text-subtle">
+              ESTIMATE / NOT MEDICAL ADVICE
+            </Text>
             <ArrowRight color={colors.primary} size={16} />
           </View>
         </Card>
       </View>
 
-      <View style={styles.sectionBlock}>
+      <View className="gap-md">
         <SectionHeader
           title="Stress & energy"
           eyebrow="INTRADAY AUTONOMIC LOAD"
@@ -369,19 +367,22 @@ function DashboardSections({
         <Card>
           {data.stress ? (
             <>
-              <View style={styles.stressHeading}>
+              <View className="flex-row items-center justify-between">
                 <View>
                   <MetricLabel>STRESS INDEX</MetricLabel>
                   <StatValue>
                     {data.stress.average}
-                    <Text style={styles.outOf}> / 100</Text>
+                    <Text className="type-caption text-text-subtle">
+                      {" "}
+                      / 100
+                    </Text>
                   </StatValue>
                 </View>
                 <Pill tone={data.stress.average > 65 ? "warning" : "positive"}>
                   {data.stress.average > 65 ? "ELEVATED" : "BALANCED"}
                 </Pill>
               </View>
-              <View style={styles.chartWrap}>
+              <View className="mt-lg items-center">
                 <Sparkline
                   values={data.stress.samples.map((sample) => sample.value)}
                   color={colors.stress}
@@ -389,13 +390,13 @@ function DashboardSections({
                   height={82}
                 />
               </View>
-              <View style={styles.chartTimes}>
-                <Text style={styles.chartTime}>
+              <View className="flex-row justify-between mt-xs">
+                <Text className="type-mono-small text-text-subtle">
                   {data.stress.samples[0]
                     ? formatTime(data.stress.samples[0].timestamp)
                     : ""}
                 </Text>
-                <Text style={styles.chartTime}>
+                <Text className="type-mono-small text-text-subtle">
                   {data.stress.samples[
                     Math.floor(data.stress.samples.length / 2)
                   ]
@@ -406,13 +407,13 @@ function DashboardSections({
                       )
                     : ""}
                 </Text>
-                <Text style={styles.chartTime}>
+                <Text className="type-mono-small text-text-subtle">
                   {data.stress.samples.at(-1)
                     ? formatTime(data.stress.samples.at(-1)!.timestamp)
                     : ""}
                 </Text>
               </View>
-              <View style={styles.markerRow}>
+              <View className="flex-row justify-between mt-lg">
                 <Marker
                   label="LOWEST"
                   value={data.stress.lowest}
@@ -444,23 +445,23 @@ function DashboardSections({
               }
             />
           )}
-          <Hairline style={styles.cardDivider} />
-          <View style={styles.energyRow}>
-            <View style={styles.energyIcon}>
+          <Hairline className="my-lg" />
+          <View className="flex-row items-center gap-md">
+            <View className="w-[34px] h-[34px] rounded-full bg-primary-wash items-center justify-center">
               <BatteryCharging color={colors.primary} size={18} />
             </View>
-            <View style={styles.energyCopy}>
-              <Text style={styles.energyTitle}>ENERGY BATTERY</Text>
-              <Text style={styles.energyStatus}>
+            <View className="flex-1 gap-2xs">
+              <Text className="type-badge text-text-muted">ENERGY BATTERY</Text>
+              <Text className="type-caption text-text-subtle">
                 {energyStatus(data.energyBattery)}
               </Text>
             </View>
             {data.energyBattery === null ? (
-              <Text style={styles.noValue}>--</Text>
+              <Text className="type-metric-lg text-text-subtle">--</Text>
             ) : (
-              <Text style={styles.energyValue}>
+              <Text className="type-metric-lg text-primary-bright tabular-nums">
                 {data.energyBattery}
-                <Text style={styles.energyPercent}>%</Text>
+                <Text className="type-caption text-text-muted">%</Text>
               </Text>
             )}
           </View>
@@ -470,13 +471,13 @@ function DashboardSections({
         </Card>
       </View>
 
-      <View style={styles.sectionBlock}>
+      <View className="gap-md">
         <SectionHeader
           title="Nutrition & glucose"
           eyebrow="METABOLIC TELEMETRY"
         />
         <Card>
-          <View style={styles.nutritionTop}>
+          <View className="flex-row items-end justify-between">
             <View>
               <MetricLabel>ENERGY INTAKE</MetricLabel>
               <StatValue
@@ -485,16 +486,16 @@ function DashboardSections({
                     ? formatEnergy(data.nutrition.calories).unit
                     : "kcal"
                 }
-                style={styles.calorieValue}
+                className="type-metric-xl"
               >
                 {data.nutrition
                   ? formatEnergy(data.nutrition.calories).value
                   : "--"}
               </StatValue>
             </View>
-            <View style={styles.nutritionCaption}>
+            <View className="items-end gap-xs">
               <MetricLabel>TODAY TOTAL</MetricLabel>
-              <Text style={styles.nutritionCount}>
+              <Text className="type-mono-small text-text-subtle">
                 {data.nutrition ? "ALL SOURCES" : "No entries"}
               </Text>
             </View>
@@ -515,11 +516,11 @@ function DashboardSections({
               }
             />
           )}
-          <Hairline style={styles.cardDivider} />
-          <View style={styles.glucoseHead}>
+          <Hairline className="my-lg" />
+          <View className="flex-row justify-between items-center gap-md">
             <View>
               <MetricLabel>CONTINUOUS GLUCOSE</MetricLabel>
-              <Text style={styles.glucoseTitle}>
+              <Text className="type-caption text-text-subtle mt-xs">
                 {data.glucose ? "CURRENT GLUCOSE" : "CGM SIGNAL"}
               </Text>
             </View>
@@ -530,14 +531,14 @@ function DashboardSections({
           {data.glucose && data.glucose.samples.length > 0 ? (
             <GlucoseChart data={data.glucose} width={chartWidth} />
           ) : (
-            <View style={styles.cgmEmpty}>
+            <View className="items-center py-xl gap-sm">
               <MoonStar color={colors.textSubtle} size={18} />
-              <Text style={styles.cgmEmptyTitle}>
+              <Text className="type-subheading text-text-muted">
                 {data.sectionErrors.glucose
                   ? "Glucose unavailable"
                   : "No glucose readings"}
               </Text>
-              <Text style={styles.cgmEmptyCopy}>
+              <Text className="type-caption text-text-subtle text-center">
                 {data.sectionErrors.glucose
                   ? "Glucose data could not be read from the health source."
                   : "Connect a compatible CGM to see your live trend."}
@@ -547,9 +548,9 @@ function DashboardSections({
         </Card>
       </View>
 
-      <View style={styles.footerNote}>
+      <View className="flex-row items-center justify-center gap-sm py-sm">
         <HeartPulse color={colors.textSubtle} size={14} />
-        <Text style={styles.footerText}>
+        <Text className="type-caption text-text-subtle">
           Personal estimates from on-device signals. Not medical output.
         </Text>
       </View>
@@ -567,7 +568,6 @@ function Marker({
   tone: "positive" | "neutral" | "warning";
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const color =
     tone === "positive"
       ? colors.primary
@@ -575,9 +575,11 @@ function Marker({
         ? colors.stress
         : colors.text;
   return (
-    <View style={styles.marker}>
-      <Text style={styles.markerLabel}>{label}</Text>
-      <Text style={[styles.markerValue, { color }]}>{value}</Text>
+    <View className="gap-xs">
+      <Text className="type-badge text-text-subtle">{label}</Text>
+      <Text className="type-mono tabular-nums" style={{ color }}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -588,7 +590,6 @@ function MacroBreakdown({
   nutrition: NonNullable<DashboardData["nutrition"]>;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const proteinEnergy = nutrition.proteinGrams * 4;
   const carbohydrateEnergy = nutrition.carbohydrateGrams * 4;
   const fatEnergy = nutrition.fatGrams * 9;
@@ -617,30 +618,29 @@ function MacroBreakdown({
     },
   ];
   return (
-    <View style={styles.macroList}>
+    <View className="gap-md mt-xl">
       {macros.map((macro) => (
-        <View key={macro.label} style={styles.macroRow}>
-          <View style={styles.macroTop}>
-            <View style={styles.macroName}>
+        <View key={macro.label} className="gap-xs">
+          <View className="flex-row justify-between items-center">
+            <View className="flex-row items-center gap-sm">
               <View
-                style={[styles.macroDot, { backgroundColor: macro.color }]}
+                className="w-[7px] h-[7px] rounded-full"
+                style={{ backgroundColor: macro.color }}
               />
-              <Text style={styles.macroLabel}>{macro.label}</Text>
+              <Text className="type-badge text-text-muted">{macro.label}</Text>
             </View>
-            <Text style={styles.macroAmount}>
+            <Text className="type-mono text-text">
               {Math.round(macro.grams)} g{" "}
-              <Text style={styles.macroPercent}>
+              <Text className="text-text-subtle">
                 {Math.round(macro.percentage * 100)}%
               </Text>
             </Text>
           </View>
-          <View style={styles.macroTrack}>
+          <View className="h-[5px] rounded-full overflow-hidden bg-track">
             <LinearGradient
               colors={macro.gradient}
-              style={[
-                styles.macroFill,
-                { width: `${Math.round(macro.percentage * 100)}%` },
-              ]}
+              className="h-full rounded-full"
+              style={{ width: `${Math.round(macro.percentage * 100)}%` }}
             />
           </View>
         </View>
@@ -655,7 +655,6 @@ function GlucoseValue({
   data: NonNullable<DashboardData["glucose"]>;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const last = data.samples.at(-1);
   const previous = data.samples.at(-2);
   if (!last) return null;
@@ -670,11 +669,14 @@ function GlucoseValue({
       ? ArrowDownRight
       : ArrowRight;
   return (
-    <View style={styles.glucoseValue}>
+    <View className="flex-row items-center gap-xs">
       <TrendIcon color={rising ? colors.stress : colors.primary} size={16} />
-      <Text style={styles.glucoseNumber}>
+      <Text className="type-metric-md text-text tabular-nums">
         {display.value}
-        <Text style={styles.glucoseUnit}> {display.unit}</Text>
+        <Text className="type-mono-small text-text-subtle">
+          {" "}
+          {display.unit}
+        </Text>
       </Text>
     </View>
   );
@@ -688,7 +690,6 @@ function GlucoseChart({
   width: number;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const points = data.samples.map((sample) =>
     convertGlucose(sample.value, data.unit),
   );
@@ -702,7 +703,7 @@ function GlucoseChart({
   const target = isMmol ? ([3.9, 10] as const) : ([70, 180] as const);
   return (
     <>
-      <View style={styles.glucoseChart}>
+      <View className="items-center mt-md">
         <Sparkline
           values={points}
           color={colors.primary}
@@ -711,11 +712,11 @@ function GlucoseChart({
           targetRange={target}
         />
       </View>
-      <View style={styles.glucoseFoot}>
-        <Text style={styles.chartTime}>
+      <View className="flex-row justify-between mt-sm">
+        <Text className="type-mono-small text-text-subtle">
           TARGET {isMmol ? "3.9-10 mmol/L" : "70-180 mg/dL"}
         </Text>
-        <Text style={styles.chartTime}>
+        <Text className="type-mono-small text-text-subtle">
           {current ? formatTime(current.timestamp) : ""}
         </Text>
       </View>
@@ -725,18 +726,18 @@ function GlucoseChart({
 
 function BatteryMeter({ value }: { value: number }) {
   const { gradients } = useTheme();
-  const styles = useStyles();
   const width = `${Math.max(0, Math.min(100, value))}%` as `${number}%`;
   return (
     <View
       accessibilityLabel={`Energy battery ${value} percent`}
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: value }}
-      style={styles.batteryTrack}
+      className="h-1.5 rounded-full overflow-hidden bg-track mt-md"
     >
       <LinearGradient
         colors={gradients.energy}
-        style={[styles.batteryFill, { width }]}
+        className="h-full rounded-full"
+        style={{ width }}
       />
     </View>
   );
@@ -750,56 +751,57 @@ function PrimaryAction({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={styles.retryButton}
+      className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
     >
       <RotateCw color={colors.canvas} size={16} />
-      <Text style={styles.retryText}>{label}</Text>
+      <Text className="type-subheading text-canvas">{label}</Text>
     </Pressable>
   );
 }
 
 function DashboardSkeleton() {
-  const styles = useStyles();
   return (
-    <View style={styles.skeletonContainer}>
+    <View className="gap-md">
       <SectionHeader title="Daily readiness" eyebrow="SYNCING SIGNALS" />
       <Card>
-        <View style={styles.skeletonRingRow}>
+        <View className="flex-row justify-between py-md">
           {[0, 1, 2].map((item) => (
-            <SkeletonBlock key={item} style={styles.skeletonRing} />
+            <SkeletonBlock
+              key={item}
+              className="w-[84px] h-[84px] rounded-full bg-surface-high"
+            />
           ))}
         </View>
-        <SkeletonBlock style={styles.skeletonLine} />
+        <SkeletonBlock className="w-[70%] h-3 rounded-full bg-surface-high mt-lg self-center" />
       </Card>
-      <View style={styles.sectionBlock}>
+      <View className="gap-md">
         <SectionHeader title="Stress & energy" />
         <Card>
-          <SkeletonBlock style={styles.skeletonLineWide} />
-          <SkeletonBlock style={styles.skeletonChart} />
-          <SkeletonBlock style={styles.skeletonLine} />
+          <SkeletonBlock className="w-[58%] h-[18px] rounded-full bg-surface-high" />
+          <SkeletonBlock className="w-full h-[76px] rounded-md bg-surface-high mt-lg" />
+          <SkeletonBlock className="w-[70%] h-3 rounded-full bg-surface-high mt-lg self-center" />
         </Card>
       </View>
-      <View style={styles.sectionBlock}>
+      <View className="gap-md">
         <SectionHeader title="Nutrition & glucose" />
         <Card>
-          <SkeletonBlock style={styles.skeletonLineWide} />
-          <SkeletonBlock style={styles.skeletonChart} />
+          <SkeletonBlock className="w-[58%] h-[18px] rounded-full bg-surface-high" />
+          <SkeletonBlock className="w-full h-[76px] rounded-md bg-surface-high mt-lg" />
         </Card>
       </View>
     </View>
   );
 }
 
-function SkeletonBlock({ style }: { style: object }) {
+function SkeletonBlock({ className }: { className: string }) {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: withRepeat(withTiming(0.42, { duration: 900 }), -1, true),
   }));
-  return <Animated.View style={[style, animatedStyle]} />;
+  return <Animated.View className={className} style={animatedStyle} />;
 }
 
 function energyStatus(value: number | null): string {
@@ -810,270 +812,3 @@ function energyStatus(value: number | null): string {
       ? "Steady, pace your effort"
       : "Low reserve, prioritize recovery";
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    sections: { gap: spacing["2xl"] },
-    topBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      marginBottom: spacing["2xl"],
-    },
-    brandMark: {
-      width: 38,
-      height: 38,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceHigh,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-    },
-    topBarCopy: { flex: 1, gap: spacing["2xs"] },
-    topOverline: {
-      ...typography.badge,
-      color: colors.primary,
-      textTransform: "uppercase",
-    },
-    date: { ...typography.heading, color: colors.text },
-    connectIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surfaceProse,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    accessBanner: {
-      minHeight: 42,
-      paddingHorizontal: spacing.md,
-      marginTop: -spacing.lg,
-      marginBottom: spacing.lg,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.stressBorder,
-      backgroundColor: colors.stressWash,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-    },
-    bannerDot: {
-      width: 6,
-      height: 6,
-      borderRadius: radii.full,
-      backgroundColor: colors.stress,
-    },
-    bannerText: { ...typography.caption, color: colors.text, flex: 1 },
-    ringCard: { paddingHorizontal: spacing.md, paddingVertical: spacing.xl },
-    ringRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: spacing.md,
-    },
-    cardDivider: { marginVertical: spacing.lg },
-    recoveryMeta: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    metaItem: { flex: 1, alignItems: "center", gap: spacing.xs },
-    metaDivider: {
-      width: StyleSheet.hairlineWidth,
-      height: 30,
-      backgroundColor: colors.outlineSoft,
-    },
-    sectionBlock: { gap: spacing.md },
-    coachingCard: { gap: spacing.md },
-    coachTopline: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.sm,
-    },
-    targetRange: {
-      ...typography.monoSmall,
-      color: colors.textSubtle,
-      flexShrink: 1,
-      textAlign: "right",
-    },
-    coachTitle: { ...typography.heading, color: colors.text },
-    coachCopy: { ...typography.bodySmall, color: colors.textMuted },
-    coachFoot: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginTop: spacing.xs,
-    },
-    disclaimer: { ...typography.badge, color: colors.textSubtle },
-    stressHeading: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    outOf: { ...typography.caption, color: colors.textSubtle },
-    chartWrap: { marginTop: spacing.lg, alignItems: "center" },
-    chartTimes: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: spacing.xs,
-    },
-    chartTime: { ...typography.monoSmall, color: colors.textSubtle },
-    markerRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: spacing.lg,
-    },
-    marker: { gap: spacing.xs },
-    markerLabel: { ...typography.badge, color: colors.textSubtle },
-    markerValue: { ...typography.mono, fontVariant: ["tabular-nums"] },
-    energyRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-    energyIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryWash,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    energyCopy: { flex: 1, gap: spacing["2xs"] },
-    energyTitle: { ...typography.badge, color: colors.textMuted },
-    energyStatus: { ...typography.caption, color: colors.textSubtle },
-    energyValue: {
-      ...typography.metricLG,
-      color: colors.primaryBright,
-      fontVariant: ["tabular-nums"],
-    },
-    energyPercent: { ...typography.caption, color: colors.textMuted },
-    noValue: { ...typography.metricLG, color: colors.textSubtle },
-    batteryTrack: {
-      height: 6,
-      borderRadius: radii.full,
-      overflow: "hidden",
-      backgroundColor: colors.track,
-      marginTop: spacing.md,
-    },
-    batteryFill: { height: "100%", borderRadius: radii.full },
-    nutritionTop: {
-      flexDirection: "row",
-      alignItems: "flex-end",
-      justifyContent: "space-between",
-    },
-    calorieValue: { ...typography.metricXL },
-    nutritionCaption: { alignItems: "flex-end", gap: spacing.xs },
-    nutritionCount: { ...typography.monoSmall, color: colors.textSubtle },
-    macroList: { gap: spacing.md, marginTop: spacing.xl },
-    macroRow: { gap: spacing.xs },
-    macroTop: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    macroName: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    macroDot: { width: 7, height: 7, borderRadius: radii.full },
-    macroLabel: { ...typography.badge, color: colors.textMuted },
-    macroAmount: { ...typography.mono, color: colors.text },
-    macroPercent: { color: colors.textSubtle },
-    macroTrack: {
-      height: 5,
-      borderRadius: radii.full,
-      overflow: "hidden",
-      backgroundColor: colors.track,
-    },
-    macroFill: { height: "100%", borderRadius: radii.full },
-    glucoseHead: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: spacing.md,
-    },
-    glucoseTitle: {
-      ...typography.caption,
-      color: colors.textSubtle,
-      marginTop: spacing.xs,
-    },
-    glucoseValue: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-    },
-    glucoseNumber: {
-      ...typography.metricMD,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    glucoseUnit: { ...typography.monoSmall, color: colors.textSubtle },
-    glucoseChart: { alignItems: "center", marginTop: spacing.md },
-    glucoseFoot: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: spacing.sm,
-    },
-    cgmEmpty: {
-      alignItems: "center",
-      paddingVertical: spacing.xl,
-      gap: spacing.sm,
-    },
-    cgmEmptyTitle: { ...typography.subheading, color: colors.textMuted },
-    cgmEmptyCopy: {
-      ...typography.caption,
-      color: colors.textSubtle,
-      textAlign: "center",
-    },
-    footerNote: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-      paddingVertical: spacing.sm,
-    },
-    footerText: { ...typography.caption, color: colors.textSubtle },
-    pressed: { opacity: 0.7 },
-    retryButton: {
-      minHeight: 48,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryBright,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-    },
-    retryText: { ...typography.subheading, color: colors.canvas },
-    skeletonContainer: { gap: spacing.md },
-    skeletonRingRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingVertical: spacing.md,
-    },
-    skeletonRing: {
-      width: 84,
-      height: 84,
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceHigh,
-    },
-    skeletonLine: {
-      width: "70%",
-      height: 12,
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceHigh,
-      marginTop: spacing.lg,
-      alignSelf: "center",
-    },
-    skeletonLineWide: {
-      width: "58%",
-      height: 18,
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceHigh,
-    },
-    skeletonChart: {
-      width: "100%",
-      height: 76,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceHigh,
-      marginTop: spacing.lg,
-    },
-  }),
-);

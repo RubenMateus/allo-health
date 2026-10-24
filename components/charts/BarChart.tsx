@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Svg, { Rect } from "react-native-svg";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export type Bar = { value: number; color?: string; label?: string };
 
@@ -25,7 +25,6 @@ export function BarChart({
   accessibilityLabel: string;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const max = Math.max(...bars.map((bar) => bar.value), band?.[1] ?? 0, 1);
   const gap = bars.length > 14 ? 2 : 6;
   const barWidth = Math.max((width - gap * (bars.length - 1)) / bars.length, 1);
@@ -68,25 +67,23 @@ export function BarChart({
         })}
       </Svg>
       {labelled.length ? (
-        <View style={[styles.labels, { width }]}>
+        <View className="h-4 mt-sm" style={{ width }}>
           {labelled.map((bar) => (
             <Text
               key={bar.index}
-              style={[
-                styles.label,
-                {
-                  width: Math.max(barWidth, 40),
-                  left: Math.min(
-                    Math.max(
-                      bar.index * (barWidth + gap) +
-                        barWidth / 2 -
-                        Math.max(barWidth, 40) / 2,
-                      0,
-                    ),
-                    width - Math.max(barWidth, 40),
+              className="type-mono-small text-text-subtle absolute text-center"
+              style={{
+                width: Math.max(barWidth, 40),
+                left: Math.min(
+                  Math.max(
+                    bar.index * (barWidth + gap) +
+                      barWidth / 2 -
+                      Math.max(barWidth, 40) / 2,
+                    0,
                   ),
-                },
-              ]}
+                  width - Math.max(barWidth, 40),
+                ),
+              }}
             >
               {bar.label}
             </Text>
@@ -96,15 +93,3 @@ export function BarChart({
     </View>
   );
 }
-
-const useStyles = makeStyles(({ colors, spacing, typography }) =>
-  StyleSheet.create({
-    labels: { height: 16, marginTop: spacing.sm },
-    label: {
-      ...typography.monoSmall,
-      color: colors.textSubtle,
-      position: "absolute",
-      textAlign: "center",
-    },
-  }),
-);

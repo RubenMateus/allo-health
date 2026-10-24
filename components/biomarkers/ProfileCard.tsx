@@ -1,12 +1,13 @@
 import * as Haptics from "expo-haptics";
 import { Lock } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/ui/primitives";
 import type { BiologicalSex, HealthProfile } from "@/services/health/types";
 import { useProfileStore } from "@/stores/profileStore";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
 
 const sexOptions: { value: BiologicalSex; label: string }[] = [
   { value: "female", label: "Female" },
@@ -18,7 +19,6 @@ const sexOptions: { value: BiologicalSex; label: string }[] = [
  * (always the case on Health Connect). Saved only on this device.
  */
 export function ProfileCard({ profile }: { profile: HealthProfile }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const setProfile = useProfileStore((state) => state.setProfile);
   const [year, setYear] = useState(profile.birthDate?.slice(0, 4) ?? "");
@@ -32,13 +32,17 @@ export function ProfileCard({ profile }: { profile: HealthProfile }) {
 
   return (
     <Card>
-      <Text style={styles.title}>Personalise your ratings</Text>
-      <Text style={styles.detail}>
+      <Text className="type-subheading text-text">
+        Personalise your ratings
+      </Text>
+      <Text className="type-body-small text-text-muted mt-xs">
         VO₂ max, body fat and Fitness Age are compared with people of your age
         and sex. Your health app doesn&apos;t share these, so add them here.
       </Text>
 
-      <Text style={styles.label}>Birth year</Text>
+      <Text className="type-badge text-text-subtle uppercase mt-lg mb-sm">
+        Birth year
+      </Text>
       <TextInput
         value={year}
         onChangeText={(text) => setYear(text.replace(/\D/g, "").slice(0, 4))}
@@ -46,11 +50,13 @@ export function ProfileCard({ profile }: { profile: HealthProfile }) {
         placeholder="1990"
         placeholderTextColor={colors.textSubtle}
         accessibilityLabel="Birth year"
-        style={styles.input}
+        className="type-body text-text min-h-[44px] px-md rounded-md border border-outline-soft bg-surface"
       />
 
-      <Text style={styles.label}>Sex</Text>
-      <View style={styles.chips}>
+      <Text className="type-badge text-text-subtle uppercase mt-lg mb-sm">
+        Sex
+      </Text>
+      <View className="flex-row gap-sm">
         {sexOptions.map((option) => {
           const selected = sex === option.value;
           return (
@@ -62,10 +68,16 @@ export function ProfileCard({ profile }: { profile: HealthProfile }) {
                 void Haptics.selectionAsync();
                 setSex(option.value);
               }}
-              style={[styles.chip, selected && styles.chipSelected]}
+              className={cn(
+                "flex-1 min-h-[44px] items-center justify-center rounded-full border border-outline-soft bg-surface",
+                selected && "border-primary-border bg-primary-wash",
+              )}
             >
               <Text
-                style={[styles.chipText, selected && styles.chipTextSelected]}
+                className={cn(
+                  "type-caption text-text-muted",
+                  selected && "text-primary",
+                )}
               >
                 {option.label}
               </Text>
@@ -84,77 +96,19 @@ export function ProfileCard({ profile }: { profile: HealthProfile }) {
           // Only the year is asked for, so mid-year keeps the age within six months.
           setProfile({ birthDate: `${year}-07-01`, sex });
         }}
-        style={[styles.save, (!validYear || !sex) && styles.saveDisabled]}
+        className={cn(
+          "mt-xl min-h-[48px] rounded-full items-center justify-center bg-primary-bright",
+          (!validYear || !sex) && "opacity-40",
+        )}
       >
-        <Text style={styles.saveText}>Save</Text>
+        <Text className="type-subheading text-canvas">Save</Text>
       </Pressable>
-      <View style={styles.privacy}>
+      <View className="flex-row items-center justify-center gap-xs mt-md">
         <Lock color={colors.textSubtle} size={12} />
-        <Text style={styles.privacyText}>Stored only on this phone</Text>
+        <Text className="type-caption text-text-subtle">
+          Stored only on this phone
+        </Text>
       </View>
     </Card>
   );
 }
-
-const useStyles = makeStyles(({ colors, radii, spacing, typography }) =>
-  StyleSheet.create({
-    title: { ...typography.subheading, color: colors.text },
-    detail: {
-      ...typography.bodySmall,
-      color: colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    label: {
-      ...typography.badge,
-      color: colors.textSubtle,
-      textTransform: "uppercase",
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-    },
-    input: {
-      ...typography.body,
-      color: colors.text,
-      minHeight: 44,
-      paddingHorizontal: spacing.md,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surface,
-    },
-    chips: { flexDirection: "row", gap: spacing.sm },
-    chip: {
-      flex: 1,
-      minHeight: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surface,
-    },
-    chipSelected: {
-      borderColor: colors.primaryBorder,
-      backgroundColor: colors.primaryWash,
-    },
-    chipText: { ...typography.caption, color: colors.textMuted },
-    chipTextSelected: { color: colors.primary },
-    save: {
-      marginTop: spacing.xl,
-      minHeight: 48,
-      borderRadius: radii.full,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.primaryBright,
-    },
-    saveDisabled: { opacity: 0.4 },
-    saveText: { ...typography.subheading, color: colors.canvas },
-    privacy: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.xs,
-      marginTop: spacing.md,
-    },
-    privacyText: { ...typography.caption, color: colors.textSubtle },
-  }),
-);

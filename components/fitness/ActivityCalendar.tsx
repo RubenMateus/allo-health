@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { dayKey, type FitnessDay } from "@/services/metrics";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, type ColorTokens } from "@/theme/tokens";
+import { cn } from "@/utils/cn";
 import { formatMonth } from "@/utils/formatters";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -31,7 +32,6 @@ export function ActivityCalendar({
   width: number;
 }) {
   const { colors, glow } = useTheme();
-  const styles = useStyles();
   const sessions = new Map(days.map((day) => [day.date, day.sessions]));
   const today = days.at(-1)?.date;
   const months: Date[] = [];
@@ -50,7 +50,7 @@ export function ActivityCalendar({
       accessible
       accessibilityLabel={`Active on ${activeDays} of the last ${days.length} days`}
     >
-      <View style={styles.months}>
+      <View className="flex-row" style={styles.months}>
         {months.map((month) => {
           const lead = month.getDay();
           const daysInMonth = new Date(
@@ -70,33 +70,40 @@ export function ActivityCalendar({
           );
           return (
             <View key={month.getTime()} style={{ width: monthWidth }}>
-              <Text style={styles.monthName}>{formatMonth(month)}</Text>
-              <View style={styles.row}>
+              <Text className="type-subheading text-text mb-md text-[14px]">
+                {formatMonth(month)}
+              </Text>
+              <View className="flex-row mb-xs" style={styles.row}>
                 {WEEKDAYS.map((letter, index) => (
                   <Text
                     key={index}
-                    style={[styles.weekday, { width: cellWidth }]}
+                    className="type-mono-small text-text-subtle text-center"
+                    style={{ width: cellWidth }}
                   >
                     {letter}
                   </Text>
                 ))}
               </View>
-              <View style={styles.grid}>
+              <View className="flex-row flex-wrap" style={styles.grid}>
                 {cells.map((key, index) => {
                   const count = key ? sessions.get(key) : undefined;
                   return (
                     <View
                       key={key ?? `blank-${index}`}
-                      style={[
-                        styles.cell,
-                        { width: cellWidth },
+                      className={cn(
+                        "h-2.5 rounded-sm",
                         key === null
-                          ? styles.blank
-                          : count === undefined
-                            ? styles.outside
-                            : { backgroundColor: cellColor(colors, count) },
+                          ? "bg-transparent"
+                          : count === undefined &&
+                              "bg-surface-elevated-prose opacity-[0.45]",
+                        key === today && "border border-text-muted",
+                      )}
+                      style={[
+                        { width: cellWidth },
+                        count !== undefined && {
+                          backgroundColor: cellColor(colors, count),
+                        },
                         count !== undefined && count >= 3 && glow.recovery,
-                        key === today && styles.today,
                       ]}
                     />
                   );
@@ -106,11 +113,14 @@ export function ActivityCalendar({
           );
         })}
       </View>
-      <View style={styles.legend}>
+      <View className="flex-row justify-between mt-lg">
         {activityTiers(colors).map((tier) => (
-          <View key={tier.label} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: tier.color }]} />
-            <Text style={styles.legendText}>{tier.label}</Text>
+          <View key={tier.label} className="flex-row items-center gap-xs">
+            <View
+              className="w-[7px] h-[7px] rounded-full"
+              style={{ backgroundColor: tier.color }}
+            />
+            <Text className="type-caption text-text-muted">{tier.label}</Text>
           </View>
         ))}
       </View>
@@ -118,33 +128,8 @@ export function ActivityCalendar({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    months: { flexDirection: "row", gap: MONTH_GAP },
-    monthName: {
-      ...typography.subheading,
-      fontSize: 14,
-      color: colors.text,
-      marginBottom: spacing.md,
-    },
-    row: { flexDirection: "row", gap: CELL_GAP, marginBottom: spacing.xs },
-    weekday: {
-      ...typography.monoSmall,
-      color: colors.textSubtle,
-      textAlign: "center",
-    },
-    grid: { flexDirection: "row", flexWrap: "wrap", gap: CELL_GAP },
-    cell: { height: 10, borderRadius: radii.sm },
-    blank: { backgroundColor: colors.transparent },
-    outside: { backgroundColor: colors.surfaceElevatedProse, opacity: 0.45 },
-    today: { borderWidth: 1, borderColor: colors.textMuted },
-    legend: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: spacing.lg,
-    },
-    legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-    legendDot: { width: 7, height: 7, borderRadius: radii.full },
-    legendText: { ...typography.caption, color: colors.textMuted },
-  }),
-);
+const styles = StyleSheet.create({
+  months: { gap: MONTH_GAP },
+  row: { gap: CELL_GAP },
+  grid: { gap: CELL_GAP },
+});

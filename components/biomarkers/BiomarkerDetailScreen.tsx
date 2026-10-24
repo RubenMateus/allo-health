@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Text, useWindowDimensions, View } from "react-native";
 
 import {
   biomarkerMeta,
@@ -24,7 +24,8 @@ import {
   personalBaseline,
   rangeStats,
 } from "@/services/metrics";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
 import { formatDay, formatNumber } from "@/utils/formatters";
 
 type Range = "7" | "30" | "90" | "365";
@@ -93,7 +94,6 @@ function DetailBody({
   kind: BiomarkerKind;
   data: BiomarkersData;
 }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const [range, setRange] = useState<Range>("90");
@@ -143,20 +143,21 @@ function DetailBody({
               }
               accessibilityLabel={`${meta.title} for the selected range`}
             />
-            <View style={styles.axisRow}>
-              <Text style={styles.axisText}>
+            <View className="flex-row justify-between mt-sm pr-10">
+              <Text className="type-mono-small text-text-subtle">
                 {formatDay(dayKey(new Date(inRange[0]!.timestamp)))}
               </Text>
-              <Text style={styles.axisText}>
+              <Text className="type-mono-small text-text-subtle">
                 {formatDay(dayKey(new Date(inRange.at(-1)!.timestamp)))}
               </Text>
             </View>
             {baseline ? (
-              <View style={styles.legend}>
+              <View className="flex-row items-center gap-sm mt-md">
                 <View
-                  style={[styles.legendSwatch, { backgroundColor: accent }]}
+                  className="w-3 h-2 rounded-sm opacity-35"
+                  style={{ backgroundColor: accent }}
                 />
-                <Text style={styles.legendText}>
+                <Text className="type-caption text-text-muted">
                   Your usual range: {fmt(baseline[0])}–{fmt(baseline[1])} {unit}
                 </Text>
               </View>
@@ -190,11 +191,11 @@ function DetailBody({
       {kind === "vo2Max" && data.fitnessAge ? (
         <DetailSection title="Fitness Age">
           <Card>
-            <Text style={styles.bigLine}>
+            <Text className="type-metric-xl text-text tabular-nums mb-sm">
               {formatNumber(data.fitnessAge.value, 1)}{" "}
-              <Text style={styles.bigUnit}>years</Text>
+              <Text className="type-mono text-text-subtle">years</Text>
             </Text>
-            <Text style={styles.body}>
+            <Text className="type-body-small text-text-muted">
               The age at which your latest VO₂ max would be the typical (median)
               value for your sex, using the FRIEND registry reference standards
               (Kaminsky et al., 2022).
@@ -209,8 +210,8 @@ function DetailBody({
 
       <DetailSection title="What this means">
         <Card>
-          <Text style={styles.body}>{meta.about}</Text>
-          <Text style={[styles.body, styles.note]}>
+          <Text className="type-body-small text-text-muted">{meta.about}</Text>
+          <Text className="type-body-small mt-md text-text-subtle">
             {biomarker.status?.basis === "rating" && meta.ratingNote
               ? meta.ratingNote
               : "The status compares your average over the last 7 days with the 30 days before."}
@@ -219,25 +220,28 @@ function DetailBody({
       </DetailSection>
 
       <DetailSection title="Recent readings">
-        <Card style={styles.listCard}>
+        <Card className="py-xs">
           {recent.map((sample, index) => {
             const { value, unit: sampleUnit } = displayValue(kind, sample);
             return (
               <View
                 key={sample.timestamp}
-                style={[styles.listRow, index > 0 && styles.listDivider]}
+                className={cn(
+                  "flex-row justify-between py-md",
+                  index > 0 && "border-t-hairline border-t-outline-soft",
+                )}
               >
-                <Text style={styles.listDate}>
+                <Text className="type-caption text-text-muted">
                   {formatDay(dayKey(new Date(sample.timestamp)))}
                 </Text>
-                <Text style={styles.listValue}>
-                  {value} <Text style={styles.listUnit}>{sampleUnit}</Text>
+                <Text className="type-mono text-text tabular-nums">
+                  {value} <Text className="text-text-subtle">{sampleUnit}</Text>
                 </Text>
               </View>
             );
           })}
         </Card>
-        <Text style={styles.source}>
+        <Text className="type-caption text-text-subtle text-center">
           Daily averages from {sourceNames[data.source]}, read on this phone.
         </Text>
       </DetailSection>
@@ -248,59 +252,3 @@ function DetailBody({
 function signed(formatted: string, value: number) {
   return value > 0 && !formatted.startsWith("+") ? `+${formatted}` : formatted;
 }
-
-const useStyles = makeStyles(({ colors, radii, spacing, typography }) =>
-  StyleSheet.create({
-    axisRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: spacing.sm,
-      paddingRight: 40,
-    },
-    axisText: { ...typography.monoSmall, color: colors.textSubtle },
-    legend: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      marginTop: spacing.md,
-    },
-    legendSwatch: {
-      width: 12,
-      height: 8,
-      borderRadius: radii.sm,
-      opacity: 0.35,
-    },
-    legendText: { ...typography.caption, color: colors.textMuted },
-    bigLine: {
-      ...typography.metricXL,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-      marginBottom: spacing.sm,
-    },
-    bigUnit: { ...typography.mono, color: colors.textSubtle },
-    body: { ...typography.bodySmall, color: colors.textMuted },
-    note: { marginTop: spacing.md, color: colors.textSubtle },
-    listCard: { paddingVertical: spacing.xs },
-    listRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingVertical: spacing.md,
-    },
-    listDivider: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.outlineSoft,
-    },
-    listDate: { ...typography.caption, color: colors.textMuted },
-    listValue: {
-      ...typography.mono,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    listUnit: { color: colors.textSubtle },
-    source: {
-      ...typography.caption,
-      color: colors.textSubtle,
-      textAlign: "center",
-    },
-  }),
-);

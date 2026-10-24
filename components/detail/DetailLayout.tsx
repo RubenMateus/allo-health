@@ -2,10 +2,11 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
 
 /**
  * The shared frame for every metric detail page: back button and title, the
@@ -27,11 +28,10 @@ export function DetailLayout({
   statusColor?: string;
   caption?: string | null;
 }>) {
-  const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
-      <View style={styles.header}>
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-canvas">
+      <View className="flex-row items-center px-sm py-sm border-b-hairline border-b-outline-soft">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back"
@@ -41,35 +41,42 @@ export function DetailLayout({
             if (router.canGoBack()) router.back();
             else router.replace("/");
           }}
-          style={styles.back}
+          className="w-11 h-11 items-center justify-center"
         >
           <ChevronLeft color={colors.text} size={22} />
         </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text
+          className="type-subheading text-text flex-1 text-center"
+          numberOfLines={1}
+        >
           {title}
         </Text>
-        <View style={styles.back} />
+        <View className="w-11 h-11 items-center justify-center" />
       </View>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerClassName="gap-2xl px-margin pb-16 pt-xl"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <View style={styles.valueRow}>
-            <Text style={styles.value}>{value ?? "—"}</Text>
-            {unit && value ? <Text style={styles.unit}>{unit}</Text> : null}
+        <View className="gap-xs">
+          <View className="flex-row items-baseline gap-sm">
+            <Text className="type-display text-text tabular-nums">
+              {value ?? "—"}
+            </Text>
+            {unit && value ? (
+              <Text className="type-mono text-text-subtle">{unit}</Text>
+            ) : null}
           </View>
           {status ? (
             <Text
-              style={[
-                styles.status,
-                statusColor ? { color: statusColor } : null,
-              ]}
+              className="type-subheading text-text-muted"
+              style={statusColor ? { color: statusColor } : null}
             >
               {status}
             </Text>
           ) : null}
-          {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+          {caption ? (
+            <Text className="type-mono text-text-subtle">{caption}</Text>
+          ) : null}
         </View>
         {children}
       </ScrollView>
@@ -82,11 +89,10 @@ export function DetailSection({
   trailing,
   children,
 }: PropsWithChildren<{ title: string; trailing?: ReactNode }>) {
-  const styles = useStyles();
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+    <View className="gap-md">
+      <View className="flex-row items-baseline justify-between">
+        <Text className="type-subheading text-text">{title}</Text>
         {trailing}
       </View>
       {children}
@@ -105,9 +111,11 @@ export function RangeToggle<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.toggle} accessibilityRole="tablist">
+    <View
+      className="flex-row p-2xs rounded-full bg-surface border border-outline-soft"
+      accessibilityRole="tablist"
+    >
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -119,10 +127,16 @@ export function RangeToggle<T extends string>({
               void Haptics.selectionAsync();
               onChange(option.value);
             }}
-            style={[styles.toggleItem, selected && styles.toggleItemSelected]}
+            className={cn(
+              "flex-1 min-h-[36px] items-center justify-center rounded-full",
+              selected && "bg-surface-highest",
+            )}
           >
             <Text
-              style={[styles.toggleText, selected && styles.toggleTextSelected]}
+              className={cn(
+                "type-caption text-text-subtle",
+                selected && "text-text",
+              )}
             >
               {option.label}
             </Text>
@@ -138,16 +152,17 @@ export function StatGrid({
 }: {
   stats: { label: string; value: string; unit?: string }[];
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.statGrid}>
+    <View className="flex-row flex-wrap gap-y-lg">
       {stats.map((stat) => (
-        <View key={stat.label} style={styles.stat}>
-          <Text style={styles.statLabel}>{stat.label}</Text>
-          <Text style={styles.statValue}>
+        <View key={stat.label} className="w-[50%] gap-2xs">
+          <Text className="type-badge text-text-subtle uppercase">
+            {stat.label}
+          </Text>
+          <Text className="type-metric-lg text-text tabular-nums text-[20px]">
             {stat.value}
             {stat.unit ? (
-              <Text style={styles.statUnit}> {stat.unit}</Text>
+              <Text className="type-mono text-text-subtle"> {stat.unit}</Text>
             ) : null}
           </Text>
         </View>
@@ -155,88 +170,3 @@ export function StatGrid({
     </View>
   );
 }
-
-const useStyles = makeStyles(({ colors, radii, spacing, typography }) =>
-  StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.canvas },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.outlineSoft,
-    },
-    back: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    headerTitle: {
-      ...typography.subheading,
-      color: colors.text,
-      flex: 1,
-      textAlign: "center",
-    },
-    content: {
-      paddingHorizontal: spacing.margin,
-      paddingTop: spacing.xl,
-      paddingBottom: spacing["3xl"] * 2,
-      gap: spacing["2xl"],
-    },
-    hero: { gap: spacing.xs },
-    valueRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-    value: {
-      ...typography.display,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    unit: { ...typography.mono, color: colors.textSubtle },
-    status: { ...typography.subheading, color: colors.textMuted },
-    caption: { ...typography.mono, color: colors.textSubtle },
-    section: { gap: spacing.md },
-    sectionHeader: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      justifyContent: "space-between",
-    },
-    sectionTitle: { ...typography.subheading, color: colors.text },
-    toggle: {
-      flexDirection: "row",
-      padding: spacing["2xs"],
-      borderRadius: radii.full,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-    },
-    toggleItem: {
-      flex: 1,
-      minHeight: 36,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.full,
-    },
-    toggleItemSelected: { backgroundColor: colors.surfaceHighest },
-    toggleText: { ...typography.caption, color: colors.textSubtle },
-    toggleTextSelected: { color: colors.text },
-    statGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      rowGap: spacing.lg,
-    },
-    stat: { width: "50%", gap: spacing["2xs"] },
-    statLabel: {
-      ...typography.badge,
-      color: colors.textSubtle,
-      textTransform: "uppercase",
-    },
-    statValue: {
-      ...typography.metricLG,
-      fontSize: 20,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    statUnit: { ...typography.mono, color: colors.textSubtle },
-  }),
-);

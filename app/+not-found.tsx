@@ -1,48 +1,20 @@
 import { Link, Stack } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-
-import { makeStyles } from "@/theme/ThemeProvider";
-import { radii, spacing, typography } from "@/theme/tokens";
+import { Pressable, Text, View } from "react-native";
 
 export default function NotFoundScreen() {
-  const styles = useStyles();
   return (
     <>
       <Stack.Screen options={{ title: "Oops!" }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>Route unavailable</Text>
+      <View className="flex-1 items-center justify-center p-2xl">
+        <Text className="type-heading text-text">Route unavailable</Text>
         <Link href="/" asChild>
-          <Pressable style={styles.link}>
-            <Text style={styles.linkText}>Return home</Text>
+          <Pressable className="mt-lg py-md px-xl rounded-full bg-surface-high">
+            <Text className="type-body-small text-primary-bright">
+              Return home
+            </Text>
           </Pressable>
         </Link>
       </View>
     </>
   );
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      padding: spacing["2xl"],
-    },
-    title: {
-      ...typography.heading,
-      color: colors.text,
-    },
-    link: {
-      marginTop: spacing.lg,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xl,
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceHigh,
-    },
-    linkText: {
-      ...typography.bodySmall,
-      color: colors.primaryBright,
-    },
-  }),
-);

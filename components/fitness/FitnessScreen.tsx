@@ -10,13 +10,7 @@ import {
   RotateCw,
 } from "lucide-react-native";
 import type { ReactNode } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   withRepeat,
@@ -45,13 +39,13 @@ import {
 import { useBiomarkers } from "@/hooks/useBiomarkers";
 import { useFitnessDashboard } from "@/hooks/useFitnessDashboard";
 import type { FitnessData } from "@/services/health/fitness";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, type ColorTokens } from "@/theme/tokens";
+import { cn } from "@/utils/cn";
 import { formatDay, formatDuration, formatEnergy } from "@/utils/formatters";
 
 export function FitnessScreen() {
   const { colors } = useTheme();
-  const styles = useStyles();
   const { width } = useWindowDimensions();
   const { data, isLoading, isFetching, isError, refetch } =
     useFitnessDashboard();
@@ -66,16 +60,18 @@ export function FitnessScreen() {
         void refetch();
       }}
     >
-      <View style={styles.topBar}>
+      <View className="flex-row items-center gap-md pb-md mb-xl border-b-hairline border-b-outline-soft">
         <CalendarDays color={colors.primary} size={20} />
-        <Text style={styles.date}>{formatTodayShort()}</Text>
+        <Text className="type-subheading text-text flex-1">
+          {formatTodayShort()}
+        </Text>
         {data ? <SourcePill source={data.source} /> : null}
         <SettingsButton />
       </View>
 
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>Fitness</Text>
-        <Text style={styles.subtitle}>Last 30 days</Text>
+      <View className="gap-2xs mb-2xl">
+        <Text className="type-title text-text">Fitness</Text>
+        <Text className="type-caption text-text-muted">Last 30 days</Text>
       </View>
 
       {isLoading && !data ? (
@@ -89,10 +85,10 @@ export function FitnessScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => void refetch()}
-            style={styles.retryButton}
+            className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
           >
             <RotateCw color={colors.canvas} size={16} />
-            <Text style={styles.retryText}>Try again</Text>
+            <Text className="type-subheading text-canvas">Try again</Text>
           </Pressable>
         </Card>
       ) : (
@@ -110,7 +106,6 @@ function FitnessSections({
   contentWidth: number;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const delta =
     data.activity.previousMinutes === null
       ? null
@@ -120,8 +115,8 @@ function FitnessSections({
   const halfWidth = (contentWidth + spacing.lg * 2 - spacing.gutter) / 2;
 
   return (
-    <View style={styles.sections}>
-      <View style={styles.gridRow}>
+    <View className="gap-2xl">
+      <View className="flex-row gap-gutter">
         <LoadGaugeCard
           title="Cardio load"
           gauge={data.cardioGauge}
@@ -142,14 +137,22 @@ function FitnessSections({
           label="ACTIVITY SUMMARY"
           trailing={
             delta === null ? null : (
-              <View style={[styles.deltaPill, delta < 0 && styles.deltaDown]}>
+              <View
+                className={cn(
+                  "flex-row items-center gap-2xs px-sm py-2xs rounded-full border border-primary-border bg-primary-wash",
+                  delta < 0 && "border-stress-border bg-stress-wash",
+                )}
+              >
                 {delta >= 0 ? (
                   <ArrowUpRight color={colors.primary} size={13} />
                 ) : (
                   <ArrowDownRight color={colors.stress} size={13} />
                 )}
                 <Text
-                  style={[styles.deltaText, delta < 0 && styles.deltaTextDown]}
+                  className={cn(
+                    "type-caption text-primary",
+                    delta < 0 && "text-stress",
+                  )}
                 >
                   {formatDuration(Math.abs(delta))}
                 </Text>
@@ -157,27 +160,31 @@ function FitnessSections({
             )
           }
         />
-        <Text style={styles.heroValue}>
+        <Text className="type-display text-text tabular-nums mt-lg">
           {formatDuration(data.activity.totalMinutes)}
         </Text>
-        <Text style={styles.range}>
+        <Text className="type-mono text-text-muted mt-xs">
           {formatDay(data.rangeStart)} – {formatDay(data.rangeEnd)}
         </Text>
         {data.workoutCount ? (
           <>
-            <View style={styles.cumulativeChart}>
+            <View className="mt-xl">
               <CumulativeChart
                 minutes={data.activity.cumulativeMinutes}
                 width={contentWidth}
                 accessibilityLabel={`${formatDuration(data.activity.totalMinutes)} of activity over the last 30 days`}
               />
             </View>
-            <View style={styles.axisRow}>
-              <Text style={styles.axisText}>{formatDay(data.rangeStart)}</Text>
-              <Text style={styles.axisText}>
+            <View className="flex-row justify-between mt-md pr-[34px]">
+              <Text className="type-mono-small text-text-subtle">
+                {formatDay(data.rangeStart)}
+              </Text>
+              <Text className="type-mono-small text-text-subtle">
                 {formatDay(data.days[Math.floor(data.days.length / 2)]!.date)}
               </Text>
-              <Text style={styles.axisText}>{formatDay(data.rangeEnd)}</Text>
+              <Text className="type-mono-small text-text-subtle">
+                {formatDay(data.rangeEnd)}
+              </Text>
             </View>
           </>
         ) : (
@@ -192,35 +199,39 @@ function FitnessSections({
         <ActivityCalendar days={data.days} width={contentWidth} />
       </Card>
 
-      <View style={styles.sectionBlock}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Cardio</Text>
-          <Text style={styles.sectionCaption}>Tap a card for details</Text>
+      <View className="gap-md">
+        <View className="flex-row items-baseline justify-between">
+          <Text className="type-subheading text-text">Cardio</Text>
+          <Text className="type-mono text-text-subtle">
+            Tap a card for details
+          </Text>
         </View>
-        <View style={styles.grid}>
-          <View style={styles.gridRow}>
+        <View className="gap-gutter">
+          <View className="flex-row gap-gutter">
             <ActiveDurationCard data={data} width={halfWidth} />
             <ActiveEnergyCard data={data} width={halfWidth} />
           </View>
-          <View style={styles.gridRow}>
+          <View className="flex-row gap-gutter">
             <Vo2MaxCard
               vo2Max={biomarkers?.biomarkers.vo2Max ?? null}
               width={halfWidth}
             />
             <HeartRateRecoveryCard data={data} width={halfWidth} />
           </View>
-          <View style={styles.gridRow}>
+          <View className="flex-row gap-gutter">
             <CardioFocusCard data={data} />
             <HeartRateZonesCard data={data} width={halfWidth} />
           </View>
         </View>
       </View>
 
-      <View style={styles.sectionBlock}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Strength & Training Mix</Text>
+      <View className="gap-md">
+        <View className="flex-row items-baseline justify-between">
+          <Text className="type-subheading text-text">
+            Strength & Training Mix
+          </Text>
         </View>
-        <Card style={styles.flushCard}>
+        <Card className="p-0 overflow-hidden">
           {data.workoutCount ? (
             <>
               <StrengthBlock strength={data.strength} />
@@ -236,9 +247,9 @@ function FitnessSections({
         </Card>
       </View>
 
-      <View style={styles.footerNote}>
+      <View className="flex-row items-center justify-center gap-sm py-sm">
         <Gauge color={colors.textSubtle} size={14} />
-        <Text style={styles.footerText}>
+        <Text className="type-caption text-text-subtle">
           Training estimates computed on this device.
         </Text>
       </View>
@@ -255,12 +266,13 @@ function CardHeading({
   label: string;
   trailing?: ReactNode;
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.cardHeading}>
+    <View className="flex-row items-center gap-sm">
       {icon}
-      <Text style={styles.cardLabel}>{label}</Text>
-      <View style={styles.cardTrailing}>{trailing}</View>
+      <Text className="type-badge text-text shrink text-[11px]">{label}</Text>
+      <View className="flex-1 flex-row items-center justify-end gap-md">
+        {trailing}
+      </View>
     </View>
   );
 }
@@ -282,64 +294,68 @@ function mixStyles(
 
 function StrengthBlock({ strength }: { strength: FitnessData["strength"] }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const peak = Math.max(...strength.weekly, 1);
   const energy =
     strength.activeEnergyKcal === null
       ? null
       : formatEnergy(strength.activeEnergyKcal);
   return (
-    <View style={styles.metricBlock}>
+    <View className="p-lg gap-md">
       <CardHeading
         icon={<Dumbbell color={colors.text} size={15} />}
         label="STRENGTH SESSIONS"
       />
       {strength.sessions === 0 ? (
-        <Text style={styles.cellEmpty}>
+        <Text className="type-caption text-text-subtle">
           No strength workouts in the last 30 days.
         </Text>
       ) : (
         <>
-          <View style={styles.metricRow}>
-            <View style={styles.metricCopy}>
-              <View style={styles.inlineValue}>
-                <Text style={styles.metricValue}>{strength.sessions}</Text>
-                <Text style={styles.metricCaption}>
+          <View className="flex-row items-center gap-md">
+            <View className="flex-1 gap-sm">
+              <View className="flex-row items-baseline gap-sm">
+                <Text className="type-metric-xl text-text tabular-nums">
+                  {strength.sessions}
+                </Text>
+                <Text className="type-mono text-text-muted">
                   {strength.sessions === 1 ? "session" : "sessions"}
                 </Text>
               </View>
-              <Text style={styles.metricCaption}>
+              <Text className="type-mono text-text-muted">
                 {formatDuration(strength.minutes)} under load
               </Text>
             </View>
             <View
-              style={styles.weekBars}
+              className="flex-row gap-sm"
               accessible
               accessibilityLabel={`Strength sessions per week, oldest first: ${strength.weekly.join(", ")}`}
             >
               {strength.weekly.map((count, index) => (
-                <View key={WEEK_LABELS[index]} style={styles.weekColumn}>
-                  <Text style={styles.weekCount}>{count}</Text>
-                  <View style={styles.weekTrack}>
+                <View
+                  key={WEEK_LABELS[index]}
+                  className="items-center gap-2xs w-10"
+                >
+                  <Text className="type-mono text-text">{count}</Text>
+                  <View className="w-3.5 h-12 rounded-sm justify-end overflow-hidden bg-track">
                     <View
-                      style={[
-                        styles.weekFill,
-                        {
-                          height: `${(count / peak) * 100}%`,
-                          backgroundColor:
-                            index === strength.weekly.length - 1
-                              ? colors.primaryBright
-                              : colors.fat,
-                        },
-                      ]}
+                      className="w-full rounded-sm"
+                      style={{
+                        height: `${(count / peak) * 100}%`,
+                        backgroundColor:
+                          index === strength.weekly.length - 1
+                            ? colors.primaryBright
+                            : colors.fat,
+                      }}
                     />
                   </View>
-                  <Text style={styles.weekLabel}>{WEEK_LABELS[index]}</Text>
+                  <Text className="type-mono-small text-text-subtle text-[9px]">
+                    {WEEK_LABELS[index]}
+                  </Text>
                 </View>
               ))}
             </View>
           </View>
-          <View style={styles.statRow}>
+          <View className="flex-row justify-between pt-md border-t-hairline border-t-outline-soft">
             <MiniStat
               label="AVG HR"
               value={
@@ -374,13 +390,14 @@ function MiniStat({
   value: string;
   unit?: string;
 }) {
-  const styles = useStyles();
   return (
-    <View style={styles.miniStat}>
-      <Text style={styles.miniLabel}>{label}</Text>
-      <Text style={styles.miniValue}>
+    <View className="gap-xs">
+      <Text className="type-badge text-text-subtle">{label}</Text>
+      <Text className="type-subheading text-text tabular-nums">
         {value}
-        {unit ? <Text style={styles.miniUnit}> {unit}</Text> : null}
+        {unit ? (
+          <Text className="type-mono text-text-subtle"> {unit}</Text>
+        ) : null}
       </Text>
     </View>
   );
@@ -388,14 +405,13 @@ function MiniStat({
 
 function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   return (
-    <View style={styles.metricBlock}>
+    <View className="p-lg gap-md">
       <CardHeading
         icon={<Layers color={colors.text} size={15} />}
         label="TRAINING MIX"
       />
-      <View style={styles.mixBar}>
+      <View className="flex-row h-2 gap-[3px] rounded-full overflow-hidden">
         {mix.map((entry) => (
           <View
             key={entry.category}
@@ -406,31 +422,29 @@ function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
           />
         ))}
       </View>
-      <View style={styles.mixLegend}>
+      <View className="gap-sm">
         {mix.map((entry) => (
           <View
             key={entry.category}
-            style={styles.mixRow}
+            className="flex-row items-center gap-sm"
             accessible
             accessibilityLabel={`${mixStyles(colors)[entry.category].label} ${entry.share} percent, ${formatDuration(entry.minutes)}`}
           >
             <View
-              style={[
-                styles.mixDot,
-                { backgroundColor: mixStyles(colors)[entry.category].color },
-              ]}
+              className="w-[7px] h-[7px] rounded-full"
+              style={{
+                backgroundColor: mixStyles(colors)[entry.category].color,
+              }}
             />
-            <Text style={styles.mixLabel}>
+            <Text className="type-caption text-text flex-1">
               {mixStyles(colors)[entry.category].label}
             </Text>
-            <Text style={styles.mixMinutes}>
+            <Text className="type-mono text-text-muted">
               {formatDuration(entry.minutes)}
             </Text>
             <Text
-              style={[
-                styles.mixShare,
-                { color: mixStyles(colors)[entry.category].color },
-              ]}
+              className="type-mono w-10 text-right tabular-nums"
+              style={{ color: mixStyles(colors)[entry.category].color }}
             >
               {entry.share}%
             </Text>
@@ -442,38 +456,36 @@ function TrainingMixBlock({ mix }: { mix: FitnessData["trainingMix"] }) {
 }
 
 function SourcePill({ source }: { source: FitnessData["source"] }) {
-  const styles = useStyles();
   return source === "mock" ? (
     <Pill>SAMPLE</Pill>
   ) : (
-    <View style={styles.syncPill}>
-      <View style={styles.syncDot} />
-      <Text style={styles.syncText}>Synced</Text>
+    <View className="flex-row items-center gap-xs px-md py-xs rounded-full border border-outline-soft bg-surface">
+      <View className="w-[7px] h-[7px] rounded-full bg-primary" />
+      <Text className="type-caption text-text">Synced</Text>
     </View>
   );
 }
 
 function FitnessSkeleton() {
-  const styles = useStyles();
   return (
-    <View style={styles.sections}>
+    <View className="gap-2xl">
       <Card>
-        <SkeletonBlock style={styles.skeletonLine} />
-        <SkeletonBlock style={styles.skeletonHero} />
-        <SkeletonBlock style={styles.skeletonChart} />
+        <SkeletonBlock className="w-[40%] h-3 rounded-full bg-surface-high" />
+        <SkeletonBlock className="w-[55%] h-9 rounded-md bg-surface-high mt-lg" />
+        <SkeletonBlock className="w-full h-[120px] rounded-md bg-surface-high mt-lg" />
       </Card>
       <Card>
-        <SkeletonBlock style={styles.skeletonChart} />
+        <SkeletonBlock className="w-full h-[120px] rounded-md bg-surface-high mt-lg" />
       </Card>
     </View>
   );
 }
 
-function SkeletonBlock({ style }: { style: object }) {
+function SkeletonBlock({ className }: { className: string }) {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: withRepeat(withTiming(0.42, { duration: 900 }), -1, true),
   }));
-  return <Animated.View style={[style, animatedStyle]} />;
+  return <Animated.View className={className} style={animatedStyle} />;
 }
 
 function formatTodayShort() {
@@ -482,208 +494,3 @@ function formatTodayShort() {
     day: "numeric",
   }).format(new Date())}`;
 }
-
-const useStyles = makeStyles(({ colors }) =>
-  StyleSheet.create({
-    topBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      paddingBottom: spacing.md,
-      marginBottom: spacing.xl,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.outlineSoft,
-    },
-    date: { ...typography.subheading, color: colors.text, flex: 1 },
-    syncPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surface,
-    },
-    syncDot: {
-      width: 7,
-      height: 7,
-      borderRadius: radii.full,
-      backgroundColor: colors.primary,
-    },
-    syncText: { ...typography.caption, color: colors.text },
-    titleRow: { gap: spacing["2xs"], marginBottom: spacing["2xl"] },
-    title: { ...typography.title, color: colors.text },
-    subtitle: { ...typography.caption, color: colors.textMuted },
-    sections: { gap: spacing["2xl"] },
-    sectionBlock: { gap: spacing.md },
-    grid: { gap: spacing.gutter },
-    gridRow: { flexDirection: "row", gap: spacing.gutter },
-    sectionHeader: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      justifyContent: "space-between",
-    },
-    sectionTitle: { ...typography.subheading, color: colors.text },
-    sectionCaption: { ...typography.mono, color: colors.textSubtle },
-    cardHeading: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-    },
-    cardLabel: {
-      ...typography.badge,
-      fontSize: 11,
-      color: colors.text,
-      flexShrink: 1,
-    },
-    cardTrailing: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "flex-end",
-      gap: spacing.md,
-    },
-    deltaPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing["2xs"],
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing["2xs"],
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.primaryBorder,
-      backgroundColor: colors.primaryWash,
-    },
-    deltaDown: {
-      borderColor: colors.stressBorder,
-      backgroundColor: colors.stressWash,
-    },
-    deltaText: { ...typography.caption, color: colors.primary },
-    deltaTextDown: { color: colors.stress },
-    heroValue: {
-      ...typography.display,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-      marginTop: spacing.lg,
-    },
-    range: {
-      ...typography.mono,
-      color: colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    cumulativeChart: { marginTop: spacing.xl },
-    axisRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: spacing.md,
-      paddingRight: 34,
-    },
-    axisText: { ...typography.monoSmall, color: colors.textSubtle },
-    flushCard: { padding: 0, overflow: "hidden" },
-    metricBlock: { padding: spacing.lg, gap: spacing.md },
-    metricRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-    metricCopy: { flex: 1, gap: spacing.sm },
-    inlineValue: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      gap: spacing.sm,
-    },
-    metricValue: {
-      ...typography.metricXL,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    metricCaption: { ...typography.mono, color: colors.textMuted },
-    cellEmpty: { ...typography.caption, color: colors.textSubtle },
-    weekBars: { flexDirection: "row", gap: spacing.sm },
-    weekColumn: { alignItems: "center", gap: spacing["2xs"], width: 40 },
-    weekCount: { ...typography.mono, color: colors.text },
-    weekTrack: {
-      width: 14,
-      height: 48,
-      borderRadius: radii.sm,
-      justifyContent: "flex-end",
-      overflow: "hidden",
-      backgroundColor: colors.track,
-    },
-    weekFill: { width: "100%", borderRadius: radii.sm },
-    weekLabel: {
-      ...typography.monoSmall,
-      fontSize: 9,
-      color: colors.textSubtle,
-    },
-    statRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingTop: spacing.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.outlineSoft,
-    },
-    miniStat: { gap: spacing.xs },
-    miniLabel: { ...typography.badge, color: colors.textSubtle },
-    miniValue: {
-      ...typography.subheading,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    miniUnit: { ...typography.mono, color: colors.textSubtle },
-    mixBar: {
-      flexDirection: "row",
-      height: 8,
-      gap: 3,
-      borderRadius: radii.full,
-      overflow: "hidden",
-    },
-    mixLegend: { gap: spacing.sm },
-    mixRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    mixDot: { width: 7, height: 7, borderRadius: radii.full },
-    mixLabel: { ...typography.caption, color: colors.text, flex: 1 },
-    mixMinutes: { ...typography.mono, color: colors.textMuted },
-    mixShare: {
-      ...typography.mono,
-      width: 40,
-      textAlign: "right",
-      fontVariant: ["tabular-nums"],
-    },
-    footerNote: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-      paddingVertical: spacing.sm,
-    },
-    footerText: { ...typography.caption, color: colors.textSubtle },
-    retryButton: {
-      minHeight: 48,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryBright,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-    },
-    retryText: { ...typography.subheading, color: colors.canvas },
-    skeletonLine: {
-      width: "40%",
-      height: 12,
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceHigh,
-    },
-    skeletonHero: {
-      width: "55%",
-      height: 36,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceHigh,
-      marginTop: spacing.lg,
-    },
-    skeletonChart: {
-      width: "100%",
-      height: 120,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceHigh,
-      marginTop: spacing.lg,
-    },
-  }),
-);

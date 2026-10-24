@@ -10,7 +10,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export type TrendPoint = { time: number; value: number };
 
@@ -39,7 +39,6 @@ export function TrendChart({
   accessibilityLabel: string;
 }) {
   const { colors } = useTheme();
-  const styles = useStyles();
   const fillId = `trend-fill-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
   const plotWidth = Math.max(width - AXIS_WIDTH, 1);
 
@@ -88,7 +87,7 @@ export function TrendChart({
       accessible
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}
-      style={styles.frame}
+      className="flex-row"
     >
       <Svg width={plotWidth} height={height}>
         <Defs>
@@ -145,24 +144,24 @@ export function TrendChart({
           strokeWidth={2.5}
         />
       </Svg>
-      <View style={[styles.axis, { height }]}>
-        <Text style={styles.axisText}>{formatValue(top)}</Text>
-        <Text style={styles.axisText}>{formatValue((top + bottom) / 2)}</Text>
-        <Text style={styles.axisText}>{formatValue(bottom)}</Text>
+      <View
+        className="justify-between items-end"
+        style={[styles.axis, { height }]}
+      >
+        <Text className="type-mono-small text-text-subtle">
+          {formatValue(top)}
+        </Text>
+        <Text className="type-mono-small text-text-subtle">
+          {formatValue((top + bottom) / 2)}
+        </Text>
+        <Text className="type-mono-small text-text-subtle">
+          {formatValue(bottom)}
+        </Text>
       </View>
     </View>
   );
 }
 
-const useStyles = makeStyles(({ colors, typography }) =>
-  StyleSheet.create({
-    frame: { flexDirection: "row" },
-    axis: {
-      width: AXIS_WIDTH,
-      justifyContent: "space-between",
-      paddingVertical: INSET - 7,
-      alignItems: "flex-end",
-    },
-    axisText: { ...typography.monoSmall, color: colors.textSubtle },
-  }),
-);
+const styles = StyleSheet.create({
+  axis: { width: AXIS_WIDTH, paddingVertical: INSET - 7 },
+});

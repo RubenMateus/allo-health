@@ -1,4 +1,4 @@
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Text, useWindowDimensions, View } from "react-native";
 
 import { BarChart } from "@/components/charts/BarChart";
 import { TrendChart } from "@/components/charts/TrendChart";
@@ -27,7 +27,8 @@ import {
   ZONE_FLOORS,
   type WeekComparison,
 } from "@/services/metrics";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
 import {
   formatDay,
   formatDayLabel,
@@ -69,7 +70,6 @@ function LoadDetail({
   metric: "cardio-load" | "muscular-load";
   data: FitnessData;
 }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const width = useChartWidth();
   const cardio = metric === "cardio-load";
@@ -116,7 +116,9 @@ function LoadDetail({
             color={cardio ? colors.primary : colors.fat}
             accessibilityLabel={`Daily ${cardio ? "cardio" : "strength"} load over 28 days`}
           />
-          <Text style={styles.legend}>The last 7 days are highlighted.</Text>
+          <Text className="type-caption text-text-subtle mt-md">
+            The last 7 days are highlighted.
+          </Text>
         </Card>
       </DetailSection>
 
@@ -142,12 +144,12 @@ function LoadDetail({
 
       <DetailSection title="What this means">
         <Card>
-          <Text style={styles.body}>
+          <Text className="type-body-small text-text-muted">
             {cardio
               ? "Cardio load adds up every cardio and mixed session, weighting each minute by how hard your heart was working (heart rate reserve, Banister TRIMP)."
               : "Muscular load estimates strain from strength sessions, from their duration and heart rate. Health apps don't record sets, reps or weight lifted, so this tracks how much and how hard you train rather than volume."}
           </Text>
-          <Text style={[styles.body, styles.note]}>
+          <Text className="type-body-small mt-md text-text-subtle">
             The optimal range is 0.8 to 1.3 times your average week over the
             last 4 weeks. Staying inside it builds fitness steadily; a jump
             above it raises injury and overtraining risk.
@@ -176,7 +178,6 @@ function WeekDetail({
   metric: "active-duration" | "active-energy";
   data: FitnessData;
 }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const width = useChartWidth();
   const energy = metric === "active-energy";
@@ -231,13 +232,18 @@ function WeekDetail({
             color={accent}
             accessibilityLabel={`${fitnessMetricTitles[metric]} this week against last week`}
           />
-          <View style={styles.legendRow}>
-            <View style={[styles.swatch, { backgroundColor: accent }]} />
-            <Text style={styles.legendText}>This week</Text>
+          <View className="flex-row items-center gap-sm mt-md">
             <View
-              style={[styles.swatch, { backgroundColor: colors.textSubtle }]}
+              className="w-3 h-[3px] rounded-full"
+              style={{ backgroundColor: accent }}
             />
-            <Text style={styles.legendText}>Last week</Text>
+            <Text className="type-caption text-text-muted mr-md">
+              This week
+            </Text>
+            <View className="w-3 h-[3px] rounded-full bg-text-subtle" />
+            <Text className="type-caption text-text-muted mr-md">
+              Last week
+            </Text>
           </View>
         </Card>
       </DetailSection>
@@ -260,7 +266,7 @@ function WeekDetail({
 
       <DetailSection title="By activity">
         {data.weekActivities.length ? (
-          <Card style={styles.listCard}>
+          <Card className="py-xs">
             {data.weekActivities.map((entry, index) => {
               const value = energy
                 ? `${formatEnergy(entry.energyKcal).value} ${formatEnergy(entry.energyKcal).unit}`
@@ -268,16 +274,23 @@ function WeekDetail({
               return (
                 <View
                   key={entry.activity}
-                  style={[styles.listRow, index > 0 && styles.listDivider]}
+                  className={cn(
+                    "flex-row items-center justify-between gap-md py-md",
+                    index > 0 && "border-t-hairline border-t-outline-soft",
+                  )}
                 >
-                  <View style={styles.listCopy}>
-                    <Text style={styles.listTitle}>{entry.activity}</Text>
-                    <Text style={styles.listDetail}>
+                  <View className="flex-1 gap-2xs">
+                    <Text className="type-subheading text-text text-[15px]">
+                      {entry.activity}
+                    </Text>
+                    <Text className="type-caption text-text-muted">
                       {entry.sessions}{" "}
                       {entry.sessions === 1 ? "session" : "sessions"}
                     </Text>
                   </View>
-                  <Text style={styles.listValue}>{value}</Text>
+                  <Text className="type-mono text-text tabular-nums">
+                    {value}
+                  </Text>
                 </View>
               );
             })}
@@ -292,7 +305,7 @@ function WeekDetail({
         )}
       </DetailSection>
 
-      <Text style={styles.source}>
+      <Text className="type-caption text-text-subtle text-center">
         {energy
           ? "Energy burned during recorded workouts, not your whole day."
           : "Time spent in recorded workouts."}
@@ -302,7 +315,6 @@ function WeekDetail({
 }
 
 function RecoveryDetail({ data }: { data: FitnessData }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const width = useChartWidth();
   const withRecovery = data.workouts.filter(
@@ -348,7 +360,7 @@ function RecoveryDetail({ data }: { data: FitnessData }) {
                 formatValue={(value) => formatNumber(value)}
                 accessibilityLabel="Heart rate recovery after each workout"
               />
-              <Text style={styles.legend}>
+              <Text className="type-caption text-text-subtle mt-md">
                 Shaded: 25–40 bpm, a good one-minute drop.
               </Text>
             </Card>
@@ -386,12 +398,12 @@ function RecoveryDetail({ data }: { data: FitnessData }) {
 
       <DetailSection title="What this means">
         <Card>
-          <Text style={styles.body}>
+          <Text className="type-body-small text-text-muted">
             How far your heart rate falls in the first minute after a workout. A
             faster drop reflects a stronger parasympathetic response and better
             cardiovascular fitness.
           </Text>
-          <Text style={[styles.body, styles.note]}>
+          <Text className="type-body-small mt-md text-text-subtle">
             40 bpm or more is excellent, 25–39 good, 12–24 fair. Under 12 bpm is
             a recognised clinical warning sign worth mentioning to a doctor if
             it persists.
@@ -412,7 +424,6 @@ function RecoveryDetail({ data }: { data: FitnessData }) {
 }
 
 function FocusDetail({ data }: { data: FitnessData }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const focus = data.cardioFocus;
   const rows = focus
@@ -452,27 +463,32 @@ function FocusDetail({ data }: { data: FitnessData }) {
     >
       {rows.length ? (
         <Card>
-          <View style={styles.focusList}>
+          <View className="gap-lg">
             {rows.map((row) => (
-              <View key={row.label} style={styles.focusRow}>
-                <View style={styles.focusTop}>
-                  <Text style={styles.listTitle}>{row.label}</Text>
-                  <Text style={[styles.listValue, { color: row.color }]}>
+              <View key={row.label} className="gap-xs">
+                <View className="flex-row justify-between items-baseline">
+                  <Text className="type-subheading text-text text-[15px]">
+                    {row.label}
+                  </Text>
+                  <Text
+                    className="type-mono text-text tabular-nums"
+                    style={{ color: row.color }}
+                  >
                     {row.value}%
                   </Text>
                 </View>
-                <View style={styles.track}>
+                <View className="h-2 rounded-full overflow-hidden bg-track">
                   <View
-                    style={[
-                      styles.fill,
-                      {
-                        width: `${Math.max(row.value, 2)}%`,
-                        backgroundColor: row.color,
-                      },
-                    ]}
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(row.value, 2)}%`,
+                      backgroundColor: row.color,
+                    }}
                   />
                 </View>
-                <Text style={styles.listDetail}>{row.detail}</Text>
+                <Text className="type-caption text-text-muted">
+                  {row.detail}
+                </Text>
               </View>
             ))}
           </View>
@@ -487,7 +503,7 @@ function FocusDetail({ data }: { data: FitnessData }) {
       )}
       <DetailSection title="What this means">
         <Card>
-          <Text style={styles.body}>
+          <Text className="type-body-small text-text-muted">
             Each cardio session counts towards one band by its average heart
             rate, as a share of your heart rate reserve (between resting and
             maximum). Most endurance plans put about 80% of time in low aerobic
@@ -500,7 +516,6 @@ function FocusDetail({ data }: { data: FitnessData }) {
 }
 
 function ZonesDetail({ data }: { data: FitnessData }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const palette = zoneColors(colors);
   const week = data.zoneWeeks.at(-1)?.minutes ?? [0, 0, 0, 0, 0];
@@ -525,27 +540,29 @@ function ZonesDetail({ data }: { data: FitnessData }) {
     >
       <DetailSection title="This week">
         <Card>
-          <View style={styles.focusList}>
+          <View className="gap-lg">
             {week.map((minutes, zone) => (
-              <View key={zone} style={styles.focusRow}>
-                <View style={styles.focusTop}>
-                  <Text style={styles.listTitle}>{zoneNames[zone]}</Text>
-                  <Text style={styles.listValue}>
+              <View key={zone} className="gap-xs">
+                <View className="flex-row justify-between items-baseline">
+                  <Text className="type-subheading text-text text-[15px]">
+                    {zoneNames[zone]}
+                  </Text>
+                  <Text className="type-mono text-text tabular-nums">
                     {formatDuration(minutes)}
                   </Text>
                 </View>
-                <View style={styles.track}>
+                <View className="h-2 rounded-full overflow-hidden bg-track">
                   <View
-                    style={[
-                      styles.fill,
-                      {
-                        width: `${weekTotal ? Math.max((minutes / weekTotal) * 100, minutes ? 2 : 0) : 0}%`,
-                        backgroundColor: palette[zone],
-                      },
-                    ]}
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${weekTotal ? Math.max((minutes / weekTotal) * 100, minutes ? 2 : 0) : 0}%`,
+                      backgroundColor: palette[zone],
+                    }}
                   />
                 </View>
-                <Text style={styles.listDetail}>{bounds(zone)}</Text>
+                <Text className="type-caption text-text-muted">
+                  {bounds(zone)}
+                </Text>
               </View>
             ))}
           </View>
@@ -554,20 +571,20 @@ function ZonesDetail({ data }: { data: FitnessData }) {
 
       <DetailSection title="Last 4 weeks">
         <Card>
-          <View style={styles.focusList}>
+          <View className="gap-lg">
             {data.zoneWeeks.map((entry) => {
               const total = entry.minutes.reduce((a, b) => a + b, 0);
               return (
-                <View key={entry.start} style={styles.focusRow}>
-                  <View style={styles.focusTop}>
-                    <Text style={styles.listDetail}>
+                <View key={entry.start} className="gap-xs">
+                  <View className="flex-row justify-between items-baseline">
+                    <Text className="type-caption text-text-muted">
                       Week of {formatDay(entry.start)}
                     </Text>
-                    <Text style={styles.listValue}>
+                    <Text className="type-mono text-text tabular-nums">
                       {formatDuration(total)}
                     </Text>
                   </View>
-                  <View style={[styles.track, styles.stack]}>
+                  <View className="h-2 rounded-full overflow-hidden bg-track flex-row gap-0.5">
                     {entry.minutes.map((minutes, zone) =>
                       minutes > 0 ? (
                         <View
@@ -589,7 +606,7 @@ function ZonesDetail({ data }: { data: FitnessData }) {
 
       <DetailSection title="What this means">
         <Card>
-          <Text style={styles.body}>
+          <Text className="type-body-small text-text-muted">
             Zones are bands of your maximum heart rate, {max} bpm
             {data.maxHeartRateFromAge
               ? ", estimated from your age (208 − 0.7 × age)."
@@ -627,96 +644,36 @@ function WorkoutList({
   empty: string;
   detail: (workout: Workout) => string;
 }) {
-  const styles = useStyles();
   if (!workouts.length && !empty) return null;
   return (
     <DetailSection title={title}>
-      <Card style={styles.listCard}>
+      <Card className="py-xs">
         {workouts.length ? (
           workouts.map((workout, index) => (
             <View
               key={workout.id}
-              style={[styles.listRow, index > 0 && styles.listDivider]}
+              className={cn(
+                "flex-row items-center justify-between gap-md py-md",
+                index > 0 && "border-t-hairline border-t-outline-soft",
+              )}
             >
-              <View style={styles.listCopy}>
-                <Text style={styles.listTitle}>{workout.activity}</Text>
-                <Text style={styles.listDetail}>{detail(workout)}</Text>
+              <View className="flex-1 gap-2xs">
+                <Text className="type-subheading text-text text-[15px]">
+                  {workout.activity}
+                </Text>
+                <Text className="type-caption text-text-muted">
+                  {detail(workout)}
+                </Text>
               </View>
-              <Text style={styles.listDate}>
+              <Text className="type-mono-small text-text-subtle">
                 {formatDayLabel(new Date(workout.startedAt))}
               </Text>
             </View>
           ))
         ) : (
-          <Text style={[styles.listDetail, styles.emptyList]}>{empty}</Text>
+          <Text className="type-caption text-text-muted py-md">{empty}</Text>
         )}
       </Card>
     </DetailSection>
   );
 }
-
-const useStyles = makeStyles(({ colors, radii, spacing, typography }) =>
-  StyleSheet.create({
-    body: { ...typography.bodySmall, color: colors.textMuted },
-    note: { marginTop: spacing.md, color: colors.textSubtle },
-    legend: {
-      ...typography.caption,
-      color: colors.textSubtle,
-      marginTop: spacing.md,
-    },
-    legendRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      marginTop: spacing.md,
-    },
-    swatch: { width: 12, height: 3, borderRadius: radii.full },
-    legendText: {
-      ...typography.caption,
-      color: colors.textMuted,
-      marginRight: spacing.md,
-    },
-    listCard: { paddingVertical: spacing.xs },
-    listRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.md,
-      paddingVertical: spacing.md,
-    },
-    listDivider: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.outlineSoft,
-    },
-    listCopy: { flex: 1, gap: spacing["2xs"] },
-    listTitle: { ...typography.subheading, fontSize: 15, color: colors.text },
-    listDetail: { ...typography.caption, color: colors.textMuted },
-    listValue: {
-      ...typography.mono,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    listDate: { ...typography.monoSmall, color: colors.textSubtle },
-    emptyList: { paddingVertical: spacing.md },
-    focusList: { gap: spacing.lg },
-    focusRow: { gap: spacing.xs },
-    focusTop: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "baseline",
-    },
-    track: {
-      height: 8,
-      borderRadius: radii.full,
-      overflow: "hidden",
-      backgroundColor: colors.track,
-    },
-    fill: { height: "100%", borderRadius: radii.full },
-    stack: { flexDirection: "row", gap: 2 },
-    source: {
-      ...typography.caption,
-      color: colors.textSubtle,
-      textAlign: "center",
-    },
-  }),
-);

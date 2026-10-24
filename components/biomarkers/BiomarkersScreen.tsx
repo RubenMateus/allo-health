@@ -8,23 +8,17 @@ import {
   ChevronRight,
   RotateCw,
 } from "lucide-react-native";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 
-import { AgeDial } from "@/components/charts/AgeDial";
-import { Sparkline } from "@/components/charts/Sparkline";
-import { ProfileCard } from "@/components/biomarkers/ProfileCard";
 import {
   biomarkerMeta,
   chartValues,
   displayValue,
   toneColor,
 } from "@/components/biomarkers/meta";
+import { ProfileCard } from "@/components/biomarkers/ProfileCard";
+import { AgeDial } from "@/components/charts/AgeDial";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { SettingsButton } from "@/components/settings/SettingsButton";
 import { Card, EmptyState, Pill, Screen } from "@/components/ui/primitives";
 import { useBiomarkers } from "@/hooks/useBiomarkers";
@@ -35,9 +29,10 @@ import {
   type FitnessAge,
 } from "@/services/health/biomarkers";
 import type { BiomarkerKind } from "@/services/health/types";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
-import { formatDay, formatNumber } from "@/utils/formatters";
 import { bucketAverages, dayKey } from "@/services/metrics";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cn } from "@/utils/cn";
+import { formatDay, formatNumber } from "@/utils/formatters";
 
 const SPARK_DAYS = 90;
 
@@ -47,7 +42,6 @@ export function openBiomarker(kind: BiomarkerKind) {
 }
 
 export function BiomarkersScreen() {
-  const styles = useStyles();
   const { colors } = useTheme();
   const { data, isLoading, isFetching, isError, refetch } = useBiomarkers();
 
@@ -59,25 +53,27 @@ export function BiomarkersScreen() {
         void refetch();
       }}
     >
-      <View style={styles.topBar}>
+      <View className="flex-row items-center gap-md pb-md mb-xl border-b-hairline border-b-outline-soft">
         <CalendarDays color={colors.primary} size={20} />
-        <Text style={styles.date}>{formatTodayShort()}</Text>
+        <Text className="type-subheading text-text flex-1">
+          {formatTodayShort()}
+        </Text>
         {data ? (
           data.source === "mock" ? (
             <Pill>SAMPLE</Pill>
           ) : (
-            <View style={styles.syncPill}>
-              <View style={styles.syncDot} />
-              <Text style={styles.syncText}>Synced</Text>
+            <View className="flex-row items-center gap-xs px-md py-xs rounded-full border border-outline-soft bg-surface">
+              <View className="w-[7px] h-[7px] rounded-full bg-primary" />
+              <Text className="type-caption text-text">Synced</Text>
             </View>
           )
         ) : null}
         <SettingsButton />
       </View>
 
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>Biomarkers</Text>
-        <Text style={styles.subtitle}>Last 12 months</Text>
+      <View className="gap-2xs mb-2xl">
+        <Text className="type-title text-text">Biomarkers</Text>
+        <Text className="type-caption text-text-muted">Last 12 months</Text>
       </View>
 
       {isLoading || !data ? (
@@ -90,10 +86,10 @@ export function BiomarkersScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={() => void refetch()}
-              style={styles.retryButton}
+              className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
             >
               <RotateCw color={colors.canvas} size={16} />
-              <Text style={styles.retryText}>Try again</Text>
+              <Text className="type-subheading text-canvas">Try again</Text>
             </Pressable>
           </Card>
         ) : null
@@ -105,14 +101,13 @@ export function BiomarkersScreen() {
 }
 
 function BiomarkerSections({ data }: { data: BiomarkersData }) {
-  const styles = useStyles();
   const available = biomarkerKinds
     .map((kind) => data.biomarkers[kind])
     .filter((biomarker) => biomarker.latest);
   const needsProfile = !data.profile.birthDate || !data.profile.sex;
 
   return (
-    <View style={styles.sections}>
+    <View className="gap-2xl">
       {data.fitnessAge ? (
         <FitnessAgeCard fitnessAge={data.fitnessAge} />
       ) : (
@@ -130,8 +125,8 @@ function BiomarkerSections({ data }: { data: BiomarkersData }) {
 
       {needsProfile ? <ProfileCard profile={data.profile} /> : null}
 
-      <View style={styles.sectionBlock}>
-        <Text style={styles.sectionTitle}>Other biomarkers</Text>
+      <View className="gap-md">
+        <Text className="type-subheading text-text">Other biomarkers</Text>
         {available.length ? (
           available.map((biomarker) => (
             <BiomarkerRow key={biomarker.kind} biomarker={biomarker} />
@@ -150,7 +145,6 @@ function BiomarkerSections({ data }: { data: BiomarkersData }) {
 }
 
 function FitnessAgeCard({ fitnessAge }: { fitnessAge: FitnessAge }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const dialSize = Math.min(width - 64, 300);
@@ -166,11 +160,11 @@ function FitnessAgeCard({ fitnessAge }: { fitnessAge: FitnessAge }) {
       accessibilityRole="button"
       accessibilityLabel={`Fitness Age ${formatNumber(fitnessAge.value, 1)} years. Opens VO2 max details.`}
       onPress={() => openBiomarker("vo2Max")}
-      style={({ pressed }) => pressed && styles.pressed}
+      className="active:opacity-75"
     >
-      <Card style={styles.heroCard}>
-        <View style={styles.heroHeading}>
-          <Text style={styles.heroLabel}>FITNESS AGE</Text>
+      <Card className="pb-md">
+        <View className="flex-row items-center justify-between">
+          <Text className="type-badge text-text text-[11px]">FITNESS AGE</Text>
           <ChevronRight color={colors.textSubtle} size={16} />
         </View>
         <View>
@@ -182,14 +176,27 @@ function FitnessAgeCard({ fitnessAge }: { fitnessAge: FitnessAge }) {
             size={dialSize}
             color={younger || gap === null ? colors.primary : colors.stress}
           />
-          <View style={styles.dialCentre} pointerEvents="none">
-            <Text style={styles.heroValue}>
+          <View
+            className="items-center justify-center pt-lg absolute inset-0"
+            pointerEvents="none"
+          >
+            <Text className="type-display text-text tabular-nums text-[48px] leading-[54px]">
               {formatNumber(fitnessAge.value, 1)}
             </Text>
-            <Text style={styles.heroUnit}>years</Text>
+            <Text className="type-caption text-text-muted">years</Text>
             {gap !== null ? (
-              <View style={[styles.gapPill, !younger && styles.gapPillOlder]}>
-                <Text style={[styles.gapText, !younger && styles.gapTextOlder]}>
+              <View
+                className={cn(
+                  "mt-md px-md py-xs rounded-full border border-primary-border bg-primary-wash",
+                  !younger && "border-stress-border bg-stress-wash",
+                )}
+              >
+                <Text
+                  className={cn(
+                    "type-caption text-primary",
+                    !younger && "text-stress",
+                  )}
+                >
                   {Math.abs(gap) < 0.5
                     ? "Matches your age"
                     : `${formatNumber(Math.abs(gap), 1)} yrs ${younger ? "younger" : "older"}`}
@@ -198,7 +205,7 @@ function FitnessAgeCard({ fitnessAge }: { fitnessAge: FitnessAge }) {
             ) : null}
           </View>
         </View>
-        <View style={styles.heroStats}>
+        <View className="flex-row pt-md border-t-hairline border-t-outline-soft">
           <HeroStat
             label="Chronological"
             value={reference === null ? "—" : `${reference}`}
@@ -218,7 +225,7 @@ function FitnessAgeCard({ fitnessAge }: { fitnessAge: FitnessAge }) {
             }
           />
         </View>
-        <Text style={styles.heroFootnote}>
+        <Text className="type-mono-small text-text-subtle text-center mt-md">
           From VO₂ max on {formatDay(dayKey(new Date(fitnessAge.measuredAt)))}
         </Text>
       </Card>
@@ -227,17 +234,15 @@ function FitnessAgeCard({ fitnessAge }: { fitnessAge: FitnessAge }) {
 }
 
 function HeroStat({ label, value }: { label: string; value: string }) {
-  const styles = useStyles();
   return (
-    <View style={styles.heroStat}>
-      <Text style={styles.heroStatLabel}>{label}</Text>
-      <Text style={styles.heroStatValue}>{value}</Text>
+    <View className="flex-1 items-center gap-2xs">
+      <Text className="type-caption text-text-subtle">{label}</Text>
+      <Text className="type-subheading text-primary tabular-nums">{value}</Text>
     </View>
   );
 }
 
 function BiomarkerRow({ biomarker }: { biomarker: Biomarker }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const meta = biomarkerMeta[biomarker.kind];
   const latest = biomarker.latest!;
@@ -264,28 +269,28 @@ function BiomarkerRow({ biomarker }: { biomarker: Biomarker }) {
       accessibilityRole="button"
       accessibilityLabel={`${meta.title}: ${status ? `${status.label}, ` : ""}${value} ${unit}`}
       onPress={() => openBiomarker(biomarker.kind)}
-      style={({ pressed }) => pressed && styles.pressed}
+      className="active:opacity-75"
     >
-      <Card style={styles.rowCard}>
-        <View style={styles.rowCopy}>
-          <Text style={styles.rowTitle}>{meta.title}</Text>
-          <View style={styles.rowStatus}>
+      <Card className="flex-row items-center gap-md py-md">
+        <View className="flex-1 gap-xs">
+          <Text className="type-subheading text-text">{meta.title}</Text>
+          <View className="flex-row items-center gap-xs">
             {status ? (
               <>
                 {TrendIcon ? <TrendIcon color={statusColor} size={13} /> : null}
-                <Text style={[styles.rowStatusText, { color: statusColor }]}>
+                <Text className="type-caption" style={{ color: statusColor }}>
                   {status.label}
                 </Text>
-                <Text style={styles.rowDot}>•</Text>
+                <Text className="type-caption text-text-subtle">•</Text>
               </>
             ) : null}
-            <Text style={styles.rowValue}>
-              {value} <Text style={styles.rowUnit}>{unit}</Text>
+            <Text className="type-mono text-text tabular-nums text-[13px]">
+              {value} <Text className="text-text-subtle">{unit}</Text>
             </Text>
           </View>
         </View>
         {recent.length > 1 ? (
-          <View style={styles.rowSpark}>
+          <View className="w-24">
             <Sparkline
               values={chartValues(biomarker.kind, bucketAverages(recent, 7))}
               color={colors[meta.accent]}
@@ -307,127 +312,3 @@ function formatTodayShort() {
     day: "numeric",
   }).format(new Date())}`;
 }
-
-const useStyles = makeStyles(({ colors, radii, spacing, typography }) =>
-  StyleSheet.create({
-    topBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      paddingBottom: spacing.md,
-      marginBottom: spacing.xl,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.outlineSoft,
-    },
-    date: { ...typography.subheading, color: colors.text, flex: 1 },
-    syncPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.outlineSoft,
-      backgroundColor: colors.surface,
-    },
-    syncDot: {
-      width: 7,
-      height: 7,
-      borderRadius: radii.full,
-      backgroundColor: colors.primary,
-    },
-    syncText: { ...typography.caption, color: colors.text },
-    titleRow: { gap: spacing["2xs"], marginBottom: spacing["2xl"] },
-    title: { ...typography.title, color: colors.text },
-    subtitle: { ...typography.caption, color: colors.textMuted },
-    sections: { gap: spacing["2xl"] },
-    sectionBlock: { gap: spacing.md },
-    sectionTitle: { ...typography.subheading, color: colors.text },
-    pressed: { opacity: 0.75 },
-    heroCard: { paddingBottom: spacing.md },
-    heroHeading: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    heroLabel: { ...typography.badge, fontSize: 11, color: colors.text },
-    dialCentre: {
-      ...StyleSheet.absoluteFill,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingTop: spacing.lg,
-    },
-    heroValue: {
-      ...typography.display,
-      fontSize: 48,
-      lineHeight: 54,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    heroUnit: { ...typography.caption, color: colors.textMuted },
-    gapPill: {
-      marginTop: spacing.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderColor: colors.primaryBorder,
-      backgroundColor: colors.primaryWash,
-    },
-    gapPillOlder: {
-      borderColor: colors.stressBorder,
-      backgroundColor: colors.stressWash,
-    },
-    gapText: { ...typography.caption, color: colors.primary },
-    gapTextOlder: { color: colors.stress },
-    heroStats: {
-      flexDirection: "row",
-      paddingTop: spacing.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.outlineSoft,
-    },
-    heroStat: { flex: 1, alignItems: "center", gap: spacing["2xs"] },
-    heroStatLabel: { ...typography.caption, color: colors.textSubtle },
-    heroStatValue: {
-      ...typography.subheading,
-      color: colors.primary,
-      fontVariant: ["tabular-nums"],
-    },
-    heroFootnote: {
-      ...typography.monoSmall,
-      color: colors.textSubtle,
-      textAlign: "center",
-      marginTop: spacing.md,
-    },
-    rowCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      paddingVertical: spacing.md,
-    },
-    rowCopy: { flex: 1, gap: spacing.xs },
-    rowTitle: { ...typography.subheading, color: colors.text },
-    rowStatus: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-    rowStatusText: { ...typography.caption },
-    rowDot: { ...typography.caption, color: colors.textSubtle },
-    rowValue: {
-      ...typography.mono,
-      fontSize: 13,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    rowUnit: { color: colors.textSubtle },
-    rowSpark: { width: 96 },
-    retryButton: {
-      minHeight: 48,
-      borderRadius: radii.full,
-      backgroundColor: colors.primaryBright,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-    },
-    retryText: { ...typography.subheading, color: colors.canvas },
-  }),
-);

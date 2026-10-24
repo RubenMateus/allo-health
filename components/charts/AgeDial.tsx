@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { useTheme } from "@/theme/ThemeProvider";
@@ -56,7 +56,7 @@ export function AgeDial({
   const [markerX, markerY] = polar(cx, cy, radius, angle(value));
 
   return (
-    <View style={styles.frame}>
+    <View className="items-center">
       <Svg width={size} height={size * 0.82}>
         <Path
           d={arc(cx, cy, radius, -SWEEP, SWEEP)}
@@ -112,7 +112,3 @@ export function AgeDial({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  frame: { alignItems: "center" },
-});

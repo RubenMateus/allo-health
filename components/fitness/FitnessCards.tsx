@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { openBiomarker } from "@/components/biomarkers/BiomarkersScreen";
 import { biomarkerMeta, toneColor } from "@/components/biomarkers/meta";
@@ -23,7 +23,7 @@ import {
   heartRateRecoveryRating,
   type LoadGauge,
 } from "@/services/metrics";
-import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
 import { formatDuration, formatEnergy, formatNumber } from "@/utils/formatters";
 
 export function LoadGaugeCard({
@@ -37,7 +37,6 @@ export function LoadGaugeCard({
   metric: FitnessMetric;
   width: number;
 }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const status = gaugeStatus(gauge, colors);
   const size = width - 24;
@@ -46,14 +45,14 @@ export function LoadGaugeCard({
       accessibilityRole="button"
       accessibilityLabel={`${title}: ${formatNumber(gauge.value)}, ${status.label}`}
       onPress={() => openFitnessMetric(metric)}
-      style={({ pressed }) => [styles.half, pressed && styles.pressed]}
+      className="flex-1 active:opacity-75"
     >
-      <Card style={styles.gaugeCard}>
+      <Card className="p-md pt-lg items-stretch">
         <Heading title={title} />
-        <Text style={[styles.gaugeStatus, { color: status.color }]}>
+        <Text className="type-caption mt-2xs" style={{ color: status.color }}>
           {status.label}
         </Text>
-        <View style={styles.gaugeFrame}>
+        <View className="items-center mt-sm">
           <RangeGauge
             value={gauge.value}
             max={gaugeMax(gauge)}
@@ -62,11 +61,16 @@ export function LoadGaugeCard({
             color={colors.primary}
             markerColor={status.color}
           />
-          <View style={styles.gaugeCentre} pointerEvents="none">
-            <Text style={styles.gaugeValue}>{formatNumber(gauge.value)}</Text>
+          <View
+            className="items-center justify-center absolute inset-0"
+            pointerEvents="none"
+          >
+            <Text className="type-metric-xl text-text tabular-nums">
+              {formatNumber(gauge.value)}
+            </Text>
           </View>
         </View>
-        <Text style={styles.gaugeOptimal}>
+        <Text className="type-mono text-text-muted text-center text-[11px]">
           {gauge.optimal
             ? `Optimal: ${formatNumber(gauge.optimal[0])}–${formatNumber(gauge.optimal[1])}`
             : "Needs a few weeks of training"}
@@ -93,40 +97,43 @@ function GridCard({
   accessibilityLabel: string;
   children?: ReactNode;
 }) {
-  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [styles.half, pressed && styles.pressed]}
+      className="flex-1 active:opacity-75"
     >
-      <Card style={styles.gridCard}>
+      <Card className="flex-1 p-lg gap-2xs">
         <Heading title={title} />
-        <Text style={styles.gridValue} numberOfLines={1} adjustsFontSizeToFit>
+        <Text
+          className="type-metric-lg text-text tabular-nums mt-sm"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {value}
         </Text>
         <Text
-          style={[
-            styles.gridCaption,
-            captionColor ? { color: captionColor } : null,
-          ]}
+          className="type-caption text-text-muted"
+          style={captionColor ? { color: captionColor } : null}
           numberOfLines={1}
         >
           {caption}
         </Text>
-        <View style={styles.gridChart}>{children}</View>
+        <View className="mt-md min-h-[56px] justify-end">{children}</View>
       </Card>
     </Pressable>
   );
 }
 
 function Heading({ title }: { title: string }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <View style={styles.heading}>
-      <Text style={styles.headingText} numberOfLines={1}>
+    <View className="flex-row items-center justify-between gap-xs">
+      <Text
+        className="type-subheading text-text shrink text-[15px]"
+        numberOfLines={1}
+      >
         {title}
       </Text>
       <ArrowRight color={colors.textSubtle} size={16} />
@@ -275,7 +282,6 @@ export function HeartRateRecoveryCard({
 }
 
 export function CardioFocusCard({ data }: { data: FitnessData }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   const focus = data.cardioFocus;
   const rows = focus
@@ -299,17 +305,18 @@ export function CardioFocusCard({ data }: { data: FitnessData }) {
           : "Cardio focus, no data"
       }
     >
-      <View style={styles.focusBars}>
+      <View className="gap-sm">
         {rows.map((row) => (
-          <View key={row.label} style={styles.focusTrack}>
+          <View
+            key={row.label}
+            className="h-2 rounded-full overflow-hidden bg-track"
+          >
             <View
-              style={[
-                styles.focusFill,
-                {
-                  width: `${Math.max(row.value, 3)}%`,
-                  backgroundColor: row.color,
-                },
-              ]}
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.max(row.value, 3)}%`,
+                backgroundColor: row.color,
+              }}
             />
           </View>
         ))}
@@ -356,66 +363,3 @@ export function HeartRateZonesCard({
     </GridCard>
   );
 }
-
-const useStyles = makeStyles(({ colors, radii, spacing, typography }) =>
-  StyleSheet.create({
-    half: { flex: 1 },
-    pressed: { opacity: 0.75 },
-    heading: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.xs,
-    },
-    headingText: {
-      ...typography.subheading,
-      fontSize: 15,
-      color: colors.text,
-      flexShrink: 1,
-    },
-    gaugeCard: {
-      padding: spacing.md,
-      paddingTop: spacing.lg,
-      alignItems: "stretch",
-    },
-    gaugeStatus: { ...typography.caption, marginTop: spacing["2xs"] },
-    gaugeFrame: { alignItems: "center", marginTop: spacing.sm },
-    gaugeCentre: {
-      ...StyleSheet.absoluteFill,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    gaugeValue: {
-      ...typography.metricXL,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-    },
-    gaugeOptimal: {
-      ...typography.mono,
-      fontSize: 11,
-      color: colors.textMuted,
-      textAlign: "center",
-    },
-    gridCard: { flex: 1, padding: spacing.lg, gap: spacing["2xs"] },
-    gridValue: {
-      ...typography.metricLG,
-      color: colors.text,
-      fontVariant: ["tabular-nums"],
-      marginTop: spacing.sm,
-    },
-    gridCaption: { ...typography.caption, color: colors.textMuted },
-    gridChart: {
-      marginTop: spacing.md,
-      minHeight: 56,
-      justifyContent: "flex-end",
-    },
-    focusBars: { gap: spacing.sm },
-    focusTrack: {
-      height: 8,
-      borderRadius: radii.full,
-      overflow: "hidden",
-      backgroundColor: colors.track,
-    },
-    focusFill: { height: "100%", borderRadius: radii.full },
-  }),
-);
