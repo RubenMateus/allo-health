@@ -47,6 +47,15 @@ export const darkColors = {
 };
 
 export type ColorTokens = { [K in keyof typeof darkColors]: string };
+export type ColorToken = keyof ColorTokens;
+
+/**
+ * The Tailwind name of a color token, e.g. `surfaceProse` -> `surface-prose`,
+ * used as `bg-surface-prose` and backed by the `--color-surface-prose` variable.
+ */
+export function colorClassName(token: string) {
+  return token.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
 
 // Light mode keeps the same accent families. Accents are a step deeper so
 // they still read as text and strokes on pale surfaces.

@@ -4,10 +4,12 @@ import {
   useEffect,
   type PropsWithChildren,
 } from "react";
-import { Appearance, useColorScheme } from "react-native";
+import { Appearance, useColorScheme, View } from "react-native";
+import { colorScheme as nativewindColorScheme } from "nativewind";
 
 import { resolveColorScheme, useSettingsStore } from "@/stores/settingsStore";
 import { themes, type Theme } from "@/theme/tokens";
+import { themeVariables } from "@/theme/variables";
 
 const ThemeContext = createContext<Theme>(themes.dark);
 
@@ -24,29 +26,20 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     );
   }, [preference]);
 
-  const theme = themes[resolveColorScheme(preference, system)];
+  const scheme = resolveColorScheme(preference, system);
+
+  // Lets `dark:` variants follow the in-app choice too.
+  useEffect(() => {
+    nativewindColorScheme.set(scheme);
+  }, [scheme]);
+
   return (
-    <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={themes[scheme]}>
+      <View style={[{ flex: 1 }, themeVariables[scheme]]}>{children}</View>
+    </ThemeContext.Provider>
   );
 }
 
 export function useTheme() {
   return useContext(ThemeContext);
-}
-
-/**
- * Builds a style hook from a factory of the active theme. Styles are created
- * once per theme and reused, like a module-level `StyleSheet.create`.
- */
-export function makeStyles<T>(factory: (theme: Theme) => T) {
-  const cache = new Map<Theme, T>();
-  return function useStyles() {
-    const theme = useTheme();
-    let styles = cache.get(theme);
-    if (!styles) {
-      styles = factory(theme);
-      cache.set(theme, styles);
-    }
-    return styles;
-  };
 }
