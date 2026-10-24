@@ -4,9 +4,10 @@ import { useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { FloatingTabBar } from "@/components/navigation/FloatingTabBar";
-import { colors } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export default function TabLayout() {
+  const { colors } = useTheme();
   const blurTarget = useRef<View>(null);
 
   return (

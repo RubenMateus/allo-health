@@ -1,9 +1,11 @@
 import { Link, Stack } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles } from "@/theme/ThemeProvider";
+import { radii, spacing, typography } from "@/theme/tokens";
 
 export default function NotFoundScreen() {
+  const styles = useStyles();
   return (
     <>
       <Stack.Screen options={{ title: "Oops!" }} />
@@ -19,26 +21,28 @@ export default function NotFoundScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing["2xl"],
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  link: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceHigh,
-  },
-  linkText: {
-    ...typography.bodySmall,
-    color: colors.primaryBright,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing["2xl"],
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    link: {
+      marginTop: spacing.lg,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radii.full,
+      backgroundColor: colors.surfaceHigh,
+    },
+    linkText: {
+      ...typography.bodySmall,
+      color: colors.primaryBright,
+    },
+  }),
+);

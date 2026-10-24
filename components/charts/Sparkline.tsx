@@ -9,15 +9,15 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import { colors } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export function Sparkline({
   values,
-  color = colors.primary,
+  color,
   width = 260,
   height = 76,
   targetRange,
-  targetColor = colors.primary,
+  targetColor,
   step = false,
   fill = true,
   accessibilityLabel = "Intraday health data sparkline",
@@ -33,6 +33,9 @@ export function Sparkline({
   fill?: boolean;
   accessibilityLabel?: string;
 }) {
+  const { colors } = useTheme();
+  const lineColor = color ?? colors.primary;
+  const targetFill = targetColor ?? colors.primary;
   const fillId = `sparkline-fill-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
   const chart = useMemo(() => {
     if (values.length < 2)
@@ -81,8 +84,8 @@ export function Sparkline({
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={color} stopOpacity="0.22" />
-            <Stop offset="1" stopColor={color} stopOpacity="0" />
+            <Stop offset="0" stopColor={lineColor} stopOpacity="0.22" />
+            <Stop offset="1" stopColor={lineColor} stopOpacity="0" />
           </LinearGradient>
         </Defs>
         {targetRange ? (
@@ -91,7 +94,7 @@ export function Sparkline({
             y={targetY}
             width={width}
             height={targetHeight}
-            fill={targetColor}
+            fill={targetFill}
             opacity={0.07}
           />
         ) : null}
@@ -103,13 +106,13 @@ export function Sparkline({
         ) : null}
         <Path
           d={chart.path}
-          stroke={color}
+          stroke={lineColor}
           strokeWidth={1.8}
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <Circle cx={chart.lastX} cy={chart.lastY} r={4} fill={color} />
+        <Circle cx={chart.lastX} cy={chart.lastY} r={4} fill={lineColor} />
       </Svg>
     </View>
   );

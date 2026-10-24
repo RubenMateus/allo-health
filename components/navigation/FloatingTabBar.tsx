@@ -12,14 +12,8 @@ import type { RefObject } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  colors,
-  glow,
-  gradients,
-  radii,
-  spacing,
-  typography,
-} from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography } from "@/theme/tokens";
 
 const items = [
   { route: "index", label: "Home", Icon: House },
@@ -46,6 +40,8 @@ export function FloatingTabBar({
   navigation,
   blurTarget,
 }: FloatingTabBarProps) {
+  const { colors, gradients, scheme } = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -60,7 +56,7 @@ export function FloatingTabBar({
         <BlurView
           blurTarget={blurTarget}
           intensity={38}
-          tint="dark"
+          tint={scheme}
           blurMethod="dimezisBlurViewSdk31Plus"
           style={styles.dock}
         >
@@ -126,56 +122,58 @@ export function FloatingTabBar({
   );
 }
 
-const styles = StyleSheet.create({
-  dockPosition: {
-    position: "absolute",
-    left: spacing.margin,
-    right: spacing.margin,
-    alignItems: "center",
-  },
-  dockBorder: {
-    width: "100%",
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineGlass,
-    overflow: "hidden",
-  },
-  dock: {
-    height: 70,
-    paddingHorizontal: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.glassFill,
-  },
-  item: {
-    flex: 1,
-    height: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-  },
-  iconWrap: {
-    minWidth: 38,
-    minHeight: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.full,
-  },
-  iconWrapActive: {
-    backgroundColor: colors.primaryWashStrong,
-    ...glow.recovery,
-  },
-  itemLabel: { ...typography.badge, color: colors.textSubtle },
-  itemLabelActive: { color: colors.primaryBright },
-  addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryBright,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: spacing.xs,
-  },
-  pressed: { opacity: 0.7 },
-});
+const useStyles = makeStyles(({ colors, glow }) =>
+  StyleSheet.create({
+    dockPosition: {
+      position: "absolute",
+      left: spacing.margin,
+      right: spacing.margin,
+      alignItems: "center",
+    },
+    dockBorder: {
+      width: "100%",
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineGlass,
+      overflow: "hidden",
+    },
+    dock: {
+      height: 70,
+      paddingHorizontal: spacing.sm,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: colors.glassFill,
+    },
+    item: {
+      flex: 1,
+      height: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 2,
+    },
+    iconWrap: {
+      minWidth: 38,
+      minHeight: 34,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radii.full,
+    },
+    iconWrapActive: {
+      backgroundColor: colors.primaryWashStrong,
+      ...glow.recovery,
+    },
+    itemLabel: { ...typography.badge, color: colors.textSubtle },
+    itemLabelActive: { color: colors.primaryBright },
+    addButton: {
+      width: 42,
+      height: 42,
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryBright,
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: spacing.xs,
+    },
+    pressed: { opacity: 0.7 },
+  }),
+);

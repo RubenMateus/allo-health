@@ -101,3 +101,11 @@ export function formatMass(kilograms: number): {
     unit: usesMetricDisplay ? "kg" : "lb",
   };
 }
+
+export function formatSyncedAt(value: string, now = new Date()): string {
+  const date = new Date(value);
+  const time = formatTime(value);
+  return date.toDateString() === now.toDateString()
+    ? `Today, ${time}`
+    : `${formatDayLabel(date)}, ${time}`;
+}

@@ -11,7 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography } from "@/theme/tokens";
 
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
@@ -25,6 +26,8 @@ export function Screen({
   refreshing,
   onRefresh,
 }: ScreenProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
       {scroll ? (
@@ -55,6 +58,7 @@ export function Card({
   style,
   elevated = false,
 }: PropsWithChildren<{ style?: ViewStyle; elevated?: boolean }>) {
+  const styles = useStyles();
   return (
     <View style={[styles.card, elevated && styles.cardElevated, style]}>
       {children}
@@ -71,6 +75,7 @@ export function SectionHeader({
   eyebrow?: string;
   trailing?: ReactNode;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionHeading}>
@@ -86,6 +91,7 @@ export function MetricLabel({
   children,
   style,
 }: PropsWithChildren<{ style?: TextStyle }>) {
+  const styles = useStyles();
   return <Text style={[styles.metricLabel, style]}>{children}</Text>;
 }
 
@@ -94,6 +100,7 @@ export function StatValue({
   unit,
   style,
 }: PropsWithChildren<{ unit?: string; style?: TextStyle }>) {
+  const styles = useStyles();
   return (
     <View style={styles.statValueRow}>
       <Text style={[styles.statValue, style]}>{children}</Text>
@@ -108,6 +115,7 @@ export function Pill({
 }: PropsWithChildren<{
   tone?: "neutral" | "positive" | "warning" | "violet";
 }>) {
+  const styles = useStyles();
   const toneStyle =
     tone === "positive"
       ? styles.pillPositive
@@ -132,6 +140,7 @@ export function EmptyState({
   title: string;
   detail: string;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.emptyState}>
       <Text style={styles.emptyTitle}>{title}</Text>
@@ -141,91 +150,94 @@ export function EmptyState({
 }
 
 export function Hairline({ style }: { style?: ViewStyle }) {
+  const styles = useStyles();
   return <View style={[styles.hairline, style]} />;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.canvas },
-  scrollContent: {
-    paddingHorizontal: spacing.margin,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.navClearance,
-  },
-  card: {
-    backgroundColor: colors.surfaceProse,
-    borderColor: colors.outlineSoft,
-    borderWidth: 1,
-    borderRadius: radii.card,
-    padding: spacing.lg,
-  },
-  cardElevated: { backgroundColor: colors.surfaceElevatedProse },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-  },
-  sectionHeading: { gap: spacing["2xs"] },
-  eyebrow: {
-    ...typography.badge,
-    color: colors.textSubtle,
-    textTransform: "uppercase",
-  },
-  sectionTitle: { ...typography.heading, color: colors.text },
-  metricLabel: { ...typography.caption, color: colors.textMuted },
-  statValueRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: spacing.xs,
-  },
-  statValue: {
-    ...typography.metricLG,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  statUnit: { ...typography.mono, color: colors.textSubtle },
-  pill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.surface,
-  },
-  pillText: {
-    ...typography.badge,
-    color: colors.textMuted,
-    textTransform: "uppercase",
-  },
-  pillPositive: {
-    color: colors.primary,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primaryWash,
-  },
-  pillWarning: {
-    color: colors.stress,
-    borderColor: colors.stressBorder,
-    backgroundColor: colors.stressWash,
-  },
-  pillViolet: {
-    color: colors.sleep,
-    borderColor: colors.sleepBorder,
-    backgroundColor: colors.sleepWash,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: spacing["2xl"],
-    gap: spacing.sm,
-  },
-  emptyTitle: { ...typography.subheading, color: colors.text },
-  emptyDetail: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-  hairline: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineSoft,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.canvas },
+    scrollContent: {
+      paddingHorizontal: spacing.margin,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.navClearance,
+    },
+    card: {
+      backgroundColor: colors.surfaceProse,
+      borderColor: colors.outlineSoft,
+      borderWidth: 1,
+      borderRadius: radii.card,
+      padding: spacing.lg,
+    },
+    cardElevated: { backgroundColor: colors.surfaceElevatedProse },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+      marginBottom: spacing.md,
+    },
+    sectionHeading: { gap: spacing["2xs"] },
+    eyebrow: {
+      ...typography.badge,
+      color: colors.textSubtle,
+      textTransform: "uppercase",
+    },
+    sectionTitle: { ...typography.heading, color: colors.text },
+    metricLabel: { ...typography.caption, color: colors.textMuted },
+    statValueRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: spacing.xs,
+    },
+    statValue: {
+      ...typography.metricLG,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+    },
+    statUnit: { ...typography.mono, color: colors.textSubtle },
+    pill: {
+      alignSelf: "flex-start",
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.surface,
+    },
+    pillText: {
+      ...typography.badge,
+      color: colors.textMuted,
+      textTransform: "uppercase",
+    },
+    pillPositive: {
+      color: colors.primary,
+      borderColor: colors.primaryBorder,
+      backgroundColor: colors.primaryWash,
+    },
+    pillWarning: {
+      color: colors.stress,
+      borderColor: colors.stressBorder,
+      backgroundColor: colors.stressWash,
+    },
+    pillViolet: {
+      color: colors.sleep,
+      borderColor: colors.sleepBorder,
+      backgroundColor: colors.sleepWash,
+    },
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: spacing["2xl"],
+      gap: spacing.sm,
+    },
+    emptyTitle: { ...typography.subheading, color: colors.text },
+    emptyDetail: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    hairline: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.outlineSoft,
+    },
+  }),
+);

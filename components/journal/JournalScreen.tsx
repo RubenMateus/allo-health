@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import { SettingsButton } from "@/components/settings/SettingsButton";
 import {
   Card,
   EmptyState,
@@ -34,20 +35,25 @@ import {
   type Rating,
 } from "@/services/journal";
 import { useJournalStore } from "@/stores/journalStore";
-import { colors, glow, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography, type ColorTokens } from "@/theme/tokens";
 import { formatDayLabel, formatToday } from "@/utils/formatters";
 
 const ratings: Rating[] = [1, 2, 3, 4, 5];
 
-const moodColor: Record<Rating, string> = {
-  1: colors.strainEnd,
-  2: colors.stress,
-  3: colors.vo2,
-  4: "rgba(0,229,163,0.6)",
-  5: colors.primary,
-};
+function moodColor(colors: ColorTokens, mood: Rating) {
+  return {
+    1: colors.strainEnd,
+    2: colors.stress,
+    3: colors.vo2,
+    4: colors.moodGood,
+    5: colors.primary,
+  }[mood];
+}
 
 export function JournalScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const entries = useJournalStore((state) => state.entries);
   const hydrated = useJournalStore((state) => state.hydrated);
   const loadFailed = useJournalStore((state) => state.loadFailed);
@@ -79,12 +85,20 @@ export function JournalScreen() {
         </View>
         <View style={styles.topBarCopy}>
           <Text style={styles.topOverline}>ALLO / JOURNAL</Text>
-          <Text style={styles.date}>{formatToday()}</Text>
+          <Text
+            style={styles.date}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
+            {formatToday()}
+          </Text>
         </View>
         <View style={styles.privacyBadge}>
           <Lock color={colors.primary} size={12} strokeWidth={2.4} />
           <Text style={styles.privacyText}>ON-DEVICE</Text>
         </View>
+        <SettingsButton />
       </View>
 
       <View style={styles.hero}>
@@ -170,6 +184,8 @@ function WeekCard({
   week: JournalWeekSummary;
   today: string;
 }) {
+  const { colors, glow } = useTheme();
+  const styles = useStyles();
   return (
     <Card style={styles.weekCard}>
       <View style={styles.weekHeader}>
@@ -212,8 +228,8 @@ function WeekCard({
                   styles.dayCell,
                   isToday && styles.dayCellToday,
                   day.entry && {
-                    backgroundColor: moodColor[day.entry.mood],
-                    borderColor: moodColor[day.entry.mood],
+                    backgroundColor: moodColor(colors, day.entry.mood),
+                    borderColor: moodColor(colors, day.entry.mood),
                   },
                   day.entry && isToday && glow.recovery,
                 ]}
@@ -245,6 +261,7 @@ function WeekCard({
 }
 
 function WeekStat({ label, value }: { label: string; value: number | null }) {
+  const styles = useStyles();
   return (
     <View style={styles.weekStat}>
       <Text style={styles.weekStatValue}>
@@ -271,6 +288,8 @@ function CheckInCard({
     note: string;
   }) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [mood, setMood] = useState<Rating | null>(entry?.mood ?? null);
   const [energy, setEnergy] = useState<Rating | null>(entry?.energy ?? null);
   const [tags, setTags] = useState<JournalTag[]>(entry?.tags ?? []);
@@ -382,6 +401,7 @@ function RatingScale({
   labels: Record<Rating, string>;
   onChange: (value: Rating) => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <View style={styles.noteHeader}>
@@ -430,11 +450,23 @@ function EntryCard({
   entry: JournalEntry;
   onDelete: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Card style={styles.entryCard}>
       <View style={styles.entryHeader}>
-        <View style={[styles.moodMark, { borderColor: moodColor[entry.mood] }]}>
-          <Text style={[styles.moodMarkText, { color: moodColor[entry.mood] }]}>
+        <View
+          style={[
+            styles.moodMark,
+            { borderColor: moodColor(colors, entry.mood) },
+          ]}
+        >
+          <Text
+            style={[
+              styles.moodMarkText,
+              { color: moodColor(colors, entry.mood) },
+            ]}
+          >
             {entry.mood}
           </Text>
         </View>
@@ -481,211 +513,217 @@ function EntryCard({
   );
 }
 
-const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing["2xl"],
-  },
-  brandMark: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-  },
-  topBarCopy: { flex: 1, gap: spacing["2xs"] },
-  topOverline: {
-    ...typography.badge,
-    color: colors.primary,
-    textTransform: "uppercase",
-  },
-  date: { ...typography.heading, color: colors.text },
-  privacyBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing["2xs"],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primaryWash,
-  },
-  privacyText: { ...typography.badge, color: colors.primary },
-  hero: { gap: spacing["2xs"], marginBottom: spacing.xl },
-  title: { ...typography.display, color: colors.text, letterSpacing: -1 },
-  subtitle: { ...typography.bodySmall, color: colors.textMuted },
-  sectionBlock: { gap: spacing.md, marginTop: spacing.section },
-  sectionMeta: { ...typography.mono, color: colors.textSubtle },
-  eyebrow: {
-    ...typography.badge,
-    color: colors.textSubtle,
-    textTransform: "uppercase",
-  },
-  weekCard: { gap: spacing.lg },
-  weekHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  weekHeading: { flex: 1, gap: spacing["2xs"] },
-  weekTitle: { ...typography.heading, color: colors.text },
-  streakBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.surfaceElevatedProse,
-  },
-  streakText: { ...typography.mono, color: colors.primary },
-  weekGrid: { flexDirection: "row", justifyContent: "space-between" },
-  weekColumn: { alignItems: "center", gap: spacing.sm, flex: 1 },
-  dayLetter: { ...typography.caption, color: colors.textSubtle },
-  dayLetterActive: { color: colors.text },
-  dayCell: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceElevatedProse,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayCellToday: { borderColor: colors.primaryBorder },
-  dayDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radii.full,
-    backgroundColor: colors.canvas,
-  },
-  dayValue: { ...typography.mono, color: colors.textMuted },
-  weekStats: { flexDirection: "row", alignItems: "center" },
-  weekStat: { flex: 1, gap: spacing["2xs"] },
-  weekStatValue: {
-    ...typography.metricLG,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  weekStatUnit: { ...typography.mono, color: colors.textSubtle },
-  statDivider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: "stretch",
-    backgroundColor: colors.outlineSoft,
-    marginHorizontal: spacing.md,
-  },
-  checkInCard: { gap: spacing.xl },
-  skeleton: {
-    height: 220,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceElevatedProse,
-  },
-  field: { gap: spacing.sm },
-  fieldLabel: { ...typography.badge, color: colors.textSubtle },
-  noteHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  ratingValue: { ...typography.mono, color: colors.primary },
-  segmented: {
-    flexDirection: "row",
-    gap: spacing["2xs"],
-    padding: spacing["2xs"],
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.surfaceProse,
-  },
-  segment: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentSelected: {
-    backgroundColor: colors.surfaceElevatedProse,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-  },
-  segmentText: { ...typography.subheading, color: colors.textSubtle },
-  segmentTextSelected: { color: colors.text },
-  tagWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  tagChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing["2xs"],
-    minHeight: 34,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.surfaceElevatedProse,
-  },
-  tagChipSelected: {
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primaryWash,
-  },
-  tagText: { ...typography.bodySmall, color: colors.textMuted },
-  tagTextSelected: { color: colors.primary },
-  noteCount: { ...typography.monoSmall, color: colors.textSubtle },
-  noteInput: {
-    ...typography.body,
-    minHeight: 96,
-    color: colors.text,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.canvasDeep,
-  },
-  saveButton: {
-    minHeight: 48,
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryBright,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveButtonDisabled: { backgroundColor: colors.surfaceHigh },
-  saveText: { ...typography.subheading, color: colors.canvas },
-  saveTextDisabled: { color: colors.textSubtle },
-  pressed: { opacity: 0.7 },
-  entryCard: { gap: spacing.md },
-  entryHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  moodMark: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    backgroundColor: colors.surfaceElevatedProse,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  moodMarkText: { ...typography.subheading },
-  entryHeading: { flex: 1, gap: spacing["2xs"] },
-  entryTitle: { ...typography.subheading, color: colors.text },
-  entryDate: { ...typography.mono, color: colors.textSubtle },
-  deleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  entryNote: { ...typography.body, color: colors.textMuted },
-  entryTags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  entryMeta: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  entryMetaText: { ...typography.monoSmall, color: colors.textSubtle },
-  entryMetaDot: { ...typography.monoSmall, color: colors.outline },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    topBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing["2xl"],
+    },
+    brandMark: {
+      width: 38,
+      height: 38,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceHigh,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+    },
+    topBarCopy: { flex: 1, gap: spacing["2xs"] },
+    topOverline: {
+      ...typography.badge,
+      color: colors.primary,
+      textTransform: "uppercase",
+    },
+    date: { ...typography.heading, color: colors.text },
+    privacyBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing["2xs"],
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.primaryBorder,
+      backgroundColor: colors.primaryWash,
+    },
+    privacyText: { ...typography.badge, color: colors.primary },
+    hero: { gap: spacing["2xs"], marginBottom: spacing.xl },
+    title: { ...typography.display, color: colors.text, letterSpacing: -1 },
+    subtitle: { ...typography.bodySmall, color: colors.textMuted },
+    sectionBlock: { gap: spacing.md, marginTop: spacing.section },
+    sectionMeta: { ...typography.mono, color: colors.textSubtle },
+    eyebrow: {
+      ...typography.badge,
+      color: colors.textSubtle,
+      textTransform: "uppercase",
+    },
+    weekCard: { gap: spacing.lg },
+    weekHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    weekHeading: { flex: 1, gap: spacing["2xs"] },
+    weekTitle: { ...typography.heading, color: colors.text },
+    streakBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.surfaceElevatedProse,
+    },
+    streakText: { ...typography.mono, color: colors.primary },
+    weekGrid: { flexDirection: "row", justifyContent: "space-between" },
+    weekColumn: { alignItems: "center", gap: spacing.sm, flex: 1 },
+    dayLetter: { ...typography.caption, color: colors.textSubtle },
+    dayLetterActive: { color: colors.text },
+    dayCell: {
+      width: 34,
+      height: 34,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceElevatedProse,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dayCellToday: { borderColor: colors.primaryBorder },
+    dayDot: {
+      width: 6,
+      height: 6,
+      borderRadius: radii.full,
+      backgroundColor: colors.canvas,
+    },
+    dayValue: { ...typography.mono, color: colors.textMuted },
+    weekStats: { flexDirection: "row", alignItems: "center" },
+    weekStat: { flex: 1, gap: spacing["2xs"] },
+    weekStatValue: {
+      ...typography.metricLG,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+    },
+    weekStatUnit: { ...typography.mono, color: colors.textSubtle },
+    statDivider: {
+      width: StyleSheet.hairlineWidth,
+      alignSelf: "stretch",
+      backgroundColor: colors.outlineSoft,
+      marginHorizontal: spacing.md,
+    },
+    checkInCard: { gap: spacing.xl },
+    skeleton: {
+      height: 220,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceElevatedProse,
+    },
+    field: { gap: spacing.sm },
+    fieldLabel: { ...typography.badge, color: colors.textSubtle },
+    noteHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    ratingValue: { ...typography.mono, color: colors.primary },
+    segmented: {
+      flexDirection: "row",
+      gap: spacing["2xs"],
+      padding: spacing["2xs"],
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.surfaceProse,
+    },
+    segment: {
+      flex: 1,
+      minHeight: 40,
+      borderRadius: radii.full,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    segmentSelected: {
+      backgroundColor: colors.surfaceElevatedProse,
+      borderWidth: 1,
+      borderColor: colors.primaryBorder,
+    },
+    segmentText: { ...typography.subheading, color: colors.textSubtle },
+    segmentTextSelected: { color: colors.text },
+    tagWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    tagChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing["2xs"],
+      minHeight: 34,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.surfaceElevatedProse,
+    },
+    tagChipSelected: {
+      borderColor: colors.primaryBorder,
+      backgroundColor: colors.primaryWash,
+    },
+    tagText: { ...typography.bodySmall, color: colors.textMuted },
+    tagTextSelected: { color: colors.primary },
+    noteCount: { ...typography.monoSmall, color: colors.textSubtle },
+    noteInput: {
+      ...typography.body,
+      minHeight: 96,
+      color: colors.text,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.canvasDeep,
+    },
+    saveButton: {
+      minHeight: 48,
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryBright,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    saveButtonDisabled: { backgroundColor: colors.surfaceHigh },
+    saveText: { ...typography.subheading, color: colors.canvas },
+    saveTextDisabled: { color: colors.textSubtle },
+    pressed: { opacity: 0.7 },
+    entryCard: { gap: spacing.md },
+    entryHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    moodMark: {
+      width: 38,
+      height: 38,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      backgroundColor: colors.surfaceElevatedProse,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    moodMarkText: { ...typography.subheading },
+    entryHeading: { flex: 1, gap: spacing["2xs"] },
+    entryTitle: { ...typography.subheading, color: colors.text },
+    entryDate: { ...typography.mono, color: colors.textSubtle },
+    deleteButton: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.full,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    entryNote: { ...typography.body, color: colors.textMuted },
+    entryTags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    entryMeta: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    entryMetaText: { ...typography.monoSmall, color: colors.textSubtle },
+    entryMetaDot: { ...typography.monoSmall, color: colors.outline },
+  }),
+);

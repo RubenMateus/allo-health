@@ -32,6 +32,7 @@ import Animated, {
 import { GlowRing, type RingMetric } from "@/components/charts/GlowRing";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { HealthPermissionSheet } from "@/components/permissions/HealthPermissionSheet";
+import { SettingsButton } from "@/components/settings/SettingsButton";
 import {
   Card,
   EmptyState,
@@ -46,7 +47,8 @@ import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { coachingEngine } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
 import { useHealthStore } from "@/stores/healthStore";
-import { colors, gradients, radii, spacing, typography } from "@/theme/tokens";
+import { makeStyles, useTheme } from "@/theme/ThemeProvider";
+import { radii, spacing, typography } from "@/theme/tokens";
 import {
   convertGlucose,
   formatEnergy,
@@ -56,6 +58,8 @@ import {
 } from "@/utils/formatters";
 
 export function HomeScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const dimensions = useWindowDimensions();
   const queryClient = useQueryClient();
   const { data, isLoading, isFetching, isError, refetch } =
@@ -109,7 +113,14 @@ export function HomeScreen() {
           </View>
           <View style={styles.topBarCopy}>
             <Text style={styles.topOverline}>ALLO / DAILY SYSTEMS</Text>
-            <Text style={styles.date}>{formatToday()}</Text>
+            <Text
+              style={styles.date}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {formatToday()}
+            </Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -122,6 +133,7 @@ export function HomeScreen() {
           >
             <Link2 color={colors.textMuted} size={18} />
           </Pressable>
+          <SettingsButton />
         </View>
 
         {permissionState === "unrequested" ||
@@ -185,6 +197,8 @@ function DashboardSections({
   ringSize: number;
   chartWidth: number;
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const strainStatus =
     data.strainScore === null
       ? "NO DATA"
@@ -552,6 +566,8 @@ function Marker({
   value: number;
   tone: "positive" | "neutral" | "warning";
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const color =
     tone === "positive"
       ? colors.primary
@@ -571,6 +587,8 @@ function MacroBreakdown({
 }: {
   nutrition: NonNullable<DashboardData["nutrition"]>;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const proteinEnergy = nutrition.proteinGrams * 4;
   const carbohydrateEnergy = nutrition.carbohydrateGrams * 4;
   const fatEnergy = nutrition.fatGrams * 9;
@@ -636,6 +654,8 @@ function GlucoseValue({
 }: {
   data: NonNullable<DashboardData["glucose"]>;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const last = data.samples.at(-1);
   const previous = data.samples.at(-2);
   if (!last) return null;
@@ -667,6 +687,8 @@ function GlucoseChart({
   data: NonNullable<DashboardData["glucose"]>;
   width: number;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const points = data.samples.map((sample) =>
     convertGlucose(sample.value, data.unit),
   );
@@ -702,6 +724,8 @@ function GlucoseChart({
 }
 
 function BatteryMeter({ value }: { value: number }) {
+  const { gradients } = useTheme();
+  const styles = useStyles();
   const width = `${Math.max(0, Math.min(100, value))}%` as `${number}%`;
   return (
     <View
@@ -725,6 +749,8 @@ function PrimaryAction({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -738,6 +764,7 @@ function PrimaryAction({
 }
 
 function DashboardSkeleton() {
+  const styles = useStyles();
   return (
     <View style={styles.skeletonContainer}>
       <SectionHeader title="Daily readiness" eyebrow="SYNCING SIGNALS" />
@@ -784,263 +811,269 @@ function energyStatus(value: number | null): string {
       : "Low reserve, prioritize recovery";
 }
 
-const styles = StyleSheet.create({
-  sections: { gap: spacing["2xl"] },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing["2xl"],
-  },
-  brandMark: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-  },
-  topBarCopy: { flex: 1, gap: spacing["2xs"] },
-  topOverline: {
-    ...typography.badge,
-    color: colors.primary,
-    textTransform: "uppercase",
-  },
-  date: { ...typography.heading, color: colors.text },
-  connectIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.outlineSoft,
-    backgroundColor: colors.surfaceProse,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  accessBanner: {
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
-    marginTop: -spacing.lg,
-    marginBottom: spacing.lg,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.stressBorder,
-    backgroundColor: colors.stressWash,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  bannerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radii.full,
-    backgroundColor: colors.stress,
-  },
-  bannerText: { ...typography.caption, color: colors.text, flex: 1 },
-  ringCard: { paddingHorizontal: spacing.md, paddingVertical: spacing.xl },
-  ringRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: spacing.md,
-  },
-  cardDivider: { marginVertical: spacing.lg },
-  recoveryMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  metaItem: { flex: 1, alignItems: "center", gap: spacing.xs },
-  metaDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 30,
-    backgroundColor: colors.outlineSoft,
-  },
-  sectionBlock: { gap: spacing.md },
-  coachingCard: { gap: spacing.md },
-  coachTopline: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  targetRange: {
-    ...typography.monoSmall,
-    color: colors.textSubtle,
-    flexShrink: 1,
-    textAlign: "right",
-  },
-  coachTitle: { ...typography.heading, color: colors.text },
-  coachCopy: { ...typography.bodySmall, color: colors.textMuted },
-  coachFoot: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.xs,
-  },
-  disclaimer: { ...typography.badge, color: colors.textSubtle },
-  stressHeading: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  outOf: { ...typography.caption, color: colors.textSubtle },
-  chartWrap: { marginTop: spacing.lg, alignItems: "center" },
-  chartTimes: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.xs,
-  },
-  chartTime: { ...typography.monoSmall, color: colors.textSubtle },
-  markerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.lg,
-  },
-  marker: { gap: spacing.xs },
-  markerLabel: { ...typography.badge, color: colors.textSubtle },
-  markerValue: { ...typography.mono, fontVariant: ["tabular-nums"] },
-  energyRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  energyIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryWash,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  energyCopy: { flex: 1, gap: spacing["2xs"] },
-  energyTitle: { ...typography.badge, color: colors.textMuted },
-  energyStatus: { ...typography.caption, color: colors.textSubtle },
-  energyValue: {
-    ...typography.metricLG,
-    color: colors.primaryBright,
-    fontVariant: ["tabular-nums"],
-  },
-  energyPercent: { ...typography.caption, color: colors.textMuted },
-  noValue: { ...typography.metricLG, color: colors.textSubtle },
-  batteryTrack: {
-    height: 6,
-    borderRadius: radii.full,
-    overflow: "hidden",
-    backgroundColor: colors.track,
-    marginTop: spacing.md,
-  },
-  batteryFill: { height: "100%", borderRadius: radii.full },
-  nutritionTop: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-  },
-  calorieValue: { ...typography.metricXL },
-  nutritionCaption: { alignItems: "flex-end", gap: spacing.xs },
-  nutritionCount: { ...typography.monoSmall, color: colors.textSubtle },
-  macroList: { gap: spacing.md, marginTop: spacing.xl },
-  macroRow: { gap: spacing.xs },
-  macroTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  macroName: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  macroDot: { width: 7, height: 7, borderRadius: radii.full },
-  macroLabel: { ...typography.badge, color: colors.textMuted },
-  macroAmount: { ...typography.mono, color: colors.text },
-  macroPercent: { color: colors.textSubtle },
-  macroTrack: {
-    height: 5,
-    borderRadius: radii.full,
-    overflow: "hidden",
-    backgroundColor: colors.track,
-  },
-  macroFill: { height: "100%", borderRadius: radii.full },
-  glucoseHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  glucoseTitle: {
-    ...typography.caption,
-    color: colors.textSubtle,
-    marginTop: spacing.xs,
-  },
-  glucoseValue: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  glucoseNumber: {
-    ...typography.metricMD,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  glucoseUnit: { ...typography.monoSmall, color: colors.textSubtle },
-  glucoseChart: { alignItems: "center", marginTop: spacing.md },
-  glucoseFoot: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.sm,
-  },
-  cgmEmpty: {
-    alignItems: "center",
-    paddingVertical: spacing.xl,
-    gap: spacing.sm,
-  },
-  cgmEmptyTitle: { ...typography.subheading, color: colors.textMuted },
-  cgmEmptyCopy: {
-    ...typography.caption,
-    color: colors.textSubtle,
-    textAlign: "center",
-  },
-  footerNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  footerText: { ...typography.caption, color: colors.textSubtle },
-  pressed: { opacity: 0.7 },
-  retryButton: {
-    minHeight: 48,
-    borderRadius: radii.full,
-    backgroundColor: colors.primaryBright,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  retryText: { ...typography.subheading, color: colors.canvas },
-  skeletonContainer: { gap: spacing.md },
-  skeletonRingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-  },
-  skeletonRing: {
-    width: 84,
-    height: 84,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceHigh,
-  },
-  skeletonLine: {
-    width: "70%",
-    height: 12,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceHigh,
-    marginTop: spacing.lg,
-    alignSelf: "center",
-  },
-  skeletonLineWide: {
-    width: "58%",
-    height: 18,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceHigh,
-  },
-  skeletonChart: {
-    width: "100%",
-    height: 76,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-    marginTop: spacing.lg,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    sections: { gap: spacing["2xl"] },
+    topBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing["2xl"],
+    },
+    brandMark: {
+      width: 38,
+      height: 38,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceHigh,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+    },
+    topBarCopy: { flex: 1, gap: spacing["2xs"] },
+    topOverline: {
+      ...typography.badge,
+      color: colors.primary,
+      textTransform: "uppercase",
+    },
+    date: { ...typography.heading, color: colors.text },
+    connectIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: colors.outlineSoft,
+      backgroundColor: colors.surfaceProse,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    accessBanner: {
+      minHeight: 42,
+      paddingHorizontal: spacing.md,
+      marginTop: -spacing.lg,
+      marginBottom: spacing.lg,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.stressBorder,
+      backgroundColor: colors.stressWash,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    bannerDot: {
+      width: 6,
+      height: 6,
+      borderRadius: radii.full,
+      backgroundColor: colors.stress,
+    },
+    bannerText: { ...typography.caption, color: colors.text, flex: 1 },
+    ringCard: { paddingHorizontal: spacing.md, paddingVertical: spacing.xl },
+    ringRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: spacing.md,
+    },
+    cardDivider: { marginVertical: spacing.lg },
+    recoveryMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    metaItem: { flex: 1, alignItems: "center", gap: spacing.xs },
+    metaDivider: {
+      width: StyleSheet.hairlineWidth,
+      height: 30,
+      backgroundColor: colors.outlineSoft,
+    },
+    sectionBlock: { gap: spacing.md },
+    coachingCard: { gap: spacing.md },
+    coachTopline: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    targetRange: {
+      ...typography.monoSmall,
+      color: colors.textSubtle,
+      flexShrink: 1,
+      textAlign: "right",
+    },
+    coachTitle: { ...typography.heading, color: colors.text },
+    coachCopy: { ...typography.bodySmall, color: colors.textMuted },
+    coachFoot: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: spacing.xs,
+    },
+    disclaimer: { ...typography.badge, color: colors.textSubtle },
+    stressHeading: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    outOf: { ...typography.caption, color: colors.textSubtle },
+    chartWrap: { marginTop: spacing.lg, alignItems: "center" },
+    chartTimes: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: spacing.xs,
+    },
+    chartTime: { ...typography.monoSmall, color: colors.textSubtle },
+    markerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: spacing.lg,
+    },
+    marker: { gap: spacing.xs },
+    markerLabel: { ...typography.badge, color: colors.textSubtle },
+    markerValue: { ...typography.mono, fontVariant: ["tabular-nums"] },
+    energyRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    energyIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryWash,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    energyCopy: { flex: 1, gap: spacing["2xs"] },
+    energyTitle: { ...typography.badge, color: colors.textMuted },
+    energyStatus: { ...typography.caption, color: colors.textSubtle },
+    energyValue: {
+      ...typography.metricLG,
+      color: colors.primaryBright,
+      fontVariant: ["tabular-nums"],
+    },
+    energyPercent: { ...typography.caption, color: colors.textMuted },
+    noValue: { ...typography.metricLG, color: colors.textSubtle },
+    batteryTrack: {
+      height: 6,
+      borderRadius: radii.full,
+      overflow: "hidden",
+      backgroundColor: colors.track,
+      marginTop: spacing.md,
+    },
+    batteryFill: { height: "100%", borderRadius: radii.full },
+    nutritionTop: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+    },
+    calorieValue: { ...typography.metricXL },
+    nutritionCaption: { alignItems: "flex-end", gap: spacing.xs },
+    nutritionCount: { ...typography.monoSmall, color: colors.textSubtle },
+    macroList: { gap: spacing.md, marginTop: spacing.xl },
+    macroRow: { gap: spacing.xs },
+    macroTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    macroName: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    macroDot: { width: 7, height: 7, borderRadius: radii.full },
+    macroLabel: { ...typography.badge, color: colors.textMuted },
+    macroAmount: { ...typography.mono, color: colors.text },
+    macroPercent: { color: colors.textSubtle },
+    macroTrack: {
+      height: 5,
+      borderRadius: radii.full,
+      overflow: "hidden",
+      backgroundColor: colors.track,
+    },
+    macroFill: { height: "100%", borderRadius: radii.full },
+    glucoseHead: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    glucoseTitle: {
+      ...typography.caption,
+      color: colors.textSubtle,
+      marginTop: spacing.xs,
+    },
+    glucoseValue: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    glucoseNumber: {
+      ...typography.metricMD,
+      color: colors.text,
+      fontVariant: ["tabular-nums"],
+    },
+    glucoseUnit: { ...typography.monoSmall, color: colors.textSubtle },
+    glucoseChart: { alignItems: "center", marginTop: spacing.md },
+    glucoseFoot: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: spacing.sm,
+    },
+    cgmEmpty: {
+      alignItems: "center",
+      paddingVertical: spacing.xl,
+      gap: spacing.sm,
+    },
+    cgmEmptyTitle: { ...typography.subheading, color: colors.textMuted },
+    cgmEmptyCopy: {
+      ...typography.caption,
+      color: colors.textSubtle,
+      textAlign: "center",
+    },
+    footerNote: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    footerText: { ...typography.caption, color: colors.textSubtle },
+    pressed: { opacity: 0.7 },
+    retryButton: {
+      minHeight: 48,
+      borderRadius: radii.full,
+      backgroundColor: colors.primaryBright,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+    },
+    retryText: { ...typography.subheading, color: colors.canvas },
+    skeletonContainer: { gap: spacing.md },
+    skeletonRingRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: spacing.md,
+    },
+    skeletonRing: {
+      width: 84,
+      height: 84,
+      borderRadius: radii.full,
+      backgroundColor: colors.surfaceHigh,
+    },
+    skeletonLine: {
+      width: "70%",
+      height: 12,
+      borderRadius: radii.full,
+      backgroundColor: colors.surfaceHigh,
+      marginTop: spacing.lg,
+      alignSelf: "center",
+    },
+    skeletonLineWide: {
+      width: "58%",
+      height: 18,
+      borderRadius: radii.full,
+      backgroundColor: colors.surfaceHigh,
+    },
+    skeletonChart: {
+      width: "100%",
+      height: 76,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceHigh,
+      marginTop: spacing.lg,
+    },
+  }),
+);
