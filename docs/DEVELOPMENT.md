@@ -4,7 +4,8 @@ This guide covers running Allo Health from source on an iOS or Android device or
 
 ## Requirements
 
-- Node.js 22.13 or newer, with npm
+- [Bun](https://bun.sh) 1.3 or newer (package manager and script runner)
+- Node.js 22.13 or newer (Expo's CLI and Jest run on Node)
 - **iOS:** a Mac with Xcode 26.4 or newer and CocoaPods
 - **Android:** Android Studio with SDK 36 and a JDK 17 install
 - A physical device or simulator/emulator
@@ -16,23 +17,23 @@ Expo Go is not enough. The app uses native health libraries (`@kingstinct/react-
 ```sh
 git clone https://github.com/RubenMateus/allo-health.git
 cd allo-health
-npm install
+bun install
 cp .env.example .env.local
 ```
 
 Then build and launch the development client for your platform:
 
 ```sh
-npm run ios       # expo run:ios, builds and opens the iOS simulator
-npm run android   # expo run:android, builds and installs on an emulator or USB device
+bun run ios       # expo run:ios, builds and opens the iOS simulator
+bun run android   # expo run:android, builds and installs on an emulator or USB device
 ```
 
-To target a connected physical device, add `--device`, for example `npx expo run:ios --device`. iOS device builds need a signing team selected in Xcode the first time.
+To target a connected physical device, add `--device`, for example `bunx expo run:ios --device`. iOS device builds need a signing team selected in Xcode the first time.
 
 After the first build you only need the Metro bundler for JavaScript changes:
 
 ```sh
-npx expo start --dev-client
+bunx expo start --dev-client
 ```
 
 `ios/` and `android/` are generated from `app.json` and config plugins (Continuous Native Generation) and are git-ignored. Do not edit them by hand. Change `app.json` or a plugin instead and rebuild.
@@ -49,7 +50,7 @@ The data source is chosen with `EXPO_PUBLIC_HEALTH_PROVIDER` in `.env.local`:
 `EXPO_PUBLIC_` variables are inlined into the JavaScript bundle at build time, so restart Metro with a cleared cache after changing it:
 
 ```sh
-npx expo start --dev-client --clear
+bunx expo start --dev-client --clear
 ```
 
 If permission is denied, the request fails, or every native read fails, the app falls back to sample data and shows a message saying so.
@@ -74,7 +75,7 @@ If permission is denied, the request fails, or every native read fails, the app 
 
 ## When to rebuild the development client
 
-Rebuild with `npm run ios` / `npm run android` whenever you:
+Rebuild with `bun run ios` / `bun run android` whenever you:
 
 - add or upgrade a package that contains native code (for example `expo-sqlite`),
 - change native config in `app.json` (permissions, plugins, bundle identifier, icons),
@@ -84,19 +85,19 @@ When a change adds new health read types, existing installs keep their old grant
 
 JavaScript-only changes reload instantly through Metro. If the app crashes on launch with a missing native module error, a rebuild is almost always the fix.
 
-Add dependencies with `npx expo install <package>` rather than `npm install`, so you get the version that matches the Expo SDK. `npx expo-doctor` diagnoses dependency and config problems, and `npx expo install --fix` repairs mismatched versions.
+Add dependencies with `bunx expo install <package>` rather than `bun add`, so you get the version that matches the Expo SDK. `bunx expo-doctor` diagnoses dependency and config problems, and `bunx expo install --fix` repairs mismatched versions.
 
 ## Checks
 
 Run these before opening a pull request:
 
 ```sh
-npm run typecheck   # tsc --noEmit
-npm run lint        # expo lint
-npm test            # jest, run in band
+bun run typecheck   # tsc --noEmit
+bun run lint        # expo lint
+bun run test        # jest, run in band
 ```
 
-Tests cover the pure logic in `services/` (metrics, coaching and data loading), the health store, and the styling setup: `theme/nativewind.test.tsx` compiles the Tailwind config the way the iOS and Android builds do and checks every color, type, spacing and radius class against `theme/tokens.ts`. They run in Node and do not need a simulator.
+Tests cover the pure logic in `services/` (metrics, coaching and data loading), the health store, and the styling setup: `theme/nativewind.test.tsx` compiles the Tailwind config the way the iOS and Android builds do and checks every color, type, spacing and radius class against `theme/tokens.ts`. They run in Node and do not need a simulator. Use `bun run test`, not `bun test`: `bun test` starts Bun's own test runner, which does not work with the jest-expo preset.
 
 ## Project layout
 
@@ -205,9 +206,9 @@ If a feature would need a network call (weather, for example), leave it out or r
 
 | Problem | Fix |
 | --- | --- |
-| "No development build installed" or Expo Go opens | Build the client first with `npm run ios` / `npm run android`. |
+| "No development build installed" or Expo Go opens | Build the client first with `bun run ios` / `bun run android`. |
 | Native module not found on launch | Native dependencies changed. Rebuild the development client. |
 | App still shows sample data with `native` set | Restart Metro with `--clear`, then tap connect and grant access. |
 | Every card is unavailable on the iOS simulator | Add sample data in the simulator's Health app. |
 | Health Connect missing on Android emulator | Use a Google Play system image, or install Health Connect on Android 13 and older. |
-| Dependency version warnings | `npx expo install --fix`, then rebuild. |
+| Dependency version warnings | `bunx expo install --fix`, then rebuild. |
