@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  CalendarDays,
   ChevronRight,
   RotateCw,
 } from "lucide-react-native";
@@ -19,7 +18,8 @@ import {
 import { ProfileCard } from "@/components/biomarkers/ProfileCard";
 import { AgeDial } from "@/components/charts/AgeDial";
 import { Sparkline } from "@/components/charts/Sparkline";
-import { SettingsButton } from "@/components/settings/SettingsButton";
+import { TabHeader } from "@/components/navigation/TabHeader";
+import { useHealthConnectSheet } from "@/components/permissions/useHealthConnectSheet";
 import { Card, EmptyState, Pill, Screen } from "@/components/ui/primitives";
 import { useBiomarkers } from "@/hooks/useBiomarkers";
 import {
@@ -45,58 +45,59 @@ export function BiomarkersScreen() {
   const { colors } = useTheme();
   const { data, isLoading, isFetching, isError, refetch } = useBiomarkers();
 
+  const healthSheet = useHealthConnectSheet();
+
   return (
-    <Screen
-      refreshing={isFetching && !isLoading}
-      onRefresh={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        void refetch();
-      }}
-    >
-      <View className="flex-row items-center gap-md pb-md mb-xl border-b-hairline border-b-outline-soft">
-        <CalendarDays color={colors.primary} size={20} />
-        <Text className="type-subheading text-text flex-1">
-          {formatTodayShort()}
-        </Text>
-        {data ? (
-          data.source === "mock" ? (
-            <Pill>SAMPLE</Pill>
-          ) : (
-            <View className="flex-row items-center gap-xs px-md py-xs rounded-full border border-outline-soft bg-surface">
-              <View className="w-[7px] h-[7px] rounded-full bg-primary" />
-              <Text className="type-caption text-text">Synced</Text>
-            </View>
-          )
-        ) : null}
-        <SettingsButton />
-      </View>
+    <>
+      <Screen
+        refreshing={isFetching && !isLoading}
+        onRefresh={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          void refetch();
+        }}
+      >
+        <TabHeader section="Biomarkers" onConnectPress={healthSheet.open} />
 
-      <View className="gap-2xs mb-2xl">
-        <Text className="type-title text-text">Biomarkers</Text>
-        <Text className="type-caption text-text-muted">Last 12 months</Text>
-      </View>
+        <View className="flex-row items-end gap-md mb-2xl">
+          <View className="flex-1 gap-2xs">
+            <Text className="type-title text-text">Biomarkers</Text>
+            <Text className="type-caption text-text-muted">Last 12 months</Text>
+          </View>
+          {data ? (
+            data.source === "mock" ? (
+              <Pill>SAMPLE</Pill>
+            ) : (
+              <View className="flex-row items-center gap-xs px-md py-xs rounded-full border border-outline-soft bg-surface">
+                <View className="w-[7px] h-[7px] rounded-full bg-primary" />
+                <Text className="type-caption text-text">Synced</Text>
+              </View>
+            )
+          ) : null}
+        </View>
 
-      {isLoading || !data ? (
-        isError ? (
-          <Card>
-            <EmptyState
-              title="Biomarkers unavailable"
-              detail="We couldn't read from your health source. Check that access is allowed, then try again."
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void refetch()}
-              className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
-            >
-              <RotateCw color={colors.canvas} size={16} />
-              <Text className="type-subheading text-canvas">Try again</Text>
-            </Pressable>
-          </Card>
-        ) : null
-      ) : (
-        <BiomarkerSections data={data} />
-      )}
-    </Screen>
+        {isLoading || !data ? (
+          isError ? (
+            <Card>
+              <EmptyState
+                title="Biomarkers unavailable"
+                detail="We couldn't read from your health source. Check that access is allowed, then try again."
+              />
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void refetch()}
+                className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
+              >
+                <RotateCw color={colors.canvas} size={16} />
+                <Text className="type-subheading text-canvas">Try again</Text>
+              </Pressable>
+            </Card>
+          ) : null
+        ) : (
+          <BiomarkerSections data={data} />
+        )}
+      </Screen>
+      {healthSheet.sheet}
+    </>
   );
 }
 
@@ -304,11 +305,4 @@ function BiomarkerRow({ biomarker }: { biomarker: Biomarker }) {
       </Card>
     </Pressable>
   );
-}
-
-function formatTodayShort() {
-  return `Today, ${new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  }).format(new Date())}`;
 }

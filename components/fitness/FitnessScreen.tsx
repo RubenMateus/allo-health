@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  CalendarDays,
   ChartColumn,
   Dumbbell,
   Gauge,
@@ -28,7 +27,8 @@ import {
   LoadGaugeCard,
   Vo2MaxCard,
 } from "@/components/fitness/FitnessCards";
-import { SettingsButton } from "@/components/settings/SettingsButton";
+import { TabHeader } from "@/components/navigation/TabHeader";
+import { useHealthConnectSheet } from "@/components/permissions/useHealthConnectSheet";
 import {
   Card,
   EmptyState,
@@ -52,49 +52,50 @@ export function FitnessScreen() {
   // Screen margin plus card padding on both sides.
   const contentWidth = width - spacing.margin * 2 - spacing.lg * 2;
 
+  const healthSheet = useHealthConnectSheet();
+
   return (
-    <Screen
-      refreshing={isFetching}
-      onRefresh={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        void refetch();
-      }}
-    >
-      <View className="flex-row items-center gap-md pb-md mb-xl border-b-hairline border-b-outline-soft">
-        <CalendarDays color={colors.primary} size={20} />
-        <Text className="type-subheading text-text flex-1">
-          {formatTodayShort()}
-        </Text>
-        {data ? <SourcePill source={data.source} /> : null}
-        <SettingsButton />
-      </View>
+    <>
+      <Screen
+        refreshing={isFetching}
+        onRefresh={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          void refetch();
+        }}
+      >
+        <TabHeader section="Fitness" onConnectPress={healthSheet.open} />
 
-      <View className="gap-2xs mb-2xl">
-        <Text className="type-title text-text">Fitness</Text>
-        <Text className="type-caption text-text-muted">Last 30 days</Text>
-      </View>
+        <View className="flex-row items-end gap-md mb-2xl">
+          <View className="flex-1 gap-2xs">
+            <Text className="type-title text-text">Fitness</Text>
+            <Text className="type-caption text-text-muted">Last 30 days</Text>
+          </View>
+          {data ? <SourcePill source={data.source} /> : null}
+        </View>
 
-      {isLoading && !data ? (
-        <FitnessSkeleton />
-      ) : isError || !data ? (
-        <Card>
-          <EmptyState
-            title="Workouts unavailable"
-            detail="We couldn't read workouts from your health source. Check that workout access is allowed, then try again."
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void refetch()}
-            className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
-          >
-            <RotateCw color={colors.canvas} size={16} />
-            <Text className="type-subheading text-canvas">Try again</Text>
-          </Pressable>
-        </Card>
-      ) : (
-        <FitnessSections data={data} contentWidth={contentWidth} />
-      )}
-    </Screen>
+        {isLoading && !data ? (
+          <FitnessSkeleton />
+        ) : isError || !data ? (
+          <Card>
+            <EmptyState
+              title="Workouts unavailable"
+              detail="We couldn't read workouts from your health source. Check that workout access is allowed, then try again."
+            />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void refetch()}
+              className="min-h-[48px] rounded-full bg-primary-bright flex-row items-center justify-center gap-sm"
+            >
+              <RotateCw color={colors.canvas} size={16} />
+              <Text className="type-subheading text-canvas">Try again</Text>
+            </Pressable>
+          </Card>
+        ) : (
+          <FitnessSections data={data} contentWidth={contentWidth} />
+        )}
+      </Screen>
+      {healthSheet.sheet}
+    </>
   );
 }
 
@@ -486,11 +487,4 @@ function SkeletonBlock({ className }: { className: string }) {
     opacity: withRepeat(withTiming(0.42, { duration: 900 }), -1, true),
   }));
   return <Animated.View className={className} style={animatedStyle} />;
-}
-
-function formatTodayShort() {
-  return `Today, ${new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  }).format(new Date())}`;
 }

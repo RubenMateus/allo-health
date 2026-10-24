@@ -102,6 +102,7 @@ function ThemedStack() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="biomarkers/[kind]" />
         <Stack.Screen name="fitness/[metric]" />
+        <Stack.Screen name="readiness" />
       </Stack>
     </>
   );

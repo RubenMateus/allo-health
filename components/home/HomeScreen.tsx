@@ -1,5 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowDownRight,
@@ -8,30 +8,21 @@ import {
   BatteryCharging,
   ChevronRight,
   HeartPulse,
-  Link2,
   MoonStar,
   RotateCw,
   Sparkles,
 } from "lucide-react-native";
-import { useState } from "react";
-import {
-  Platform,
-  Pressable,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
 
-import { AlloMark } from "@/components/brand/AlloMark";
 import { GlowRing, type RingMetric } from "@/components/charts/GlowRing";
 import { Sparkline } from "@/components/charts/Sparkline";
-import { HealthPermissionSheet } from "@/components/permissions/HealthPermissionSheet";
-import { SettingsButton } from "@/components/settings/SettingsButton";
+import { TabHeader } from "@/components/navigation/TabHeader";
+import { useHealthConnectSheet } from "@/components/permissions/useHealthConnectSheet";
 import {
   Card,
   EmptyState,
@@ -43,9 +34,8 @@ import {
   StatValue,
 } from "@/components/ui/primitives";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
-import { coachingEngine } from "@/services/coaching";
+import { coachingEngine, coachingInputFrom } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
-import { useHealthStore } from "@/stores/healthStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import {
@@ -53,36 +43,15 @@ import {
   formatEnergy,
   formatGlucose,
   formatTime,
-  formatToday,
 } from "@/utils/formatters";
 
 export function HomeScreen() {
   const { colors } = useTheme();
   const dimensions = useWindowDimensions();
-  const queryClient = useQueryClient();
   const { data, isLoading, isFetching, isError, refetch } =
     useHealthDashboard();
-  const permissionState = useHealthStore((state) => state.permissionState);
-  const permissionMessage = useHealthStore((state) => state.permissionMessage);
-  const requestConnection = useHealthStore((state) => state.requestConnection);
-  const [showPermissions, setShowPermissions] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const sourceName =
-    Platform.OS === "ios"
-      ? "Apple Health"
-      : Platform.OS === "android"
-        ? "Health Connect"
-        : "your health platform";
-
-  const connect = async () => {
-    setConnecting(true);
-    try {
-      await requestConnection();
-      await queryClient.invalidateQueries({ queryKey: ["health-dashboard"] });
-    } finally {
-      setConnecting(false);
-    }
-  };
+  const healthSheet = useHealthConnectSheet();
+  const { permissionState, permissionMessage } = healthSheet;
 
   const chartWidth = Math.max(220, dimensions.width - 80);
   const ringSize = Math.min(
@@ -105,40 +74,14 @@ export function HomeScreen() {
           void refetch();
         }}
       >
-        <View className="flex-row items-center gap-md mb-2xl">
-          <View className="w-[38px] h-[38px] rounded-md bg-surface-high items-center justify-center border border-outline-soft">
-            <AlloMark size={24} />
-          </View>
-          <View className="flex-1 gap-2xs">
-            <Text className="type-badge text-primary uppercase">
-              ALLO / DAILY SYSTEMS
-            </Text>
-            <Text
-              className="type-heading text-text"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-            >
-              {formatToday()}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Connect health data"
-            onPress={() => setShowPermissions(true)}
-            className="w-[42px] h-[42px] rounded-full border border-outline-soft bg-surface-prose items-center justify-center active:opacity-70"
-          >
-            <Link2 color={colors.textMuted} size={18} />
-          </Pressable>
-          <SettingsButton />
-        </View>
+        <TabHeader section="Daily systems" onConnectPress={healthSheet.open} />
 
         {permissionState === "unrequested" ||
         permissionState === "denied" ||
         permissionState === "partial" ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() => setShowPermissions(true)}
+            onPress={healthSheet.open}
             className="min-h-[42px] px-md mb-lg rounded-md border border-stress-border bg-stress-wash flex-row items-center gap-sm -mt-lg"
           >
             <View className="w-1.5 h-1.5 rounded-full bg-stress" />
@@ -170,17 +113,7 @@ export function HomeScreen() {
           />
         )}
       </Screen>
-      <HealthPermissionSheet
-        visible={showPermissions}
-        sourceName={sourceName}
-        permissionState={permissionState}
-        permissionMessage={permissionMessage}
-        connecting={connecting}
-        onClose={() => setShowPermissions(false)}
-        onConnect={() => {
-          void connect();
-        }}
-      />
+      {healthSheet.sheet}
     </>
   );
 }
@@ -245,11 +178,7 @@ function DashboardSections({
       glowStyle: "sleep",
     },
   ];
-  const coaching = coachingEngine.recommend({
-    recovery: data.recoveryScore ?? 50,
-    strain: data.strainScore ?? 0,
-    sleep: data.sleepScore ?? 50,
-  });
+  const coaching = coachingEngine.recommend(coachingInputFrom(data));
 
   return (
     <View className="gap-2xl">
@@ -322,41 +251,51 @@ function DashboardSections({
           eyebrow="TRAINING GUIDANCE"
           trailing={<Sparkles color={colors.primary} size={17} />}
         />
-        <Card elevated className="gap-md">
-          <View className="flex-row items-center justify-between gap-sm">
-            <Pill
-              tone={
-                coaching.mode === "push"
-                  ? "positive"
-                  : coaching.mode === "recover"
-                    ? "warning"
-                    : "neutral"
-              }
-            >
-              {coaching.mode}
-            </Pill>
-            <Text className="type-mono-small text-text-subtle shrink text-right">
-              TARGET STRAIN {coaching.targetStrain[0]}–
-              {coaching.targetStrain[1]}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Readiness details"
+          onPress={() => {
+            void Haptics.selectionAsync();
+            router.push("/readiness");
+          }}
+          className="active:opacity-80"
+        >
+          <Card elevated className="gap-md">
+            <View className="flex-row items-center justify-between gap-sm">
+              <Pill
+                tone={
+                  coaching.mode === "push"
+                    ? "positive"
+                    : coaching.mode === "recover"
+                      ? "warning"
+                      : "neutral"
+                }
+              >
+                {coaching.mode}
+              </Pill>
+              <Text className="type-mono-small text-text-subtle shrink text-right">
+                TARGET STRAIN {coaching.targetStrain[0]}–
+                {coaching.targetStrain[1]}
+              </Text>
+            </View>
+            <Text className="type-heading text-text">
+              {data.recoveryScore === null || data.sleepScore === null
+                ? "Waiting for enough signals"
+                : coaching.title}
             </Text>
-          </View>
-          <Text className="type-heading text-text">
-            {data.recoveryScore === null || data.sleepScore === null
-              ? "Waiting for enough signals"
-              : coaching.title}
-          </Text>
-          <Text className="type-body-small text-text-muted">
-            {data.recoveryScore === null || data.sleepScore === null
-              ? "Connect or sync more health data to personalize your daily recommendation."
-              : coaching.message}
-          </Text>
-          <View className="flex-row items-center justify-between mt-xs">
-            <Text className="type-badge text-text-subtle">
-              ESTIMATE / NOT MEDICAL ADVICE
+            <Text className="type-body-small text-text-muted">
+              {data.recoveryScore === null || data.sleepScore === null
+                ? "Connect or sync more health data to personalize your daily recommendation."
+                : coaching.message}
             </Text>
-            <ArrowRight color={colors.primary} size={16} />
-          </View>
-        </Card>
+            <View className="flex-row items-center justify-between mt-xs">
+              <Text className="type-badge text-text-subtle">
+                ESTIMATE / NOT MEDICAL ADVICE
+              </Text>
+              <ArrowRight color={colors.primary} size={16} />
+            </View>
+          </Card>
+        </Pressable>
       </View>
 
       <View className="gap-md">
