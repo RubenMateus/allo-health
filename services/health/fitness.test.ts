@@ -17,6 +17,14 @@ describe("loadFitnessData", () => {
     expect(
       data.trainingMix.reduce((total, entry) => total + entry.share, 0),
     ).toBe(100);
+    expect(data.maxHeartRateFromAge).toBe(true);
+    expect(data.cardioGauge.optimal).not.toBeNull();
+    expect(data.muscularGauge.value).toBeGreaterThan(0);
+    expect(data.activeMinutes.current).toHaveLength(7);
+    expect(data.zoneWeeks).toHaveLength(4);
+    expect(data.zoneWeeks.at(-1)!.minutes.some((minutes) => minutes > 0)).toBe(
+      true,
+    );
   });
 
   it("returns empty sections when no workouts are recorded", async () => {
@@ -24,6 +32,7 @@ describe("loadFitnessData", () => {
       kind: "apple",
       getWorkouts: async () => [],
       getRestingHR: async () => 55,
+      getProfile: async () => ({ birthDate: null, sex: null }),
     } as unknown as HealthProvider;
     const data = await loadFitnessData(provider);
     expect(data.workoutCount).toBe(0);
@@ -36,5 +45,7 @@ describe("loadFitnessData", () => {
     expect(data.heartRateRecovery).toEqual([]);
     expect(data.strength).toMatchObject({ sessions: 0, weekly: [0, 0, 0, 0] });
     expect(data.trainingMix).toEqual([]);
+    expect(data.cardioGauge.status).toBe("NO DATA");
+    expect(data.maxHeartRateFromAge).toBe(false);
   });
 });

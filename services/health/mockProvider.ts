@@ -67,6 +67,23 @@ const trainingBlock = [
   [13, "Run", 40, 146],
 ] as const;
 
+/** Warm-up, steady work (or 3-minute intervals) and cool-down around an average. */
+function mockHeartRateTrace(
+  minutes: number,
+  average: number,
+  intervals: boolean,
+): number[] {
+  return Array.from({ length: minutes }, (_, minute) => {
+    const warmUp = Math.min(1, (minute + 1) / 8);
+    const coolDown = Math.min(1, (minutes - minute) / 5);
+    const surge = intervals ? (Math.floor(minute / 3) % 2 ? 14 : -10) : 0;
+    const drift = Math.sin(minute * 0.9) * 4;
+    return Math.round(
+      (average + surge + drift) * (0.72 + 0.28 * Math.min(warmUp, coolDown)),
+    );
+  });
+}
+
 function mockWorkouts(since: Date): Workout[] {
   const workouts: Workout[] = [];
   const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
@@ -101,6 +118,11 @@ function mockWorkouts(since: Date): Workout[] {
             peak,
             recovery: peak - (38 + ((daysAgo * 7) % 13)),
           },
+          heartRateByMinute: mockHeartRateTrace(
+            duration,
+            averageHeartRate,
+            activity === "Intervals",
+          ),
         });
       },
     );

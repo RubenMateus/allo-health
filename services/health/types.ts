@@ -88,6 +88,8 @@ export type Workout = {
   endedAt: string;
   activeEnergyKcal: number | null;
   heartRate: WorkoutHeartRate;
+  /** Average heart rate for each minute of the workout; 0 where there was no reading. */
+  heartRateByMinute?: number[];
 };
 
 export interface HealthProvider {

@@ -14,7 +14,10 @@ import type {
   WorkoutCategory,
 } from "./types";
 import { dailyAverages } from "@/services/metrics/biomarkers";
-import { summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
+import {
+  heartRateByMinute,
+  summarizeWorkoutHeartRate,
+} from "@/services/metrics/fitness";
 
 const now = () => new Date();
 const todayStart = () => {
@@ -316,6 +319,13 @@ export class HealthConnectProvider implements HealthProvider {
           ).catch(() => []),
           this.read("ActiveCaloriesBurned", start, end).catch(() => []),
         ]);
+        const heartRateSamples = heartRate.flatMap((record) =>
+          record.samples.map((sample) => ({
+            value: sample.beatsPerMinute,
+            unit: "bpm",
+            timestamp: sample.time,
+          })),
+        );
         const category: WorkoutCategory = strengthExercises.has(
           session.exerciseType,
         )
@@ -337,13 +347,12 @@ export class HealthConnectProvider implements HealthProvider {
               )
             : null,
           heartRate: summarizeWorkoutHeartRate(
-            heartRate.flatMap((record) =>
-              record.samples.map((sample) => ({
-                value: sample.beatsPerMinute,
-                unit: "bpm",
-                timestamp: sample.time,
-              })),
-            ),
+            heartRateSamples,
+            session.startTime,
+            session.endTime,
+          ),
+          heartRateByMinute: heartRateByMinute(
+            heartRateSamples,
             session.startTime,
             session.endTime,
           ),

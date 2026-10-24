@@ -78,6 +78,9 @@ describe("fitness metrics", () => {
       minutes,
       sessions,
       load: 0,
+      cardioLoad: 0,
+      muscularLoad: 0,
+      energyKcal: 0,
     });
     expect(summarizeActivity([day(30), day(0), day(45)], [day(20)])).toEqual({
       totalMinutes: 75,
