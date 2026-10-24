@@ -16,6 +16,7 @@ type HealthStore = {
   permissionState: PermissionState;
   permissionMessage: string | null;
   requestConnection: () => Promise<PermissionResult>;
+  restoreConnection: () => Promise<void>;
   setPermissionState: (state: PermissionState, message?: string | null) => void;
   fallbackToMock: () => void;
 };
@@ -67,6 +68,24 @@ export const useHealthStore = create<HealthStore>((set) => ({
           "Health data could not be connected. The dashboard is showing sample data.",
       });
       return result;
+    }
+  },
+  restoreConnection: async () => {
+    // Health access is granted at the OS level, so re-attach to it on launch without
+    // storing anything ourselves. This never shows a permission prompt.
+    if (!nativeMode) return;
+    const provider = createNativeHealthProvider();
+    if (!provider) return;
+    try {
+      const result = await provider.getConnectionStatus();
+      if (result && result.state !== "denied")
+        set({
+          provider,
+          permissionState: result.state,
+          permissionMessage: null,
+        });
+    } catch {
+      // Leave the sample data and connect prompt in place.
     }
   },
   setPermissionState: (permissionState, permissionMessage = null) =>
