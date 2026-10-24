@@ -1,6 +1,8 @@
 import type { RecordResult, RecordType } from "react-native-health-connect";
 import type {
+  BiomarkerKind,
   GlucoseData,
+  HealthProfile,
   HealthProvider,
   HealthSample,
   NutritionData,
@@ -11,6 +13,7 @@ import type {
   Workout,
   WorkoutCategory,
 } from "./types";
+import { dailyAverages } from "@/services/metrics/biomarkers";
 import { summarizeWorkoutHeartRate } from "@/services/metrics/fitness";
 
 const now = () => new Date();
@@ -30,7 +33,23 @@ const requestedRecords = [
   "BloodGlucose",
   "RespiratoryRate",
   "ExerciseSession",
+  "Weight",
+  "BodyFat",
+  "LeanBodyMass",
+  "Vo2Max",
+  "OxygenSaturation",
 ] as const;
+
+const biomarkerUnits: Record<BiomarkerKind, string> = {
+  weight: "kg",
+  hrv: "ms",
+  restingHeartRate: "bpm",
+  bodyFat: "%",
+  leanBodyMass: "kg",
+  vo2Max: "ml/kg/min",
+  bloodOxygen: "%",
+  respiratoryRate: "br/min",
+};
 
 // Health Connect ExerciseSessionRecord exercise types.
 const exerciseLabels: Record<number, string> = {
@@ -331,5 +350,74 @@ export class HealthConnectProvider implements HealthProvider {
         };
       }),
     );
+  }
+
+  private async readBiomarker(
+    kind: BiomarkerKind,
+    since: Date,
+  ): Promise<Array<{ time: string; value: number }>> {
+    switch (kind) {
+      case "weight":
+        return (await this.read("Weight", since)).map((record) => ({
+          time: record.time,
+          value: record.weight.inKilograms,
+        }));
+      case "hrv":
+        return (await this.read("HeartRateVariabilityRmssd", since)).map(
+          (record) => ({
+            time: record.time,
+            value: record.heartRateVariabilityMillis,
+          }),
+        );
+      case "restingHeartRate":
+        return (await this.read("RestingHeartRate", since)).map((record) => ({
+          time: record.time,
+          value: record.beatsPerMinute,
+        }));
+      case "bodyFat":
+        return (await this.read("BodyFat", since)).map((record) => ({
+          time: record.time,
+          value: record.percentage,
+        }));
+      case "leanBodyMass":
+        return (await this.read("LeanBodyMass", since)).map((record) => ({
+          time: record.time,
+          value: record.mass.inKilograms,
+        }));
+      case "vo2Max":
+        return (await this.read("Vo2Max", since)).map((record) => ({
+          time: record.time,
+          value: record.vo2MillilitersPerMinuteKilogram,
+        }));
+      case "bloodOxygen":
+        return (await this.read("OxygenSaturation", since)).map((record) => ({
+          time: record.time,
+          value: record.percentage,
+        }));
+      case "respiratoryRate":
+        return (await this.read("RespiratoryRate", since)).map((record) => ({
+          time: record.time,
+          value: record.rate,
+        }));
+    }
+  }
+
+  async getBiomarkerHistory(
+    kind: BiomarkerKind,
+    since: Date,
+  ): Promise<HealthSample[]> {
+    const readings = await this.readBiomarker(kind, since);
+    return dailyAverages(
+      readings.map((reading) => ({
+        value: reading.value,
+        unit: biomarkerUnits[kind],
+        timestamp: reading.time,
+      })),
+    );
+  }
+
+  async getProfile(): Promise<HealthProfile> {
+    // Health Connect has no date of birth or sex record; the app asks once instead.
+    return { birthDate: null, sex: null };
   }
 }
