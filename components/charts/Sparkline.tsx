@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, {
   Circle,
@@ -17,13 +17,23 @@ export function Sparkline({
   width = 260,
   height = 76,
   targetRange,
+  targetColor = colors.primary,
+  step = false,
+  fill = true,
+  accessibilityLabel = "Intraday health data sparkline",
 }: {
   values: number[];
   color?: string;
   width?: number;
   height?: number;
   targetRange?: readonly [number, number];
+  targetColor?: string;
+  /** Draw horizontal-then-vertical steps between points instead of diagonals. */
+  step?: boolean;
+  fill?: boolean;
+  accessibilityLabel?: string;
 }) {
+  const fillId = `sparkline-fill-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
   const chart = useMemo(() => {
     if (values.length < 2)
       return { path: "", lastX: 0, lastY: 0, min: 0, max: 1 };
@@ -38,14 +48,21 @@ export function Sparkline({
     });
     return {
       path: points
-        .map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`)
+        .map(([x, y], index) => {
+          if (index === 0) return `M ${x} ${y}`;
+          const previous = points[index - 1]!;
+          const middle = (previous[0] + x) / 2;
+          return step
+            ? `L ${middle} ${previous[1]} L ${middle} ${y} L ${x} ${y}`
+            : `L ${x} ${y}`;
+        })
         .join(" "),
       lastX: points.at(-1)?.[0] ?? 0,
       lastY: points.at(-1)?.[1] ?? 0,
       min,
       max,
     };
-  }, [height, targetRange, values, width]);
+  }, [height, step, targetRange, values, width]);
 
   const rangeY = (value: number) =>
     height -
@@ -58,12 +75,12 @@ export function Sparkline({
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel="Intraday health data sparkline"
+      accessibilityLabel={accessibilityLabel}
       style={styles.frame}
     >
       <Svg width={width} height={height}>
         <Defs>
-          <LinearGradient id="sparkline-fill" x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={color} stopOpacity="0.22" />
             <Stop offset="1" stopColor={color} stopOpacity="0" />
           </LinearGradient>
@@ -74,14 +91,16 @@ export function Sparkline({
             y={targetY}
             width={width}
             height={targetHeight}
-            fill={colors.primary}
+            fill={targetColor}
             opacity={0.07}
           />
         ) : null}
-        <Path
-          d={`${chart.path} L ${chart.lastX} ${height} L 0 ${height} Z`}
-          fill="url(#sparkline-fill)"
-        />
+        {fill ? (
+          <Path
+            d={`${chart.path} L ${chart.lastX} ${height} L 0 ${height} Z`}
+            fill={`url(#${fillId})`}
+          />
+        ) : null}
         <Path
           d={chart.path}
           stroke={color}

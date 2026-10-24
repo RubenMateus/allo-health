@@ -38,6 +38,8 @@ export const colors = {
   stress: "#FF9F43",
   vo2: "#F59E0B",
   blue: "#67C9FF",
+  salmon: "#FFB4AA",
+  heat1: "rgba(0,229,163,0.35)",
   error: "#ffb4ab",
   transparent: "transparent",
 } as const;

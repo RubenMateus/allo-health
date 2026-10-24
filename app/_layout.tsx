@@ -17,6 +17,8 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { useHealthStore } from "@/stores/healthStore";
+
 export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
@@ -42,6 +44,10 @@ export default function RootLayout() {
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
   });
+
+  useEffect(() => {
+    void useHealthStore.getState().restoreConnection();
+  }, []);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
