@@ -310,3 +310,55 @@ describe("HealthConnectProvider.getBiomarkerHistory", () => {
     ]);
   });
 });
+
+describe("HealthConnectProvider.getWorkoutDetails", () => {
+  it("reads the recording app's distance and the platform's elevation and steps", async () => {
+    serve({
+      Distance: [
+        {
+          startTime: at(23, 7, 15),
+          endTime: at(23, 7, 20),
+          distance: { inMeters: 1020 },
+          metadata: metadata(PIXEL_WATCH, "d-watch"),
+        },
+        {
+          startTime: at(23, 7, 15),
+          endTime: at(23, 7, 20),
+          distance: { inMeters: 990 },
+          metadata: metadata(SAMSUNG, "d-phone"),
+        },
+      ],
+    });
+    mocked.aggregateRecord.mockImplementation(async ({ recordType }) =>
+      recordType === "ElevationGained"
+        ? ({
+            ELEVATION_GAINED_TOTAL: { inMeters: 64 },
+            dataOrigins: [PIXEL_WATCH],
+          } as never)
+        : ({ COUNT_TOTAL: 8500, dataOrigins: [PIXEL_WATCH] } as never),
+    );
+
+    const details = await provider().getWorkoutDetails({
+      id: "run",
+      activity: "Run",
+      category: "cardio",
+      startedAt: at(23, 7, 15),
+      endedAt: at(23, 8, 5),
+      activeEnergyKcal: 600,
+      heartRate: { average: 150, peak: null, recovery: null },
+      distanceMeters: 10_000,
+      sourceId: PIXEL_WATCH,
+    });
+
+    expect(details.distanceSamples.map((sample) => sample.meters)).toEqual([
+      1020,
+    ]);
+    expect(details.elevationGainMeters).toBe(64);
+    expect(details.dynamics).toEqual({
+      cadence: 170,
+      strideLengthMeters: null,
+      verticalOscillationCm: null,
+      groundContactMs: null,
+    });
+  });
+});

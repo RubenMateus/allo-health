@@ -28,31 +28,9 @@ export function DetailLayout({
   statusColor?: string;
   caption?: string | null;
 }>) {
-  const { colors } = useTheme();
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-canvas">
-      <View className="flex-row items-center px-sm py-sm border-b-hairline border-b-outline-soft">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={12}
-          onPress={() => {
-            void Haptics.selectionAsync();
-            if (router.canGoBack()) router.back();
-            else router.replace("/");
-          }}
-          className="w-11 h-11 items-center justify-center"
-        >
-          <ChevronLeft color={colors.text} size={22} />
-        </Pressable>
-        <Text
-          className="type-subheading text-text flex-1 text-center"
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        <View className="w-11 h-11 items-center justify-center" />
-      </View>
+      <DetailTopBar title={title} />
       <ScrollView
         contentContainerClassName="gap-2xl px-margin pb-16 pt-xl"
         showsVerticalScrollIndicator={false}
@@ -81,6 +59,51 @@ export function DetailLayout({
         {children}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** Back button and centered title, shared by every pushed page. */
+export function DetailTopBar({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View className="flex-row items-center px-sm py-sm border-b-hairline border-b-outline-soft">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        hitSlop={12}
+        onPress={() => {
+          void Haptics.selectionAsync();
+          if (router.canGoBack()) router.back();
+          else router.replace("/");
+        }}
+        className="w-11 h-11 items-center justify-center"
+      >
+        <ChevronLeft color={colors.text} size={22} />
+      </Pressable>
+      <View className="flex-1 items-center">
+        <Text
+          className="type-subheading text-text text-center"
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text
+            className="type-mono-small text-text-subtle text-center"
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <View className="w-11 h-11 items-center justify-center" />
+    </View>
   );
 }
 

@@ -31,6 +31,9 @@
         "android.permission.health.READ_LEAN_BODY_MASS",
         "android.permission.health.READ_VO2_MAX",
         "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_ELEVATION_GAINED",
+        "android.permission.health.READ_STEPS",
         "android.permission.health.READ_HEALTH_DATA_HISTORY"
       ],
       "package": "com.rubenmateus.allohealth",

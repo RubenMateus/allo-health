@@ -10,6 +10,7 @@ import type {
   StrainInputs,
   StressSample,
   Workout,
+  WorkoutDetails,
 } from "./types";
 
 const minutesAgo = (minutes: number) =>
@@ -84,6 +85,13 @@ function mockHeartRateTrace(
   });
 }
 
+// Average speed in m/s for activities that cover distance.
+const mockSpeeds: Record<string, number> = {
+  Run: 3.32,
+  "Long run": 3.05,
+  Ride: 7.4,
+};
+
 function mockWorkouts(since: Date): Workout[] {
   const workouts: Workout[] = [];
   const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
@@ -123,6 +131,14 @@ function mockWorkouts(since: Date): Workout[] {
             averageHeartRate,
             activity === "Intervals",
           ),
+          distanceMeters: mockSpeeds[activity]
+            ? Math.round(
+                mockSpeeds[activity] * duration * 60 * (0.98 + scale * 0.02),
+              )
+            : null,
+          source: "Apple Watch",
+          sourceId: "mock",
+          indoor: activity === "Intervals" ? true : null,
         });
       },
     );
@@ -246,6 +262,40 @@ export class MockHealthProvider implements HealthProvider {
 
   async getWorkouts(since: Date): Promise<Workout[]> {
     return mockWorkouts(since);
+  }
+
+  async getWorkoutDetails(workout: Workout): Promise<WorkoutDetails> {
+    const minutes = workout.heartRateByMinute?.length ?? 0;
+    const total = workout.distanceMeters ?? 0;
+    const start = new Date(workout.startedAt).getTime();
+    // One sample a minute, slower in the warm-up and quicker in the middle.
+    const weights = Array.from(
+      { length: minutes },
+      (_, minute) =>
+        Math.min(1, 0.82 + minute * 0.03) +
+        Math.sin(minute * 0.7) * 0.03 +
+        (minute / Math.max(minutes, 1)) * 0.06,
+    );
+    const weightTotal = weights.reduce((a, b) => a + b, 0) || 1;
+    const running = /run/i.test(workout.activity);
+    return {
+      distanceSamples: total
+        ? weights.map((weight, minute) => ({
+            startedAt: new Date(start + minute * 60_000).toISOString(),
+            endedAt: new Date(start + (minute + 1) * 60_000).toISOString(),
+            meters: (total * weight) / weightTotal,
+          }))
+        : [],
+      elevationGainMeters: total ? Math.round(total / 90) : null,
+      dynamics: running
+        ? {
+            cadence: 172,
+            strideLengthMeters: 1.16,
+            verticalOscillationCm: 8.1,
+            groundContactMs: 228,
+          }
+        : null,
+    };
   }
 
   async getBiomarkerHistory(
