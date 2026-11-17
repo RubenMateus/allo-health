@@ -8,7 +8,7 @@ import {
   House,
   ScanHeart,
 } from "lucide-react-native";
-import { useState, type RefObject } from "react";
+import { useState, type ComponentRef, type RefObject } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,7 +34,7 @@ type FloatingTabBarProps = {
     }) => { defaultPrevented: boolean };
     navigate: (route: string) => void;
   };
-  blurTarget: RefObject<View | null>;
+  blurTarget: RefObject<ComponentRef<typeof View> | null>;
 };
 
 export function FloatingTabBar({

@@ -1,6 +1,6 @@
 # Local development
 
-This guide covers running Allo Health from source on an iOS or Android device or simulator. The app is built with Expo (SDK 57), Expo Router, React Native, TypeScript, NativeWind (Tailwind CSS), React Query and Zustand. It ships for iOS and Android only. Web runs as a development-only target for quick UI work (see [Web (development only)](#web-development-only)); it is never released.
+This guide covers running Allo Health from source on an iOS or Android device or simulator. The app is built with Expo (SDK 58), Expo Router, React Native, TypeScript, NativeWind (Tailwind CSS), React Query and Zustand. It ships for iOS and Android only. Web runs as a development-only target for quick UI work (see [Web (development only)](#web-development-only)); it is never released.
 
 ## Requirements
 

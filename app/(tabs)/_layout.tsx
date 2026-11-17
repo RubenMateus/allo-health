@@ -1,6 +1,6 @@
 import { BlurTargetView } from "expo-blur";
 import { Tabs } from "expo-router";
-import { useRef } from "react";
+import { useRef, type ComponentRef } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { FloatingTabBar } from "@/components/navigation/FloatingTabBar";
@@ -8,7 +8,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const blurTarget = useRef<View>(null);
+  const blurTarget = useRef<ComponentRef<typeof View>>(null);
 
   return (
     <BlurTargetView ref={blurTarget} style={styles.container}>
