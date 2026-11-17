@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -11,6 +11,15 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Starts the arc at 12 o'clock. react-native-svg's web shim turns originX/originY
+// into a `transform-origin` attribute that React rejects, so web (development
+// only) uses the equivalent SVG transform string. iOS and Android keep the props.
+function rotateFromTop(center: number) {
+  return Platform.OS === "web"
+    ? { transform: `rotate(-90 ${center} ${center})` }
+    : { rotation: -90, originX: center, originY: center };
+}
 
 export type RingMetric = {
   label: string;
@@ -106,9 +115,7 @@ export function GlowRing({
             strokeLinecap="round"
             strokeDasharray={`${circumference} ${circumference}`}
             animatedProps={animatedProps}
-            rotation={-90}
-            originX={size / 2}
-            originY={size / 2}
+            {...rotateFromTop(size / 2)}
             fill="none"
           />
           <AnimatedCircle
