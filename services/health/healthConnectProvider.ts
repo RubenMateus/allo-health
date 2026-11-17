@@ -8,6 +8,7 @@ import type {
   NutritionData,
   PermissionResult,
   SleepData,
+  SleepStage,
   StrainInputs,
   StressSample,
   Workout,
@@ -22,6 +23,7 @@ import {
   LATEST_READING_DAYS,
   SAMPLE_BUCKET_MINUTES,
   bucketSamples,
+  buildSleepTimeline,
   buildStressSamples,
   dedupeWorkouts,
   pickMainSleep,
@@ -88,6 +90,17 @@ const strengthExercises = new Set([13, 70, 81]);
 const mixedExercises = new Set([48, 83]);
 
 type HealthConnectModule = typeof import("react-native-health-connect");
+
+// Health Connect sleep stage codes. Unknown (0) has no place on the timeline.
+const stageOfCode: Partial<Record<number, SleepStage>> = {
+  1: "awake",
+  2: "asleep",
+  3: "awake",
+  4: "light",
+  5: "deep",
+  6: "rem",
+  7: "awake",
+};
 
 export class HealthConnectProvider implements HealthProvider {
   readonly kind = "health-connect" as const;
@@ -246,20 +259,45 @@ export class HealthConnectProvider implements HealthProvider {
     const duration = (stage: (typeof stages)[number]) =>
       minutesBetween(stage.startTime, stage.endTime);
     const durationMinutes = main.asleepMinutes;
+    const minutesIn = (code: number) =>
+      stages
+        .filter((stage) => stage.stage === code)
+        .reduce((sum, stage) => sum + duration(stage), 0);
+    const bedtime = new Date(session.startTime).getTime();
+    const wakeTime = new Date(session.endTime).getTime();
+    const inBedMinutes = Math.max(
+      minutesBetween(session.startTime, session.endTime),
+      1,
+    );
     return {
       durationMinutes,
       needMinutes: 480,
-      efficiency: Math.min(
-        durationMinutes /
-          Math.max(minutesBetween(session.startTime, session.endTime), 1),
-        1,
+      efficiency: Math.min(durationMinutes / inBedMinutes, 1),
+      deepMinutes: minutesIn(5),
+      remMinutes: minutesIn(6),
+      lightMinutes: minutesIn(4),
+      awakeMinutes: Math.max(inBedMinutes - durationMinutes, 0),
+      inBedMinutes,
+      bedtime: session.startTime,
+      wakeTime: session.endTime,
+      stages: buildSleepTimeline(
+        stages.length
+          ? stages.flatMap((stage) => {
+              const kind = stageOfCode[stage.stage];
+              return kind
+                ? [
+                    {
+                      stage: kind,
+                      start: new Date(stage.startTime).getTime(),
+                      end: new Date(stage.endTime).getTime(),
+                    },
+                  ]
+                : [];
+            })
+          : [{ stage: "asleep", start: bedtime, end: wakeTime }],
+        bedtime,
+        wakeTime,
       ),
-      deepMinutes: stages
-        .filter((stage) => stage.stage === 5)
-        .reduce((sum, stage) => sum + duration(stage), 0),
-      remMinutes: stages
-        .filter((stage) => stage.stage === 6)
-        .reduce((sum, stage) => sum + duration(stage), 0),
       lastSleepAt: session.endTime,
     };
   }

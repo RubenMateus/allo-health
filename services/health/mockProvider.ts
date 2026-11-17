@@ -7,6 +7,7 @@ import type {
   NutritionData,
   PermissionResult,
   SleepData,
+  SleepStage,
   StrainInputs,
   StressSample,
   Workout,
@@ -185,13 +186,57 @@ export class MockHealthProvider implements HealthProvider {
   }
 
   async getSleep(): Promise<SleepData> {
+    // Last night from 23:15 to 07:30: about five cycles, deep early and REM late.
+    const wake = new Date();
+    wake.setHours(7, 30, 0, 0);
+    if (wake.getTime() > Date.now()) wake.setDate(wake.getDate() - 1);
+    const night: Array<[SleepStage, number]> = [
+      ["light", 20],
+      ["deep", 45],
+      ["light", 25],
+      ["rem", 15],
+      ["awake", 5],
+      ["light", 30],
+      ["deep", 30],
+      ["light", 30],
+      ["rem", 25],
+      ["awake", 8],
+      ["light", 40],
+      ["deep", 17],
+      ["light", 35],
+      ["rem", 30],
+      ["awake", 10],
+      ["light", 45],
+      ["rem", 38],
+      ["light", 37],
+      ["awake", 10],
+    ];
+    const inBedMinutes = night.reduce((sum, [, minutes]) => sum + minutes, 0);
+    let cursor = wake.getTime() - inBedMinutes * 60_000;
+    const bedtime = new Date(cursor).toISOString();
+    const stages = night.map(([stage, minutes]) => {
+      const start = new Date(cursor).toISOString();
+      cursor += minutes * 60_000;
+      return { stage, start, end: new Date(cursor).toISOString() };
+    });
+    const total = (stage: SleepStage) =>
+      night
+        .filter(([kind]) => kind === stage)
+        .reduce((sum, [, minutes]) => sum + minutes, 0);
+    const durationMinutes = inBedMinutes - total("awake");
     return {
-      durationMinutes: 7 * 60 + 42,
+      durationMinutes,
       needMinutes: 8 * 60,
-      efficiency: 0.91,
-      deepMinutes: 92,
-      remMinutes: 108,
-      lastSleepAt: new Date(Date.now() - 8 * 60 * 60_000).toISOString(),
+      efficiency: durationMinutes / inBedMinutes,
+      deepMinutes: total("deep"),
+      remMinutes: total("rem"),
+      lightMinutes: total("light"),
+      awakeMinutes: total("awake"),
+      inBedMinutes,
+      bedtime,
+      wakeTime: wake.toISOString(),
+      stages,
+      lastSleepAt: wake.toISOString(),
     };
   }
 

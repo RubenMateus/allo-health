@@ -17,12 +17,27 @@ export type HealthSample = {
   timestamp: string;
 };
 
+/** A sleep stage. `asleep` is sleep the source recorded without a stage. */
+export type SleepStage = "awake" | "rem" | "light" | "deep" | "asleep";
+
+/** One stretch of the night in a single stage, as ISO times. */
+export type SleepSegment = { stage: SleepStage; start: string; end: string };
+
 export type SleepData = {
   durationMinutes: number;
   needMinutes: number;
   efficiency: number;
   deepMinutes: number;
   remMinutes: number;
+  lightMinutes: number;
+  /** Time in bed minus time asleep. */
+  awakeMinutes: number;
+  /** From getting into bed to getting up, awake time included. */
+  inBedMinutes: number;
+  bedtime: string;
+  wakeTime: string;
+  /** The night from bedtime to wake time, oldest first, with no gaps. */
+  stages: SleepSegment[];
   lastSleepAt: string;
 };
 

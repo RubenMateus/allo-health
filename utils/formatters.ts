@@ -25,6 +25,13 @@ export function formatTime(value: string): string {
   }).format(new Date(value));
 }
 
+/** A time of day on the 24-hour clock, e.g. `23:15`, for chart axes. */
+export function formatClock(value: string): string {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatEnergy(kilocalories: number): {
   value: string;
   unit: "kcal" | "kJ";

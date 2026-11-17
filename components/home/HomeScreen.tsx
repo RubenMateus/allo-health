@@ -36,6 +36,7 @@ import {
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { coachingEngine, coachingInputFrom } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
+import { sleepScoreStatus } from "@/services/metrics";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import {
@@ -144,14 +145,7 @@ function DashboardSections({
         : data.recoveryScore >= 50
           ? "MODERATE"
           : "LOW";
-  const sleepStatus =
-    data.sleepScore === null
-      ? "NO DATA"
-      : data.sleepScore >= 80
-        ? "OPTIMAL"
-        : data.sleepScore >= 60
-          ? "FAIR"
-          : "LOW";
+  const sleepStatus = sleepScoreStatus(data.sleepScore);
   const rings: RingMetric[] = [
     {
       label: "STRAIN",
@@ -207,14 +201,30 @@ function DashboardSections({
       />
       <Card className="px-md py-xl">
         <View className="flex-row justify-between items-start gap-md">
-          {rings.map((metric) => (
-            <GlowRing
-              key={metric.label}
-              metric={metric}
-              size={ringSize}
-              strokeWidth={8}
-            />
-          ))}
+          {rings.map((metric) =>
+            metric.label === "SLEEP" ? (
+              <Pressable
+                key={metric.label}
+                accessibilityRole="button"
+                accessibilityLabel={`Sleep ${metric.value ?? "no data"}, ${metric.status.toLowerCase()}`}
+                accessibilityHint="Opens last night's sleep"
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  router.push("/sleep");
+                }}
+                className="active:opacity-70"
+              >
+                <GlowRing metric={metric} size={ringSize} strokeWidth={8} />
+              </Pressable>
+            ) : (
+              <GlowRing
+                key={metric.label}
+                metric={metric}
+                size={ringSize}
+                strokeWidth={8}
+              />
+            ),
+          )}
         </View>
         <Hairline className="my-lg" />
         <View className="flex-row items-center justify-between">
