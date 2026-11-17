@@ -331,3 +331,68 @@ describe("AppleHealthProvider.getBiomarkerHistory", () => {
     );
   });
 });
+
+describe("AppleHealthProvider.getWorkoutDetails", () => {
+  it("reads the workout's own distance samples, elevation and running form", async () => {
+    const statistics: Record<string, number> = {
+      HKQuantityTypeIdentifierStepCount: 8700,
+      HKQuantityTypeIdentifierRunningStrideLength: 1.18,
+      HKQuantityTypeIdentifierRunningVerticalOscillation: 7.9,
+      HKQuantityTypeIdentifierRunningGroundContactTime: 224,
+    };
+    const proxy = {
+      uuid: "watch-run",
+      startDate: at(23, 7, 15),
+      endDate: at(23, 8, 5),
+      metadata: { HKElevationAscended: { unit: "cm", quantity: 11200 } },
+      getStatistic: jest.fn(async (identifier: string) => {
+        const quantity = statistics[identifier];
+        return identifier === "HKQuantityTypeIdentifierStepCount"
+          ? { sumQuantity: { unit: "count", quantity } }
+          : { averageQuantity: { unit: "", quantity } };
+      }),
+    };
+    mocked.queryWorkoutSamples.mockResolvedValue([proxy] as never);
+    mocked.queryQuantitySamples.mockResolvedValue([
+      {
+        quantity: 410,
+        unit: "m",
+        startDate: at(23, 7, 15),
+        endDate: at(23, 7, 17),
+      },
+    ] as never);
+
+    const details = await provider().getWorkoutDetails({
+      id: "watch-run",
+      activity: "Run",
+      category: "cardio",
+      startedAt: at(23, 7, 15).toISOString(),
+      endedAt: at(23, 8, 5).toISOString(),
+      activeEnergyKcal: 600,
+      heartRate: { average: 150, peak: null, recovery: null },
+    });
+
+    expect(mocked.queryWorkoutSamples).toHaveBeenCalledWith({
+      limit: 1,
+      filter: { uuid: "watch-run" },
+    });
+    expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierDistanceWalkingRunning",
+      expect.objectContaining({ unit: "m", filter: { workout: proxy } }),
+    );
+    expect(details.distanceSamples).toEqual([
+      {
+        startedAt: at(23, 7, 15).toISOString(),
+        endedAt: at(23, 7, 17).toISOString(),
+        meters: 410,
+      },
+    ]);
+    expect(details.elevationGainMeters).toBe(112);
+    expect(details.dynamics).toEqual({
+      cadence: 174,
+      strideLengthMeters: 1.18,
+      verticalOscillationCm: 7.9,
+      groundContactMs: 224,
+    });
+  });
+});

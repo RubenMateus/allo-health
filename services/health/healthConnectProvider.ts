@@ -12,12 +12,14 @@ import type {
   StressSample,
   Workout,
   WorkoutCategory,
+  WorkoutDetails,
 } from "./types";
 import { dailyAverages } from "@/services/metrics/biomarkers";
 import {
   heartRateByMinute,
   summarizeWorkoutHeartRate,
 } from "@/services/metrics/fitness";
+import { workoutKind } from "@/services/metrics/workouts";
 import {
   LATEST_READING_DAYS,
   SAMPLE_BUCKET_MINUTES,
@@ -49,6 +51,10 @@ const requestedRecords = [
   "LeanBodyMass",
   "Vo2Max",
   "OxygenSaturation",
+  // Workout detail: distance for splits, elevation, steps for cadence.
+  "Distance",
+  "ElevationGained",
+  "Steps",
 ] as const;
 
 const biomarkerUnits: Record<BiomarkerKind, string> = {
@@ -85,7 +91,18 @@ const exerciseLabels: Record<number, string> = {
   83: "Yoga",
 };
 const strengthExercises = new Set([13, 70, 81]);
+// Treadmill running and stationary biking.
+const indoorExercises = new Set([9, 57]);
 const mixedExercises = new Set([48, 83]);
+
+function deviceName(
+  device: { manufacturer?: string; model?: string } | undefined,
+): string | null {
+  if (!device?.model) return null;
+  return device.manufacturer && !device.model.includes(device.manufacturer)
+    ? `${device.manufacturer} ${device.model}`
+    : device.model;
+}
 
 type HealthConnectModule = typeof import("react-native-health-connect");
 
@@ -364,7 +381,7 @@ export class HealthConnectProvider implements HealthProvider {
         const end = new Date(session.endTime);
         const heartRateUntil = new Date(end.getTime() + 120_000);
         const origin = session.metadata?.dataOrigin;
-        const [ownHeartRate, calories] = await Promise.all([
+        const [ownHeartRate, calories, distance] = await Promise.all([
           // The app that recorded the session usually recorded its heart rate too;
           // reading only that app avoids mixing in a second device's readings.
           origin
@@ -373,6 +390,7 @@ export class HealthConnectProvider implements HealthProvider {
               )
             : Promise.resolve([]),
           this.activeCalories(start, end).catch(() => null),
+          this.aggregateDistance(start, end).catch(() => null),
         ]);
         const heartRate = ownHeartRate.length
           ? ownHeartRate
@@ -409,10 +427,80 @@ export class HealthConnectProvider implements HealthProvider {
             session.startTime,
             session.endTime,
           ),
+          distanceMeters: distance,
+          source: deviceName(session.metadata?.device) ?? null,
+          sourceId: origin ?? null,
+          indoor: indoorExercises.has(session.exerciseType) ? true : null,
         };
       }),
     );
     return dedupeWorkouts(workouts);
+  }
+
+  /** Health Connect's own distance total for a time range, or null with no data. */
+  private async aggregateDistance(startTime: Date, endTime: Date) {
+    const api = await this.api();
+    const result = await api.aggregateRecord({
+      recordType: "Distance",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      },
+    });
+    return result.dataOrigins.length ? result.DISTANCE.inMeters : null;
+  }
+
+  async getWorkoutDetails(workout: Workout): Promise<WorkoutDetails> {
+    const api = await this.api();
+    const start = new Date(workout.startedAt);
+    const end = new Date(workout.endedAt);
+    const origins = workout.sourceId ? [workout.sourceId] : undefined;
+    const timeRangeFilter = {
+      operator: "between" as const,
+      startTime: workout.startedAt,
+      endTime: workout.endedAt,
+    };
+    const kind = workoutKind(workout);
+    const [distance, elevation, steps] = await Promise.all([
+      // The recording app's own distance only, so a phone and a watch aren't added together.
+      workout.distanceMeters
+        ? this.read("Distance", start, end, origins).catch(() => [])
+        : Promise.resolve([]),
+      api
+        .aggregateRecord({ recordType: "ElevationGained", timeRangeFilter })
+        .catch(() => null),
+      kind === "run"
+        ? api
+            .aggregateRecord({ recordType: "Steps", timeRangeFilter })
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    const minutes = (end.getTime() - start.getTime()) / 60_000;
+    const stepTotal = steps?.dataOrigins.length ? steps.COUNT_TOTAL : null;
+    return {
+      distanceSamples: distance.map((record) => ({
+        startedAt: record.startTime,
+        endedAt: record.endTime,
+        meters: record.distance.inMeters,
+      })),
+      elevationGainMeters: elevation?.dataOrigins.length
+        ? elevation.ELEVATION_GAINED_TOTAL.inMeters
+        : null,
+      // Health Connect has no stride length, vertical oscillation or ground contact time.
+      dynamics:
+        kind === "run"
+          ? {
+              cadence:
+                stepTotal && minutes > 0
+                  ? Math.round(stepTotal / minutes)
+                  : null,
+              strideLengthMeters: null,
+              verticalOscillationCm: null,
+              groundContactMs: null,
+            }
+          : null,
+    };
   }
 
   private async readBiomarker(

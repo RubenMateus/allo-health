@@ -36,6 +36,7 @@ import {
   Pill,
   Screen,
 } from "@/components/ui/primitives";
+import { RecentWorkoutsCard } from "@/components/workouts/RecentWorkoutsCard";
 import { useBiomarkers } from "@/hooks/useBiomarkers";
 import { useFitnessDashboard } from "@/hooks/useFitnessDashboard";
 import type { FitnessData } from "@/services/health/fitness";
@@ -199,6 +200,8 @@ function FitnessSections({
       <Card>
         <ActivityCalendar days={data.days} width={contentWidth} />
       </Card>
+
+      <RecentWorkoutsCard data={data} />
 
       <View className="gap-md">
         <View className="flex-row items-baseline justify-between">
