@@ -1,6 +1,6 @@
 # Local development
 
-This guide covers running Allo Health from source on an iOS or Android device or simulator. The app is built with Expo (SDK 57), Expo Router, React Native, TypeScript, NativeWind (Tailwind CSS), React Query and Zustand. It targets iOS and Android only; the web target is not supported.
+This guide covers running Allo Health from source on an iOS or Android device or simulator. The app is built with Expo (SDK 57), Expo Router, React Native, TypeScript, NativeWind (Tailwind CSS), React Query and Zustand. It ships for iOS and Android only. Web runs as a development-only target for quick UI work (see [Web (development only)](#web-development-only)); it is never released.
 
 ## Requirements
 
@@ -85,6 +85,22 @@ Several devices and apps usually write the same data (a Watch and an iPhone, or 
 - HRV is SDNN on iOS and RMSSD on Android. They are different measures, so values differ between platforms for the same person.
 
 `appleHealthProvider.test.ts` and `healthConnectProvider.test.ts` cover these cases with native payload fixtures.
+
+## Web (development only)
+
+The web build is a quick way to work on layout and styling without a simulator. It is not a product target and is never released, so always check a change on iOS or Android before you open a pull request.
+
+```sh
+bun run web   # expo start --web, serves the app at http://localhost:8081
+```
+
+What is different on web:
+
+- **Sample data only.** HealthKit and Health Connect don't exist in a browser. `services/health/provider.web.ts` replaces the provider module there, so neither native library is bundled and the app stays on sample data even when `EXPO_PUBLIC_HEALTH_PROVIDER=native`.
+- **Browser storage instead of SQLite.** Journal entries, settings and the profile are saved to the browser's `localStorage` (keys start with `allo-health/`) through the `storage.web.ts` files next to each `storage.ts`. expo-sqlite's web build can't open the app's three databases at once, so it is not used on web. Clear the site data in the browser to reset.
+- **Single-page output.** `app.json` sets `web.output` to `single`. Static rendering would try to run expo-sqlite in Node and fails.
+
+If you add a module that only works on iOS and Android, give it a `.web.ts` sibling that falls back to sample data or does nothing, the same way.
 
 ## When to rebuild the development client
 
@@ -224,4 +240,5 @@ If a feature would need a network call (weather, for example), leave it out or r
 | App still shows sample data with `native` set | Restart Metro with `--clear`, then tap connect and grant access. |
 | Every card is unavailable on the iOS simulator | Add sample data in the simulator's Health app. |
 | Health Connect missing on Android emulator | Use a Google Play system image, or install Health Connect on Android 13 and older. |
+| Web build shows a red Metro error about a native module | Something imported a native-only package on web. Add a `.web.ts` fallback next to the importing file. |
 | Dependency version warnings | `bunx expo install --fix`, then rebuild. |

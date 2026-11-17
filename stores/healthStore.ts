@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { create } from "zustand";
 
 import {
@@ -22,7 +23,10 @@ type HealthStore = {
 };
 
 const initialProvider = createHealthProvider();
-const nativeMode = process.env.EXPO_PUBLIC_HEALTH_PROVIDER === "native";
+// Web is a development-only target with no HealthKit or Health Connect, so it
+// always runs on sample data, even when the env asks for native reads.
+const nativeMode =
+  process.env.EXPO_PUBLIC_HEALTH_PROVIDER === "native" && Platform.OS !== "web";
 
 export const useHealthStore = create<HealthStore>((set) => ({
   provider: initialProvider,
