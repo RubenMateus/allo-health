@@ -8,7 +8,7 @@ import { summarizeJournal, summarizeScores } from "@/services/metrics/summary";
 import { useDayStore } from "@/stores/dayStore";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 
-import { periodFromParams, SummaryScreen } from "./SummaryScreen";
+import { formatDelta, periodFromParams, SummaryScreen } from "./SummaryScreen";
 
 jest.mock("@/hooks/usePeriodSummary", () => ({ usePeriodSummary: jest.fn() }));
 jest.mock("lucide-react-native", () => {
@@ -136,4 +136,28 @@ describe("periodFromParams", () => {
     expect(periodFromParams({ period: "week", start: "nonsense" }, "2026-11-18").start).toBe("2026-11-16");
     expect(periodFromParams({ period: "month", start: "2027-01-01" }, "2026-11-18").start).toBe("2026-11-01");
   });
+});
+
+describe("formatDelta", () => {
+  it("rounds before choosing the sign, so tiny changes read as no change", () => {
+    expect(formatDelta(-0.4)).toBe("±0");
+    expect(formatDelta(0.4)).toBe("±0");
+    expect(formatDelta(3.6)).toBe("+4");
+    expect(formatDelta(-2.2)).toBe("−2");
+    expect(formatDelta(-0.04, 1)).toBe("±0.0");
+    expect(formatDelta(0.46, 1)).toBe("+0.5");
+  });
+});
+
+it("the week's load balance chart shows only that week's 7 days", async () => {
+  jest.useFakeTimers({ now: new Date(2026, 10, 18, 17, 30) });
+  useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
+  mockParams = { period: "week", start: "2026-11-09" };
+  const week = ["09", "10", "11", "12", "13", "14", "15"].map((d) => score(`2026-11-${d}`, 60));
+  mockSummary.mockReturnValue(data(week, null));
+  await renderSummary();
+  expect(screen.queryByText("Nov 2")).toBeNull();
+  await cleanup();
+  client.clear();
+  jest.useRealTimers();
 });

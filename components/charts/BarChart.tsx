@@ -21,6 +21,7 @@ export function BarChart({
   height = 120,
   color,
   band,
+  max: scaleMax,
   accessibilityLabel,
 }: {
   bars: Bar[];
@@ -28,10 +29,12 @@ export function BarChart({
   height?: number;
   color: string;
   band?: readonly [number, number] | null;
+  /** Fixed top of the scale (e.g. 100 for a percentage); defaults to the tallest bar. */
+  max?: number;
   accessibilityLabel: string;
 }) {
   const { colors } = useTheme();
-  const max = Math.max(...bars.map((bar) => bar.value), band?.[1] ?? 0, 1);
+  const max = scaleMax ?? Math.max(...bars.map((bar) => bar.value), band?.[1] ?? 0, 1);
   const gap = bars.length > 14 ? 2 : 6;
   const barWidth = Math.max((width - gap * (bars.length - 1)) / bars.length, 1);
   const y = (value: number) => height - (value / max) * height;

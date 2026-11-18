@@ -189,14 +189,17 @@ export function LoadBalanceCard({
   days,
   width,
   selectedDate,
+  count = 14,
 }: {
   days: readonly LoadDay[];
+  /** How many days the chart shows, ending with the newest. */
+  count?: number;
   /** Width of the chart, i.e. the card's inner width. */
   width: number;
   selectedDate?: string | null;
 }) {
   const { colors } = useTheme();
-  const shown = lastDays(days, 14);
+  const shown = lastDays(days, count);
   const balance = loadBalance(shown);
 
   return (

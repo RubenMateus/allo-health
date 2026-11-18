@@ -43,8 +43,13 @@ export function periodTitle(period: Period): string {
   return `${formatDay(period.start)} – ${formatDay(period.end)}`;
 }
 
-const signed = (value: number) =>
-  `${value > 0 ? "+" : value < 0 ? "−" : "±"}${Math.abs(Math.round(value))}`;
+/** "+4", "−2", or "±0" when the change rounds to nothing. */
+export function formatDelta(value: number, decimals = 0): string {
+  const factor = 10 ** decimals;
+  const rounded = Math.round(value * factor) / factor;
+  const sign = rounded > 0 ? "+" : rounded < 0 ? "−" : "±";
+  return `${sign}${Math.abs(rounded).toFixed(decimals)}`;
+}
 
 const weekday = (key: string) =>
   new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(fromDayKey(key));
@@ -84,7 +89,7 @@ export function SummaryScreen() {
       unit="%"
       status="Average recovery"
       caption={
-        deltas.recovery === null ? null : `${signed(deltas.recovery)} ${versus.toUpperCase()}`
+        deltas.recovery === null ? null : `${formatDelta(deltas.recovery)} ${versus.toUpperCase()}`
       }
     >
       <View className="flex-row items-center justify-between -mt-lg">
@@ -154,6 +159,7 @@ export function SummaryScreen() {
                 }))}
                 width={chartWidth}
                 color={colors.primary}
+                max={100}
                 accessibilityLabel={`Recovery for each day, average ${Math.round(averages.recovery ?? 0)}`}
               />
             </Card>
@@ -168,6 +174,7 @@ export function SummaryScreen() {
                   recovery: summary.scoresByDay[day]?.recovery ?? null,
                 }))}
                 width={chartWidth}
+                count={7}
               />
             </DetailSection>
           ) : null}
@@ -268,7 +275,7 @@ function Stat({
       </Text>
       {delta !== null ? (
         <Text className="type-mono-small text-text-subtle tabular-nums">
-          {decimals ? `${delta > 0 ? "+" : delta < 0 ? "−" : "±"}${Math.abs(delta).toFixed(decimals)}` : signed(delta)}
+          {formatDelta(delta, decimals)}
         </Text>
       ) : null}
     </View>
