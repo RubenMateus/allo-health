@@ -1,3 +1,4 @@
+import { toDayKey } from "@/services/journal";
 import { loadDashboardData } from "./dashboard";
 import { MockHealthProvider } from "./mockProvider";
 
@@ -22,5 +23,31 @@ describe("loadDashboardData baselines", () => {
       building: true,
     });
     expect(data.sectionErrors.recovery).toBe(false);
+  });
+});
+
+describe("loadDashboardData for a day", () => {
+  const pastDay = new Date(2026, 10, 15, 14);
+  beforeEach(() => jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) }));
+  afterEach(() => jest.useRealTimers());
+
+  it("describes the requested day", async () => {
+    const data = await loadDashboardData(new MockHealthProvider(), "mock", pastDay);
+    expect(data.date).toBe(toDayKey(pastDay));
+    expect(data.today.date).toBe(toDayKey(pastDay));
+    expect(new Date(data.sleep!.wakeTime).toDateString()).toBe(
+      pastDay.toDateString(),
+    );
+    expect(data.stress).not.toBeNull();
+    expect(
+      data.stress!.samples.every(
+        (s) => new Date(s.timestamp).toDateString() === pastDay.toDateString(),
+      ),
+    ).toBe(true);
+  });
+
+  it("defaults to today", async () => {
+    const data = await loadDashboardData(new MockHealthProvider());
+    expect(data.date).toBe(toDayKey(new Date()));
   });
 });

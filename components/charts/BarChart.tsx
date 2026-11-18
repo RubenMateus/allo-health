@@ -3,7 +3,13 @@ import Svg, { Rect } from "react-native-svg";
 
 import { useTheme } from "@/theme/ThemeProvider";
 
-export type Bar = { value: number; color?: string; label?: string };
+export type Bar = {
+  value: number;
+  color?: string;
+  label?: string;
+  /** Outlines the bar, e.g. the day being viewed. */
+  selected?: boolean;
+};
 
 /**
  * Vertical bars scaled to the tallest one, with an optional shaded `band`
@@ -62,6 +68,8 @@ export function BarChart({
               height={barHeight}
               rx={Math.min(3, barWidth / 2)}
               fill={bar.value > 0 ? (bar.color ?? color) : colors.track}
+              stroke={bar.selected ? colors.text : undefined}
+              strokeWidth={bar.selected ? 1.5 : 0}
             />
           );
         })}

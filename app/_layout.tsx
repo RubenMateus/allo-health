@@ -21,6 +21,7 @@ import "../global.css";
 import "@/theme/interop";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { useResetDayOnForeground } from "@/stores/dayStore";
 import { useHealthStore } from "@/stores/healthStore";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
@@ -49,6 +50,8 @@ export default function RootLayout() {
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
   });
+
+  useResetDayOnForeground();
 
   useEffect(() => {
     void useHealthStore.getState().restoreConnection();

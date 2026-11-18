@@ -13,14 +13,18 @@ export function StrainCurve({
   now,
   width,
   height = 140,
+  endLabel = "NOW",
   accessibilityLabel,
 }: {
   points: { timestamp: string; strain: number }[];
-  band: readonly [number, number];
+  /** Omitted on past days, when the morning target no longer applies. */
+  band: readonly [number, number] | null;
   /** When the points were read; the curve runs from that day's midnight to here. */
   now: Date;
   width: number;
   height?: number;
+  /** Label at the right end of the axis; "24:00" for a finished day. */
+  endLabel?: string;
   accessibilityLabel: string;
 }) {
   const { colors } = useTheme();
@@ -47,14 +51,16 @@ export function StrainCurve({
       accessibilityLabel={accessibilityLabel}
     >
       <Svg width={width} height={height}>
-        <Rect
-          x={0}
-          y={y(band[1])}
-          width={width}
-          height={Math.max(y(band[0]) - y(band[1]), 1)}
-          fill={colors.strainStart}
-          opacity={0.12}
-        />
+        {band ? (
+          <Rect
+            x={0}
+            y={y(band[1])}
+            width={width}
+            height={Math.max(y(band[0]) - y(band[1]), 1)}
+            fill={colors.strainStart}
+            opacity={0.12}
+          />
+        ) : null}
         <Line
           x1={0}
           x2={width}
@@ -74,7 +80,7 @@ export function StrainCurve({
       </Svg>
       <View className="flex-row justify-between mt-xs">
         <Text className="type-mono-small text-text-subtle">00:00</Text>
-        <Text className="type-mono-small text-text-subtle">NOW</Text>
+        <Text className="type-mono-small text-text-subtle">{endLabel}</Text>
       </View>
     </View>
   );

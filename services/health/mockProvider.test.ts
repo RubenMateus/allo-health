@@ -33,3 +33,38 @@ describe("MockHealthProvider past days", () => {
     expect((await provider.getStrainInputs()).activeEnergyKcal).toBe(468);
   });
 });
+
+describe("MockHealthProvider day-aware readings", () => {
+  const provider = new MockHealthProvider();
+
+  it("varies resting HR by past day, stable across calls, today unchanged", async () => {
+    const a = await provider.getRestingHR(daysAgo(3));
+    const b = await provider.getRestingHR(daysAgo(4));
+    expect(a).not.toBe(b);
+    expect(await provider.getRestingHR(daysAgo(3))).toBe(a);
+    expect(a).toBeGreaterThanOrEqual(50);
+    expect(a).toBeLessThanOrEqual(60);
+    expect(await provider.getRestingHR()).toBe(54);
+    expect(await provider.getRestingHR(NOW)).toBe(54);
+  });
+
+  it("puts samples for a past day on that day", async () => {
+    const day = daysAgo(2);
+    const sameDay = (iso: string) =>
+      new Date(iso).toDateString() === day.toDateString();
+    expect((await provider.getStressSamples(day)).every((s) => sameDay(s.timestamp))).toBe(true);
+    expect((await provider.getGlucose(day)).samples.every((s) => sameDay(s.timestamp))).toBe(true);
+    expect((await provider.getHeartRate(day)).every((s) => sameDay(s.timestamp))).toBe(true);
+    expect((await provider.getHRV(day)).every((s) => sameDay(s.timestamp))).toBe(true);
+  });
+
+  it("scales other readings within range for past days", async () => {
+    const rr = await provider.getRespiratoryRate(daysAgo(3));
+    expect(rr).toBeGreaterThanOrEqual(13.5);
+    expect(rr).toBeLessThanOrEqual(15.5);
+    expect(await provider.getRespiratoryRate()).toBe(14.2);
+    expect(await provider.getActiveEnergy()).toBe(468);
+    expect((await provider.getNutrition(daysAgo(3))).calories).not.toBe(1840);
+    expect((await provider.getNutrition()).calories).toBe(1840);
+  });
+});

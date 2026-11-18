@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { ComponentRef, PropsWithChildren, ReactNode, Ref } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -17,6 +17,7 @@ type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
   refreshing?: boolean;
   onRefresh?: RefreshControlProps["onRefresh"];
+  scrollRef?: Ref<ComponentRef<typeof ScrollView>>;
 }>;
 
 export function Screen({
@@ -24,12 +25,14 @@ export function Screen({
   scroll = true,
   refreshing,
   onRefresh,
+  scrollRef,
 }: ScreenProps) {
   const { colors } = useTheme();
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-canvas">
       {scroll ? (
         <ScrollView
+          ref={scrollRef}
           contentContainerClassName="px-margin pt-md pb-nav-clearance"
           showsVerticalScrollIndicator={false}
           refreshControl={

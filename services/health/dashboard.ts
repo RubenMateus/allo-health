@@ -24,6 +24,8 @@ import type {
 } from "./types";
 
 export type DashboardData = {
+  /** Day key of the day this describes. */
+  date: string;
   source: HealthProvider["kind"];
   permissionState: PermissionState;
   sleep: SleepData | null;
@@ -63,18 +65,30 @@ export async function loadDashboardData(
   permissionState: PermissionState = provider.kind === "mock"
     ? "mock"
     : "granted",
+  day?: Date,
 ): Promise<DashboardData> {
+  const now = new Date();
+  const past = !!day && toDayKey(day) !== toDayKey(now);
+  // Late afternoon picks the night that ended that morning, as computeDay does.
+  const asOf = past ? new Date(day) : undefined;
+  asOf?.setHours(18, 0, 0, 0);
+  const anchor = past ? new Date(day) : undefined;
+  anchor?.setHours(23, 59, 59, 999);
   const results = await Promise.allSettled([
-    provider.getSleep(),
-    provider.getHRV(),
-    provider.getRestingHR(),
-    provider.getRespiratoryRate(),
-    provider.getStrainInputs(),
-    provider.getNutrition(),
-    provider.getGlucose(),
-    provider.getStressSamples(),
+    provider.getSleep(asOf),
+    provider.getHRV(day),
+    provider.getRestingHR(day),
+    provider.getRespiratoryRate(day),
+    provider.getStrainInputs(day),
+    provider.getNutrition(day),
+    provider.getGlucose(day),
+    provider.getStressSamples(day),
   ]);
-  const histories = await readSignalHistories(provider);
+  const histories = await readSignalHistories(
+    provider,
+    BASELINE_DAYS + 1,
+    anchor,
+  );
   const fulfilled = results.filter(
     (result) => result.status === "fulfilled",
   ).length;
@@ -98,7 +112,7 @@ export async function loadDashboardData(
     a.timestamp.localeCompare(b.timestamp),
   );
   const hrv = hrvSamples.at(-1)?.value ?? null;
-  const date = toDayKey(new Date());
+  const date = toDayKey(past ? day : now);
   const today = scoreDay({
     date,
     sleep,
@@ -112,7 +126,7 @@ export async function loadDashboardData(
         dailyValue(histories.respiratoryRate, date) ?? respiratoryRate,
     },
     histories,
-    now: new Date(),
+    now,
   });
   const { sleepScore, strain: strainScore, recovery: recoveryScore } = today;
   const stress = stressSamples.length
@@ -136,6 +150,7 @@ export async function loadDashboardData(
       : null;
 
   return {
+    date,
     source: provider.kind,
     permissionState:
       provider.kind === "mock"
@@ -180,8 +195,9 @@ const SIGNALS: SignalKind[] = ["hrv", "restingHeartRate", "respiratoryRate"];
 export async function readSignalHistories(
   provider: HealthProvider,
   days = BASELINE_DAYS + 1,
+  anchor: Date = new Date(),
 ): Promise<Record<SignalKind, HealthSample[]>> {
-  const since = new Date();
+  const since = new Date(anchor);
   since.setHours(0, 0, 0, 0);
   since.setDate(since.getDate() - days);
   const results = await Promise.allSettled(

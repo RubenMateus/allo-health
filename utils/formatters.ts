@@ -96,6 +96,15 @@ export function formatMonth(date: Date): string {
   }).format(date);
 }
 
+/** Full month name ("November"); the year is added when asked or when it is not the current year. */
+export function formatMonthName(date: Date, withYear = false): string {
+  const showYear = withYear || date.getFullYear() !== new Date().getFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    ...(showYear ? { year: "numeric" } : {}),
+  }).format(date);
+}
+
 export function formatMass(
   kilograms: number,
   fractionDigits = 0,

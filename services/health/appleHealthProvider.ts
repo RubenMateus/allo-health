@@ -43,6 +43,13 @@ const todayStart = () => {
   start.setHours(0, 0, 0, 0);
   return start;
 };
+/** The window of an earlier day, or null for today (or no day), which keeps the live windows. */
+const pastWindow = (day?: Date) => {
+  if (!day) return null;
+  const current = now();
+  const window = dayWindow(day, current);
+  return window.start.getTime() === todayStart().getTime() ? null : window;
+};
 
 // HKWorkoutActivityType raw values.
 const workoutLabels: Record<number, string> = {
@@ -402,10 +409,12 @@ export class AppleHealthProvider implements HealthProvider {
     };
   }
 
-  async getHeartRate(): Promise<HealthSample[]> {
+  async getHeartRate(day?: Date): Promise<HealthSample[]> {
+    const past = pastWindow(day);
     const samples = await this.quantity(
       "HKQuantityTypeIdentifierHeartRate",
       "count/min",
+      past ? { date: { startDate: past.start, endDate: past.end } } : undefined,
     );
     return samples.map((sample) => ({
       value: sample.quantity,
@@ -414,10 +423,12 @@ export class AppleHealthProvider implements HealthProvider {
     }));
   }
 
-  async getHRV(): Promise<HealthSample[]> {
+  async getHRV(day?: Date): Promise<HealthSample[]> {
+    const past = pastWindow(day);
     const samples = await this.quantity(
       "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
       "ms",
+      past ? { date: { startDate: past.start, endDate: past.end } } : undefined,
     );
     return samples.map((sample) => ({
       value: sample.quantity,
@@ -426,19 +437,29 @@ export class AppleHealthProvider implements HealthProvider {
     }));
   }
 
-  async getRestingHR(): Promise<number | null> {
-    return this.latest("HKQuantityTypeIdentifierRestingHeartRate", "count/min");
+  async getRestingHR(day?: Date): Promise<number | null> {
+    return this.latest(
+      "HKQuantityTypeIdentifierRestingHeartRate",
+      "count/min",
+      pastWindow(day)?.end,
+    );
   }
 
-  async getRespiratoryRate(): Promise<number | null> {
-    return this.latest("HKQuantityTypeIdentifierRespiratoryRate", "count/min");
+  async getRespiratoryRate(day?: Date): Promise<number | null> {
+    return this.latest(
+      "HKQuantityTypeIdentifierRespiratoryRate",
+      "count/min",
+      pastWindow(day)?.end,
+    );
   }
 
-  async getActiveEnergy(): Promise<number> {
+  async getActiveEnergy(day?: Date): Promise<number> {
+    const past = pastWindow(day);
     return this.sum(
       "HKQuantityTypeIdentifierActiveEnergyBurned",
       "kcal",
-      todayStart(),
+      past?.start ?? todayStart(),
+      past?.end,
     );
   }
 
@@ -472,28 +493,38 @@ export class AppleHealthProvider implements HealthProvider {
     };
   }
 
-  async getNutrition(): Promise<NutritionData | null> {
-    const start = todayStart();
+  async getNutrition(day?: Date): Promise<NutritionData | null> {
+    const past = pastWindow(day);
+    const start = past?.start ?? todayStart();
+    const end = past?.end;
     const [calories, proteinGrams, carbohydrateGrams, fatGrams] =
       await Promise.all([
         this.sum(
           "HKQuantityTypeIdentifierDietaryEnergyConsumed",
           "kcal",
           start,
+          end,
         ),
-        this.sum("HKQuantityTypeIdentifierDietaryProtein", "g", start),
-        this.sum("HKQuantityTypeIdentifierDietaryCarbohydrates", "g", start),
-        this.sum("HKQuantityTypeIdentifierDietaryFatTotal", "g", start),
+        this.sum("HKQuantityTypeIdentifierDietaryProtein", "g", start, end),
+        this.sum(
+          "HKQuantityTypeIdentifierDietaryCarbohydrates",
+          "g",
+          start,
+          end,
+        ),
+        this.sum("HKQuantityTypeIdentifierDietaryFatTotal", "g", start, end),
       ]);
     return calories || proteinGrams || carbohydrateGrams || fatGrams
       ? { calories, proteinGrams, carbohydrateGrams, fatGrams }
       : null;
   }
 
-  async getGlucose(): Promise<GlucoseData | null> {
+  async getGlucose(day?: Date): Promise<GlucoseData | null> {
+    const past = pastWindow(day);
     const samples = await this.quantity(
       "HKQuantityTypeIdentifierBloodGlucose",
       "mg/dL",
+      past ? { date: { startDate: past.start, endDate: past.end } } : undefined,
     );
     const recent = samples.slice(-48).map((sample) => ({
       value: sample.quantity,
@@ -503,12 +534,12 @@ export class AppleHealthProvider implements HealthProvider {
     return recent.length ? { samples: recent, unit: "mg/dL" } : null;
   }
 
-  async getStressSamples(): Promise<StressSample[]> {
+  async getStressSamples(day?: Date): Promise<StressSample[]> {
     const [heartRate, hrv] = await Promise.all([
-      this.getHeartRate(),
-      this.getHRV(),
+      this.getHeartRate(day),
+      this.getHRV(day),
     ]);
-    return buildStressSamples(heartRate, hrv, now());
+    return buildStressSamples(heartRate, hrv, pastWindow(day)?.end ?? now());
   }
 
   async getWorkouts(since: Date): Promise<Workout[]> {

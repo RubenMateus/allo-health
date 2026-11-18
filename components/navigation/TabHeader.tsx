@@ -10,9 +10,12 @@ import { formatToday } from "@/utils/formatters";
 export function TabHeader({
   section,
   onConnectPress,
+  date,
 }: {
   section: string;
   onConnectPress: () => void;
+  /** The day to show; defaults to today. */
+  date?: Date;
 }) {
   const { colors } = useTheme();
   return (
@@ -30,7 +33,7 @@ export function TabHeader({
           adjustsFontSizeToFit
           minimumFontScale={0.8}
         >
-          {formatToday()}
+          {formatToday(date)}
         </Text>
       </View>
       <Pressable
