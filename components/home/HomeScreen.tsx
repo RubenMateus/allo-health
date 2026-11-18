@@ -33,7 +33,8 @@ import {
   SectionHeader,
   StatValue,
 } from "@/components/ui/primitives";
-import { useHealthDashboard } from "@/hooks/useHealthDashboard";
+import { DayStrip } from "@/components/day/DayStrip";
+import { useDayDashboard } from "@/hooks/useHealthDashboard";
 import {
   coachingEngine,
   coachingInputFrom,
@@ -41,6 +42,8 @@ import {
 } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
 import { sleepScoreStatus } from "@/services/metrics";
+import { fromDayKey, shiftDayKey, toDayKey } from "@/services/journal";
+import { useIsToday } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import {
@@ -53,8 +56,8 @@ import {
 export function HomeScreen() {
   const { colors } = useTheme();
   const dimensions = useWindowDimensions();
-  const { data, isLoading, isFetching, isError, refetch } =
-    useHealthDashboard();
+  const { data, isLoading, isFetching, isError, refetch } = useDayDashboard();
+  const isToday = useIsToday();
   const healthSheet = useHealthConnectSheet();
   const { permissionState, permissionMessage } = healthSheet;
 
@@ -79,7 +82,12 @@ export function HomeScreen() {
           void refetch();
         }}
       >
-        <TabHeader section="Daily systems" onConnectPress={healthSheet.open} />
+        <TabHeader
+          section="Daily systems"
+          onConnectPress={healthSheet.open}
+          date={data ? fromDayKey(data.date) : undefined}
+        />
+        <DayStrip />
 
         {permissionState === "unrequested" ||
         permissionState === "denied" ||
@@ -106,13 +114,14 @@ export function HomeScreen() {
           <Card>
             <EmptyState
               title="Telemetry unavailable"
-              detail="We couldn't load today's health data."
+              detail={`We couldn't load ${isToday ? "today's" : "that day's"} health data.`}
             />
             <PrimaryAction label="Try again" onPress={() => void refetch()} />
           </Card>
         ) : (
           <DashboardSections
             data={data}
+            isToday={isToday}
             ringSize={ringSize}
             chartWidth={chartWidth}
           />
@@ -123,12 +132,23 @@ export function HomeScreen() {
   );
 }
 
+function dayEyebrow(dayKey: string): string {
+  if (dayKey === shiftDayKey(toDayKey(new Date()), -1))
+    return "YESTERDAY'S DATA";
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(
+    fromDayKey(dayKey),
+  );
+  return `${weekday.toUpperCase()}'S DATA`;
+}
+
 function DashboardSections({
   data,
+  isToday,
   ringSize,
   chartWidth,
 }: {
   data: DashboardData;
+  isToday: boolean;
   ringSize: number;
   chartWidth: number;
 }) {
@@ -162,7 +182,7 @@ function DashboardSections({
       status: strainStatus,
       glowStyle: "strain",
       href: "/strain",
-      hint: "Opens today's strain",
+      hint: isToday ? "Opens today's strain" : "Opens that day's strain",
     },
     {
       label: "RECOVERY",
@@ -172,7 +192,7 @@ function DashboardSections({
       status: recoveryStatus,
       glowStyle: "recovery",
       href: "/recovery",
-      hint: "Opens today's recovery",
+      hint: isToday ? "Opens today's recovery" : "Opens that day's recovery",
     },
     {
       label: "SLEEP",
@@ -185,15 +205,21 @@ function DashboardSections({
       hint: "Opens last night's sleep",
     },
   ];
-  const coaching = coachingEngine.recommend(coachingInputFrom(data));
-  const target = morningTargetStrain(data);
+  const coaching = isToday
+    ? coachingEngine.recommend(coachingInputFrom(data))
+    : null;
+  const target = isToday ? morningTargetStrain(data) : null;
 
   return (
     <View className="gap-2xl">
       <SectionHeader
         title="Daily readiness"
         eyebrow={
-          data.source === "mock" ? "SAMPLE TELEMETRY" : "TODAY / HEALTH SIGNALS"
+          !isToday
+            ? dayEyebrow(data.date)
+            : data.source === "mock"
+              ? "SAMPLE TELEMETRY"
+              : "TODAY / HEALTH SIGNALS"
         }
         trailing={
           <Pill
@@ -258,57 +284,59 @@ function DashboardSections({
         </View>
       </Card>
 
-      <View className="gap-md">
-        <SectionHeader
-          title="AI readiness"
-          eyebrow="TRAINING GUIDANCE"
-          trailing={<Sparkles color={colors.primary} size={17} />}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Readiness details"
-          onPress={() => {
-            void Haptics.selectionAsync();
-            router.push("/readiness");
-          }}
-          className="active:opacity-80"
-        >
-          <Card elevated className="gap-md">
-            <View className="flex-row items-center justify-between gap-sm">
-              <Pill
-                tone={
-                  coaching.mode === "push"
-                    ? "positive"
-                    : coaching.mode === "recover"
-                      ? "warning"
-                      : "neutral"
-                }
-              >
-                {coaching.mode}
-              </Pill>
-              <Text className="type-mono-small text-text-subtle shrink text-right">
-                TARGET STRAIN {target[0]}–{target[1]}
+      {coaching && target ? (
+        <View className="gap-md">
+          <SectionHeader
+            title="AI readiness"
+            eyebrow="TRAINING GUIDANCE"
+            trailing={<Sparkles color={colors.primary} size={17} />}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Readiness details"
+            onPress={() => {
+              void Haptics.selectionAsync();
+              router.push("/readiness");
+            }}
+            className="active:opacity-80"
+          >
+            <Card elevated className="gap-md">
+              <View className="flex-row items-center justify-between gap-sm">
+                <Pill
+                  tone={
+                    coaching.mode === "push"
+                      ? "positive"
+                      : coaching.mode === "recover"
+                        ? "warning"
+                        : "neutral"
+                  }
+                >
+                  {coaching.mode}
+                </Pill>
+                <Text className="type-mono-small text-text-subtle shrink text-right">
+                  TARGET STRAIN {target[0]}–{target[1]}
+                </Text>
+              </View>
+              <Text className="type-heading text-text">
+                {data.recoveryScore === null || data.sleepScore === null
+                  ? "Waiting for enough signals"
+                  : coaching.title}
               </Text>
-            </View>
-            <Text className="type-heading text-text">
-              {data.recoveryScore === null || data.sleepScore === null
-                ? "Waiting for enough signals"
-                : coaching.title}
-            </Text>
-            <Text className="type-body-small text-text-muted">
-              {data.recoveryScore === null || data.sleepScore === null
-                ? "Connect or sync more health data to personalize your daily recommendation."
-                : coaching.message}
-            </Text>
-            <View className="flex-row items-center justify-between mt-xs">
-              <Text className="type-badge text-text-subtle">
-                ESTIMATE / NOT MEDICAL ADVICE
+              <Text className="type-body-small text-text-muted">
+                {data.recoveryScore === null || data.sleepScore === null
+                  ? "Connect or sync more health data to personalize your daily recommendation."
+                  : coaching.message}
               </Text>
-              <ArrowRight color={colors.primary} size={16} />
-            </View>
-          </Card>
-        </Pressable>
-      </View>
+              <View className="flex-row items-center justify-between mt-xs">
+                <Text className="type-badge text-text-subtle">
+                  ESTIMATE / NOT MEDICAL ADVICE
+                </Text>
+                <ArrowRight color={colors.primary} size={16} />
+              </View>
+            </Card>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View className="gap-md">
         <SectionHeader
@@ -445,7 +473,7 @@ function DashboardSections({
               </StatValue>
             </View>
             <View className="items-end gap-xs">
-              <MetricLabel>TODAY TOTAL</MetricLabel>
+              <MetricLabel>{isToday ? "TODAY TOTAL" : "DAY TOTAL"}</MetricLabel>
               <Text className="type-mono-small text-text-subtle">
                 {data.nutrition ? "ALL SOURCES" : "No entries"}
               </Text>
