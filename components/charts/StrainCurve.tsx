@@ -16,7 +16,8 @@ export function StrainCurve({
   accessibilityLabel,
 }: {
   points: { timestamp: string; strain: number }[];
-  band: readonly [number, number];
+  /** Omitted on past days, when the morning target no longer applies. */
+  band: readonly [number, number] | null;
   /** When the points were read; the curve runs from that day's midnight to here. */
   now: Date;
   width: number;
@@ -47,14 +48,16 @@ export function StrainCurve({
       accessibilityLabel={accessibilityLabel}
     >
       <Svg width={width} height={height}>
-        <Rect
-          x={0}
-          y={y(band[1])}
-          width={width}
-          height={Math.max(y(band[0]) - y(band[1]), 1)}
-          fill={colors.strainStart}
-          opacity={0.12}
-        />
+        {band ? (
+          <Rect
+            x={0}
+            y={y(band[1])}
+            width={width}
+            height={Math.max(y(band[0]) - y(band[1]), 1)}
+            fill={colors.strainStart}
+            opacity={0.12}
+          />
+        ) : null}
         <Line
           x1={0}
           x2={width}

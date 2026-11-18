@@ -82,4 +82,20 @@ describe("HomeScreen day navigation", () => {
     await renderHome();
     expect(await screen.findByText("YESTERDAY'S DATA")).toBeTruthy();
   });
+
+  it("shows the chosen day in the header while its data loads", async () => {
+    useDayStore.setState({ selectedDay: "2026-11-16" });
+    client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    await render(
+      <QueryClientProvider client={client}>
+        <ThemeProvider>
+          <HomeScreen />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Monday, November 16")).toBeTruthy();
+    await screen.findByText("Daily readiness");
+  });
 });

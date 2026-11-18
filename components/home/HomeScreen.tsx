@@ -34,6 +34,7 @@ import {
   StatValue,
 } from "@/components/ui/primitives";
 import { DayStrip } from "@/components/day/DayStrip";
+import { dayEyebrow } from "@/components/day/dayLabels";
 import { useDayDashboard } from "@/hooks/useHealthDashboard";
 import {
   coachingEngine,
@@ -42,8 +43,8 @@ import {
 } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
 import { sleepScoreStatus } from "@/services/metrics";
-import { fromDayKey, shiftDayKey, toDayKey } from "@/services/journal";
-import { useIsToday } from "@/stores/dayStore";
+import { fromDayKey } from "@/services/journal";
+import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import {
@@ -58,6 +59,7 @@ export function HomeScreen() {
   const dimensions = useWindowDimensions();
   const { data, isLoading, isFetching, isError, refetch } = useDayDashboard();
   const isToday = useIsToday();
+  const selectedDayKey = useSelectedDayKey();
   const healthSheet = useHealthConnectSheet();
   const { permissionState, permissionMessage } = healthSheet;
 
@@ -85,7 +87,7 @@ export function HomeScreen() {
         <TabHeader
           section="Daily systems"
           onConnectPress={healthSheet.open}
-          date={data ? fromDayKey(data.date) : undefined}
+          date={fromDayKey(selectedDayKey)}
         />
         <DayStrip />
 
@@ -95,7 +97,7 @@ export function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={healthSheet.open}
-            className="min-h-[42px] px-md mb-lg rounded-md border border-stress-border bg-stress-wash flex-row items-center gap-sm -mt-lg"
+            className="min-h-[42px] px-md mb-lg rounded-md border border-stress-border bg-stress-wash flex-row items-center gap-sm"
           >
             <View className="w-1.5 h-1.5 rounded-full bg-stress" />
             <Text className="type-caption text-text flex-1">
@@ -130,15 +132,6 @@ export function HomeScreen() {
       {healthSheet.sheet}
     </>
   );
-}
-
-function dayEyebrow(dayKey: string): string {
-  if (dayKey === shiftDayKey(toDayKey(new Date()), -1))
-    return "YESTERDAY'S DATA";
-  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(
-    fromDayKey(dayKey),
-  );
-  return `${weekday.toUpperCase()}'S DATA`;
 }
 
 function DashboardSections({

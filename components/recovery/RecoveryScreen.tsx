@@ -8,7 +8,8 @@ import { LoadBalanceSection } from "@/components/loadBalance/LoadBalanceCard";
 import { PrivacyNote } from "@/components/sleep/SleepScreen";
 import { historyLabel } from "@/components/strain/StrainScreen";
 import { Card, Hairline } from "@/components/ui/primitives";
-import { useHealthDashboard } from "@/hooks/useHealthDashboard";
+import { dayEyebrow } from "@/components/day/dayLabels";
+import { useDayDashboard } from "@/hooks/useHealthDashboard";
 import { useScoreHistory } from "@/hooks/useScoreHistory";
 import {
   compareToBaseline,
@@ -17,6 +18,7 @@ import {
   type RecoverySignal,
   type SignalKind,
 } from "@/services/metrics/daily";
+import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
@@ -51,11 +53,12 @@ const signalRows: {
   },
 ];
 
-/** Today's recovery: what moved it against your own normal, and the last two weeks. */
+/** A day's recovery (today by default): what moved it against your own normal, and the last two weeks. */
 export function RecoveryScreen() {
   const { width } = useWindowDimensions();
   const chartWidth = width - spacing.margin * 2 - spacing.lg * 2;
-  const { data } = useHealthDashboard();
+  const { data } = useDayDashboard();
+  const isToday = useIsToday();
   if (!data)
     return <DetailLayout title="Recovery" value={null} status="Loading" />;
 
@@ -64,13 +67,14 @@ export function RecoveryScreen() {
   return (
     <DetailLayout
       title="Recovery"
+      subtitle={isToday ? undefined : dayEyebrow(data.date)}
       value={today.recovery === null ? null : `${today.recovery}`}
       unit={today.recovery === null ? undefined : "%"}
       status={recoveryStatus(today.recovery)}
       caption={
         missing.length
           ? `WAITING FOR ${missing.join(", ").toUpperCase()}`
-          : "TODAY / AGAINST YOUR 30-DAY AVERAGE"
+          : `${isToday ? "TODAY" : "THAT DAY"} / AGAINST YOUR 30-DAY AVERAGE`
       }
     >
       <DetailSection title="What moved it">
@@ -196,6 +200,8 @@ function SignalRow({
 
 function HistorySection({ width }: { width: number }) {
   const { colors } = useTheme();
+  const isToday = useIsToday();
+  const selectedDay = useSelectedDayKey();
   const { data: days } = useScoreHistory();
   const colorFor = (score: number) =>
     score >= 75 ? colors.primary : score >= 50 ? colors.stress : colors.error;
@@ -208,6 +214,7 @@ function HistorySection({ width }: { width: number }) {
               value: day.recovery ?? 0,
               color: day.recovery === null ? undefined : colorFor(day.recovery),
               label: historyLabel(index, days.length),
+              selected: !isToday && day.date === selectedDay,
             }))}
             width={width}
             color={colors.primary}

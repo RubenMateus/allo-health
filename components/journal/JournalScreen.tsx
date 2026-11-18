@@ -1,7 +1,14 @@
 import * as Haptics from "expo-haptics";
 import { Check, Flame, Lock, Trash2 } from "lucide-react-native";
-import { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { TabHeader } from "@/components/navigation/TabHeader";
 import { useHealthConnectSheet } from "@/components/permissions/useHealthConnectSheet";
@@ -28,6 +35,7 @@ import {
   type JournalWeekSummary,
   type Rating,
 } from "@/services/journal";
+import { useDayStore } from "@/stores/dayStore";
 import { useJournalStore } from "@/stores/journalStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { type ColorTokens } from "@/theme/tokens";
@@ -54,6 +62,11 @@ export function JournalScreen() {
   const saveEntry = useJournalStore((state) => state.saveEntry);
   const deleteEntry = useJournalStore((state) => state.deleteEntry);
 
+  const selectedDay = useDayStore((state) => state.selectedDay);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const [pastListY, setPastListY] = useState<number | null>(null);
+  const [entryY, setEntryY] = useState<number | null>(null);
+
   const today = toDayKey(new Date());
   const todayEntry = entries.find((entry) => entry.date === today) ?? null;
   const pastEntries = entries.filter((entry) => entry.date !== today);
@@ -73,9 +86,18 @@ export function JournalScreen() {
 
   const healthSheet = useHealthConnectSheet();
 
+  // A past day with an entry: bring that entry into view once it is laid out.
+  const highlighted = pastEntries.some((entry) => entry.date === selectedDay)
+    ? selectedDay
+    : null;
+  useEffect(() => {
+    if (highlighted === null || pastListY === null || entryY === null) return;
+    scrollRef.current?.scrollTo({ y: pastListY + entryY, animated: true });
+  }, [highlighted, pastListY, entryY]);
+
   return (
     <>
-      <Screen>
+      <Screen scrollRef={scrollRef}>
         <TabHeader section="Journal" onConnectPress={healthSheet.open} />
 
         <View className="flex-row items-end gap-md mb-xl">
@@ -129,7 +151,10 @@ export function JournalScreen() {
           )}
         </View>
 
-        <View className="gap-md mt-section">
+        <View
+          className="gap-md mt-section"
+          onLayout={(event) => setPastListY(event.nativeEvent.layout.y)}
+        >
           <SectionHeader
             title="Past entries"
             trailing={
@@ -146,6 +171,8 @@ export function JournalScreen() {
               <EntryCard
                 key={entry.date}
                 entry={entry}
+                highlighted={entry.date === highlighted}
+                onLayoutY={entry.date === highlighted ? setEntryY : undefined}
                 onDelete={() => confirmDelete(entry)}
               />
             ))
@@ -463,66 +490,79 @@ function RatingScale({
 
 function EntryCard({
   entry,
+  highlighted,
+  onLayoutY,
   onDelete,
 }: {
   entry: JournalEntry;
+  /** The entry for the day chosen in the day strip. */
+  highlighted: boolean;
+  onLayoutY?: (y: number) => void;
   onDelete: () => void;
 }) {
   const { colors } = useTheme();
   return (
-    <Card className="gap-md">
-      <View className="flex-row items-center gap-md">
-        <View
-          className="w-[38px] h-[38px] rounded-md border bg-surface-elevated-prose items-center justify-center"
-          style={{ borderColor: moodColor(colors, entry.mood) }}
-        >
-          <Text
-            className="type-subheading"
-            style={{ color: moodColor(colors, entry.mood) }}
+    <View
+      testID={`journal-entry-${entry.date}`}
+      accessibilityState={{ selected: highlighted }}
+      onLayout={
+        onLayoutY ? (event) => onLayoutY(event.nativeEvent.layout.y) : undefined
+      }
+    >
+      <Card className={cn("gap-md", highlighted && "border-primary-border")}>
+        <View className="flex-row items-center gap-md">
+          <View
+            className="w-[38px] h-[38px] rounded-md border bg-surface-elevated-prose items-center justify-center"
+            style={{ borderColor: moodColor(colors, entry.mood) }}
           >
-            {entry.mood}
+            <Text
+              className="type-subheading"
+              style={{ color: moodColor(colors, entry.mood) }}
+            >
+              {entry.mood}
+            </Text>
+          </View>
+          <View className="flex-1 gap-2xs">
+            <Text className="type-subheading text-text">
+              {moodLabels[entry.mood]} mood · {energyLabels[entry.energy]}
+            </Text>
+            <Text className="type-mono text-text-subtle">
+              {formatDayLabel(fromDayKey(entry.date))}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete entry for ${formatDayLabel(fromDayKey(entry.date))}`}
+            hitSlop={8}
+            onPress={onDelete}
+            className="w-8 h-8 rounded-full items-center justify-center active:opacity-70"
+          >
+            <Trash2 color={colors.textSubtle} size={16} />
+          </Pressable>
+        </View>
+        {entry.note ? (
+          <Text className="type-body text-text-muted" numberOfLines={3}>
+            {entry.note}
+          </Text>
+        ) : null}
+        {entry.tags.length ? (
+          <View className="flex-row flex-wrap gap-xs">
+            {entry.tags.map((tag) => (
+              <Pill key={tag}>{tagLabels[tag]}</Pill>
+            ))}
+          </View>
+        ) : null}
+        <Hairline />
+        <View className="flex-row items-center gap-sm">
+          <Text className="type-mono-small text-text-subtle">
+            MOOD {entry.mood}/5
+          </Text>
+          <Text className="type-mono-small text-outline">•</Text>
+          <Text className="type-mono-small text-text-subtle">
+            ENERGY {entry.energy}/5
           </Text>
         </View>
-        <View className="flex-1 gap-2xs">
-          <Text className="type-subheading text-text">
-            {moodLabels[entry.mood]} mood · {energyLabels[entry.energy]}
-          </Text>
-          <Text className="type-mono text-text-subtle">
-            {formatDayLabel(fromDayKey(entry.date))}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Delete entry for ${formatDayLabel(fromDayKey(entry.date))}`}
-          hitSlop={8}
-          onPress={onDelete}
-          className="w-8 h-8 rounded-full items-center justify-center active:opacity-70"
-        >
-          <Trash2 color={colors.textSubtle} size={16} />
-        </Pressable>
-      </View>
-      {entry.note ? (
-        <Text className="type-body text-text-muted" numberOfLines={3}>
-          {entry.note}
-        </Text>
-      ) : null}
-      {entry.tags.length ? (
-        <View className="flex-row flex-wrap gap-xs">
-          {entry.tags.map((tag) => (
-            <Pill key={tag}>{tagLabels[tag]}</Pill>
-          ))}
-        </View>
-      ) : null}
-      <Hairline />
-      <View className="flex-row items-center gap-sm">
-        <Text className="type-mono-small text-text-subtle">
-          MOOD {entry.mood}/5
-        </Text>
-        <Text className="type-mono-small text-outline">•</Text>
-        <Text className="type-mono-small text-text-subtle">
-          ENERGY {entry.energy}/5
-        </Text>
-      </View>
-    </Card>
+      </Card>
+    </View>
   );
 }
