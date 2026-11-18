@@ -204,13 +204,7 @@ describe("loadScoreRange", () => {
   it("loses no writes when a range and the history load together", async () => {
     const storage = memoryStorage();
     await Promise.all([
-      loadScoreRange(
-        realProvider(),
-        storage,
-        key(400),
-        key(398),
-        NOW,
-      ),
+      loadScoreRange(realProvider(), storage, key(400), key(398), NOW),
       loadScoreHistory(realProvider(), storage, today, NOW),
     ]);
 
@@ -233,13 +227,7 @@ describe("loadScoreRange", () => {
       }),
     );
 
-    await loadScoreRange(
-      realProvider(),
-      storage,
-      key(2),
-      key(1),
-      NOW,
-    );
+    await loadScoreRange(realProvider(), storage, key(2), key(1), NOW);
 
     const keys = Object.keys(stored(storage));
     expect(keys).toContain(key(700));
@@ -301,7 +289,8 @@ describe("sample data and cancellation", () => {
     const storage = memoryStorage();
     const { provider, strain } = countingProvider();
     const controller = new AbortController();
-    const original = provider.getStrainInputs.bind(provider);
+    const original =
+      MockHealthProvider.prototype.getStrainInputs.bind(provider);
     strain.mockImplementation(async (day) => {
       controller.abort();
       return original(day);
