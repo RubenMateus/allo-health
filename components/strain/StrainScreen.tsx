@@ -111,7 +111,7 @@ function ZonesCard({
               {Math.round(zone.minutes)} min · ×{zone.weight}
             </Text>
           </View>
-          <View className="h-1.5 rounded-full bg-track overflow-hidden">
+          <View className="h-[6px] rounded-full bg-track overflow-hidden">
             <View
               className="h-full rounded-full"
               style={{
