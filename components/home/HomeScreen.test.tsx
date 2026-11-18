@@ -72,7 +72,7 @@ describe("HomeScreen day navigation", () => {
   it("hides the coach and labels the weekday on a past day", async () => {
     useDayStore.setState({ selectedDay: "2026-11-16" });
     await renderHome();
-    expect(await screen.findByText("MONDAY'S DATA")).toBeTruthy();
+    expect(await screen.findByText("SAMPLE · MONDAY'S DATA")).toBeTruthy();
     expect(screen.queryByText("AI readiness")).toBeNull();
     expect(screen.queryByText(/TARGET STRAIN/)).toBeNull();
   });
@@ -80,7 +80,7 @@ describe("HomeScreen day navigation", () => {
   it("labels yesterday", async () => {
     useDayStore.setState({ selectedDay: "2026-11-17" });
     await renderHome();
-    expect(await screen.findByText("YESTERDAY'S DATA")).toBeTruthy();
+    expect(await screen.findByText("SAMPLE · YESTERDAY'S DATA")).toBeTruthy();
   });
 
   it("shows the chosen day in the header while its data loads", async () => {

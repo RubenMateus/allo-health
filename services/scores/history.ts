@@ -116,7 +116,8 @@ export async function loadScoreHistory(
       fresh[date] = await computeDay(provider, date, histories, now);
     }
     Object.assign(stored, fresh);
-    await saveDays(storage, today.date, fresh);
+    // Sample scores are cheap to recompute and must never pass for real ones.
+    if (provider.kind !== "mock") await saveDays(storage, today.date, fresh);
   }
 
   return [...past.map(({ date }) => stored[date]!), today];
@@ -124,8 +125,10 @@ export async function loadScoreHistory(
 
 /**
  * Scores for every day in [from, to]. Today and later map to null and are never
- * stored. Missing finished days are computed one at a time, saved, and passed
- * to `onDay` as they land.
+ * stored. Days already stored are passed to `onStored` first, then missing
+ * finished days are computed one at a time, saved, and passed to `onDay` as
+ * they land. Scores from the sample provider are returned but never saved.
+ * Once `signal` aborts, no further reads or writes happen.
  */
 export async function loadScoreRange(
   provider: HealthProvider,
@@ -134,7 +137,12 @@ export async function loadScoreRange(
   to: string,
   now = new Date(),
   onDay?: (score: DailyScore) => void,
+  options: {
+    signal?: AbortSignal;
+    onStored?: (days: Record<string, DailyScore | null>) => void;
+  } = {},
 ): Promise<Record<string, DailyScore | null>> {
+  const { signal, onStored } = options;
   const todayKey = toDayKey(now);
   const stored = await withStoredDays(() => readStored(storage));
   const result: Record<string, DailyScore | null> = {};
@@ -144,7 +152,8 @@ export async function loadScoreRange(
     else if (stored[date]) result[date] = stored[date]!;
     else missing.push(date);
   }
-  if (!missing.length) return result;
+  if (!missing.length || signal?.aborted) return result;
+  onStored?.({ ...result });
 
   const span = Math.round(
     (fromDayKey(to).getTime() - fromDayKey(from).getTime()) / 86_400_000,
@@ -155,9 +164,12 @@ export async function loadScoreRange(
     fromDayKey(to),
   );
   for (const date of missing) {
+    if (signal?.aborted) break;
     const score = await computeDay(provider, date, histories, now);
+    if (signal?.aborted) break;
     // Durable before it is reported, so an interrupted backfill keeps its days.
-    await saveDays(storage, todayKey, { [date]: score });
+    if (provider.kind !== "mock")
+      await saveDays(storage, todayKey, { [date]: score });
     result[date] = score;
     onDay?.(score);
   }

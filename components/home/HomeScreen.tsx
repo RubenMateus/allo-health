@@ -209,7 +209,9 @@ function DashboardSections({
         title="Daily readiness"
         eyebrow={
           !isToday
-            ? dayEyebrow(data.date)
+            ? data.source === "mock"
+              ? `SAMPLE · ${dayEyebrow(data.date)}`
+              : dayEyebrow(data.date)
             : data.source === "mock"
               ? "SAMPLE TELEMETRY"
               : "TODAY / HEALTH SIGNALS"
