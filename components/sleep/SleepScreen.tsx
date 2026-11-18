@@ -93,38 +93,37 @@ function StagesCard({ sleep }: { sleep: SleepData }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - spacing.margin * 2 - spacing.lg * 2;
   const staged = sleep.deepMinutes + sleep.remMinutes + sleep.lightMinutes > 0;
-  const totals: { stage: SleepStage; minutes: number; color: string }[] =
-    staged
-      ? [
-          {
-            stage: "awake",
-            minutes: sleep.awakeMinutes,
-            color: colors.stageAwake,
-          },
-          { stage: "rem", minutes: sleep.remMinutes, color: colors.stageRem },
-          {
-            stage: "light",
-            minutes: sleep.lightMinutes,
-            color: colors.stageLight,
-          },
-          {
-            stage: "deep",
-            minutes: sleep.deepMinutes,
-            color: colors.stageDeep,
-          },
-        ]
-      : [
-          {
-            stage: "awake",
-            minutes: sleep.awakeMinutes,
-            color: colors.stageAwake,
-          },
-          {
-            stage: "asleep",
-            minutes: sleep.durationMinutes,
-            color: colors.stageDeep,
-          },
-        ];
+  const totals: { stage: SleepStage; minutes: number; color: string }[] = staged
+    ? [
+        {
+          stage: "awake",
+          minutes: sleep.awakeMinutes,
+          color: colors.stageAwake,
+        },
+        { stage: "rem", minutes: sleep.remMinutes, color: colors.stageRem },
+        {
+          stage: "light",
+          minutes: sleep.lightMinutes,
+          color: colors.stageLight,
+        },
+        {
+          stage: "deep",
+          minutes: sleep.deepMinutes,
+          color: colors.stageDeep,
+        },
+      ]
+    : [
+        {
+          stage: "awake",
+          minutes: sleep.awakeMinutes,
+          color: colors.stageAwake,
+        },
+        {
+          stage: "asleep",
+          minutes: sleep.durationMinutes,
+          color: colors.stageDeep,
+        },
+      ];
   const total = Math.max(
     totals.reduce((sum, item) => sum + item.minutes, 0),
     1,

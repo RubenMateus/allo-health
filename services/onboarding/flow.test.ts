@@ -1,6 +1,8 @@
 import {
   afterConnect,
   connectPageState,
+  finishRoute,
+  pageAfterSwipe,
   mergeProfile,
   needsProfile,
   skipTarget,
@@ -51,5 +53,32 @@ describe("onboarding flow", () => {
     expect(afterConnect("partial", complete)).toBe("done");
     expect(afterConnect("denied", missing)).toBe("done");
     expect(afterConnect("mock", missing)).toBe("done");
+  });
+});
+
+describe("pageAfterSwipe", () => {
+  const pages = ["welcome", "rings", "places", "connect", "profile"] as const;
+
+  it("follows a swipe through the explainer pages", () => {
+    expect(pageAfterSwipe(780, 390, [...pages], 0, true)).toBe(2);
+  });
+
+  it("never lets a swipe land past connect", () => {
+    expect(pageAfterSwipe(1560, 390, [...pages], 2, true)).toBe(3);
+  });
+
+  it("ignores scrolls the app made itself", () => {
+    // Android reports momentum for scrollTo; the page set by goTo stands.
+    expect(pageAfterSwipe(1560, 390, [...pages], 4, false)).toBe(4);
+  });
+});
+
+describe("finishRoute", () => {
+  it("returns to the Home already underneath after a replay", () => {
+    expect(finishRoute(true)).toBe("dismissTo");
+  });
+
+  it("replaces the intro with Home on first launch", () => {
+    expect(finishRoute(false)).toBe("replace");
   });
 });

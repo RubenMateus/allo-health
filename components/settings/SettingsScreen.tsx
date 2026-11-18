@@ -169,7 +169,7 @@ export function SettingsScreen() {
         onPress={() => {
           void Haptics.selectionAsync();
           resetOnboarding();
-          router.replace("/onboarding");
+          router.push("/onboarding");
         }}
         className="mb-section active:opacity-70"
       >

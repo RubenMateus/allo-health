@@ -26,8 +26,10 @@ import type { HealthProfile } from "@/services/health/types";
 import {
   afterConnect,
   connectPageState,
+  finishRoute,
   INTRO_PAGES,
   mergeProfile,
+  pageAfterSwipe,
   skipTarget,
   type OnboardingPage,
 } from "@/services/onboarding/flow";
@@ -48,6 +50,7 @@ export function OnboardingScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const queryClient = useQueryClient();
+  const dragging = useRef(false);
   const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const permissionState = useHealthStore((state) => state.permissionState);
   const permissionMessage = useHealthStore((state) => state.permissionMessage);
@@ -75,9 +78,13 @@ export function OnboardingScreen() {
     scroller.current?.scrollTo({ x: next * width, animated: true });
   };
 
+  const finishing = useRef(false);
   const finish = () => {
+    if (finishing.current) return;
+    finishing.current = true;
     completeOnboarding();
-    router.replace("/");
+    if (finishRoute(router.canGoBack()) === "dismissTo") router.dismissTo("/");
+    else router.replace("/");
   };
 
   // Android's back button walks back through the pages and never skips the intro.
@@ -188,9 +195,20 @@ export function OnboardingScreen() {
         // Swiping only moves through the explainer pages. Connect needs a choice.
         scrollEnabled={index < pages.indexOf("connect")}
         showsHorizontalScrollIndicator={false}
+        onScrollBeginDrag={() => {
+          dragging.current = true;
+        }}
         onMomentumScrollEnd={(event) => {
-          const next = Math.round(event.nativeEvent.contentOffset.x / width);
-          setIndex(Math.min(next, pages.indexOf("connect")));
+          setIndex(
+            pageAfterSwipe(
+              event.nativeEvent.contentOffset.x,
+              width,
+              pages,
+              index,
+              dragging.current,
+            ),
+          );
+          dragging.current = false;
         }}
         className="flex-1"
       >

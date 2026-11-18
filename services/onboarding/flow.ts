@@ -67,3 +67,24 @@ export function afterConnect(
   if (permission !== "granted" && permission !== "partial") return "done";
   return needsProfile(profile) ? "profile" : "done";
 }
+
+/**
+ * The page to show once a horizontal scroll settles. Only a drag by the person
+ * moves the page (never past connect); Android also reports momentum for the
+ * app's own scrollTo, which must not override the page it chose.
+ */
+export function pageAfterSwipe(
+  offsetX: number,
+  width: number,
+  pages: OnboardingPage[],
+  current: number,
+  dragged: boolean,
+): number {
+  if (!dragged) return current;
+  return Math.min(Math.round(offsetX / width), pages.indexOf("connect"));
+}
+
+/** Replaying from Settings returns to the Home underneath; first launch replaces the intro. */
+export function finishRoute(canGoBack: boolean): "dismissTo" | "replace" {
+  return canGoBack ? "dismissTo" : "replace";
+}
