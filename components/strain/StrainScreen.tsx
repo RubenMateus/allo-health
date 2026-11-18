@@ -176,6 +176,6 @@ function HistorySection({ width }: { width: number }) {
 export function historyLabel(index: number, count: number) {
   if (index === count - 1) return "Today";
   if (index === 0 || index === Math.floor((count - 1) / 2))
-    return `${count - 1 - index}d ago`;
+    return `${count - 1 - index}d`;
   return undefined;
 }

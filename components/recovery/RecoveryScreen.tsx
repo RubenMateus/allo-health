@@ -18,6 +18,7 @@ import {
 } from "@/services/metrics/daily";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
+import { cn } from "@/utils/cn";
 
 /** Same thresholds as the Home ring. */
 export function recoveryStatus(score: number | null) {
@@ -172,14 +173,18 @@ function SignalRow({
         </View>
         {comparison ? (
           <Text
-            className={
-              comparison.better
-                ? "type-mono-small text-primary"
-                : "type-mono-small text-error"
-            }
+            className={cn(
+              "type-mono-small",
+              comparison.percent === 0
+                ? "text-text-subtle"
+                : comparison.better
+                  ? "text-primary"
+                  : "text-error",
+            )}
           >
-            {comparison.percent > 0 ? "+" : ""}
-            {comparison.percent}% · {comparison.better ? "BETTER" : "WORSE"}
+            {comparison.percent === 0
+              ? "AS USUAL"
+              : `${comparison.percent > 0 ? "+" : ""}${comparison.percent}% · ${comparison.better ? "BETTER" : "WORSE"}`}
           </Text>
         ) : null}
       </View>
