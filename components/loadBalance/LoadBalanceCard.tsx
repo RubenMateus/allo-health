@@ -1,7 +1,9 @@
 import { Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
+import { DetailSection } from "@/components/detail/DetailLayout";
 import { Card, Pill } from "@/components/ui/primitives";
+import { useScoreHistory } from "@/hooks/useScoreHistory";
 import { MAX_STRAIN } from "@/services/coaching";
 import {
   dayFit,
@@ -188,23 +190,12 @@ export function LoadBalanceCard({
   const { colors } = useTheme();
   const shown = lastDays(days, 14);
   const balance = loadBalance(shown);
-  const verdict = balance.verdict ? verdicts[balance.verdict] : null;
 
   return (
     <Card className="gap-lg">
-      <View className="gap-sm">
-        <View className="flex-row items-center justify-between">
-          <Text className="type-subheading text-text">Load balance</Text>
-          {verdict ? (
-            <Pill tone={verdict.tone}>{verdict.label}</Pill>
-          ) : (
-            <Pill>Not enough data</Pill>
-          )}
-        </View>
-        <Text className="type-body-small text-text-muted">
-          {loadBalanceSummary(balance)}
-        </Text>
-      </View>
+      <Text className="type-body-small text-text-muted">
+        {loadBalanceSummary(balance)}
+      </Text>
 
       <LoadBalanceChart days={shown} width={width} />
 
@@ -227,6 +218,35 @@ export function LoadBalanceCard({
         </View>
       ) : null}
     </Card>
+  );
+}
+
+/** The Load balance section for the Strain and Recovery pages, fed by the cached day history. */
+export function LoadBalanceSection({ width }: { width: number }) {
+  const { data: days } = useScoreHistory();
+  const verdict = days ? loadBalance(lastDays(days, 14)).verdict : null;
+  const pill = verdict ? verdicts[verdict] : null;
+  return (
+    <DetailSection
+      title="Load balance"
+      trailing={
+        !days ? null : pill ? (
+          <Pill tone={pill.tone}>{pill.label}</Pill>
+        ) : (
+          <Pill>Not enough data</Pill>
+        )
+      }
+    >
+      {days ? (
+        <LoadBalanceCard days={days} width={width} />
+      ) : (
+        <Card>
+          <Text className="type-caption text-text-subtle">
+            Reading the last two weeks…
+          </Text>
+        </Card>
+      )}
+    </DetailSection>
   );
 }
 
