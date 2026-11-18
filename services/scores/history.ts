@@ -1,6 +1,6 @@
 import { readSignalHistories } from "@/services/health/dashboard";
 import type { HealthProvider, HealthSample } from "@/services/health/types";
-import { fromDayKey, toDayKey } from "@/services/journal";
+import { fromDayKey, shiftDayKey, toDayKey } from "@/services/journal";
 import {
   BASELINE_DAYS,
   dailyValue,
@@ -20,7 +20,7 @@ export const RETRY_NULL_DAYS = 7;
 /** An empty day is read again only after this long, so pages don't re-read every open. */
 export const RETRY_AFTER_HOURS = 6;
 /** Stored days older than this are dropped. */
-const KEEP_DAYS = 45;
+export const KEEP_DAYS = 730;
 const STORAGE_KEY = "days";
 
 const daysBefore = (now: Date, days: number) => {
@@ -39,6 +39,35 @@ async function readStored(
   } catch {
     return {};
   }
+}
+
+let storedDaysQueue: Promise<unknown> = Promise.resolve();
+
+/** Runs every read-modify-write of the stored days one after another. */
+function withStoredDays<T>(fn: () => Promise<T>): Promise<T> {
+  const run = storedDaysQueue.then(fn, fn);
+  storedDaysQueue = run.catch(() => undefined);
+  return run;
+}
+
+/** Drops days that are too old, and today or later (those are never stored). */
+function pruneStored(stored: Record<string, DailyScore>, today: string) {
+  const oldest = shiftDayKey(today, -KEEP_DAYS);
+  for (const date of Object.keys(stored))
+    if (date < oldest || date >= today) delete stored[date];
+}
+
+async function saveDays(
+  storage: ScoreStorage,
+  today: string,
+  fresh: Record<string, DailyScore>,
+) {
+  await withStoredDays(async () => {
+    const stored = await readStored(storage);
+    Object.assign(stored, fresh);
+    pruneStored(stored, today);
+    await storage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  });
 }
 
 const needsCompute = (
@@ -64,7 +93,7 @@ export async function loadScoreHistory(
   today: DailyScore,
   now = new Date(),
 ): Promise<DailyScore[]> {
-  const stored = await readStored(storage);
+  const stored = await withStoredDays(() => readStored(storage));
   // Count back from today's date, not the clock: the dashboard may have been
   // read before midnight and the app left open.
   const anchor = fromDayKey(today.date);
@@ -82,16 +111,58 @@ export async function loadScoreHistory(
       HISTORY_DAYS + BASELINE_DAYS + 1,
     );
     // One day at a time, so a backfill doesn't flood HealthKit / Health Connect.
+    const fresh: Record<string, DailyScore> = {};
     for (const { date } of stale) {
-      stored[date] = await computeDay(provider, date, histories, now);
+      fresh[date] = await computeDay(provider, date, histories, now);
     }
-    const oldest = toDayKey(daysBefore(anchor, KEEP_DAYS));
-    for (const date of Object.keys(stored))
-      if (date < oldest || date >= today.date) delete stored[date];
-    await storage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    Object.assign(stored, fresh);
+    await saveDays(storage, today.date, fresh);
   }
 
   return [...past.map(({ date }) => stored[date]!), today];
+}
+
+/**
+ * Scores for every day in [from, to]. Today and later map to null and are never
+ * stored. Missing finished days are computed one at a time, saved, and passed
+ * to `onDay` as they land.
+ */
+export async function loadScoreRange(
+  provider: HealthProvider,
+  storage: ScoreStorage,
+  from: string,
+  to: string,
+  now = new Date(),
+  onDay?: (score: DailyScore) => void,
+): Promise<Record<string, DailyScore | null>> {
+  const todayKey = toDayKey(now);
+  const stored = await withStoredDays(() => readStored(storage));
+  const result: Record<string, DailyScore | null> = {};
+  const missing: string[] = [];
+  for (let date = from; date <= to; date = shiftDayKey(date, 1)) {
+    if (date >= todayKey) result[date] = null;
+    else if (stored[date]) result[date] = stored[date]!;
+    else missing.push(date);
+  }
+  if (!missing.length) return result;
+
+  const span = Math.round(
+    (fromDayKey(to).getTime() - fromDayKey(from).getTime()) / 86_400_000,
+  );
+  const histories = await readSignalHistories(
+    provider,
+    span + BASELINE_DAYS + 1,
+    fromDayKey(to),
+  );
+  const fresh: Record<string, DailyScore> = {};
+  for (const date of missing) {
+    const score = await computeDay(provider, date, histories, now);
+    fresh[date] = score;
+    result[date] = score;
+    onDay?.(score);
+  }
+  await saveDays(storage, todayKey, fresh);
+  return result;
 }
 
 async function computeDay(

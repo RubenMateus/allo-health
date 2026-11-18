@@ -2,7 +2,7 @@ import { MockHealthProvider } from "@/services/health/mockProvider";
 import { toDayKey } from "@/services/journal";
 import type { DailyScore } from "@/services/metrics/daily";
 
-import { loadScoreHistory } from "./history";
+import { KEEP_DAYS, loadScoreHistory, loadScoreRange } from "./history";
 import type { ScoreStorage } from "./types";
 
 const NOW = new Date(2026, 10, 18, 12);
@@ -133,13 +133,104 @@ describe("loadScoreHistory", () => {
     expect(days).toHaveLength(14);
   });
 
-  it("drops stored days older than 45 days", async () => {
+  it("drops stored days older than KEEP_DAYS", async () => {
     const storage = memoryStorage();
     storage.data.set(
       "days",
-      JSON.stringify({ [key(60)]: { ...today, date: key(60) } }),
+      JSON.stringify({
+        [key(KEEP_DAYS + 1)]: { ...today, date: key(KEEP_DAYS + 1) },
+      }),
     );
     await loadScoreHistory(new MockHealthProvider(), storage, today, NOW);
-    expect(stored(storage)[key(60)]).toBeUndefined();
+    expect(stored(storage)[key(KEEP_DAYS + 1)]).toBeUndefined();
+  });
+});
+
+describe("loadScoreRange", () => {
+  it("reads only missing days and stores them", async () => {
+    const storage = memoryStorage();
+    await loadScoreHistory(new MockHealthProvider(), storage, today, NOW);
+    const days = stored(storage);
+    delete days[key(3)];
+    delete days[key(5)];
+    storage.data.set("days", JSON.stringify(days));
+    const { provider, strain } = countingProvider();
+    const landed: string[] = [];
+
+    const result = await loadScoreRange(
+      provider,
+      storage,
+      key(7),
+      key(3),
+      NOW,
+      (score) => landed.push(score.date),
+    );
+
+    expect(strain).toHaveBeenCalledTimes(2);
+    expect(Object.keys(result)).toHaveLength(5);
+    expect(Object.values(result).every(Boolean)).toBe(true);
+    expect(landed.sort()).toEqual([key(5), key(3)].sort());
+    expect(Object.keys(stored(storage))).toHaveLength(13);
+  });
+
+  it("maps today and later to null without storing them", async () => {
+    const storage = memoryStorage();
+    const result = await loadScoreRange(
+      new MockHealthProvider(),
+      storage,
+      key(1),
+      key(-1),
+      NOW,
+    );
+
+    expect(result[key(1)]).not.toBeNull();
+    expect(result[key(0)]).toBeNull();
+    expect(result[key(-1)]).toBeNull();
+    expect(Object.keys(stored(storage))).toEqual([key(1)]);
+  });
+
+  it("loses no writes when a range and the history load together", async () => {
+    const storage = memoryStorage();
+    await Promise.all([
+      loadScoreRange(
+        new MockHealthProvider(),
+        storage,
+        key(400),
+        key(398),
+        NOW,
+      ),
+      loadScoreHistory(new MockHealthProvider(), storage, today, NOW),
+    ]);
+
+    const keys = Object.keys(stored(storage));
+    expect(keys).toEqual(
+      expect.arrayContaining([key(400), key(399), key(398)]),
+    );
+    expect(keys).toEqual(expect.arrayContaining([key(13), key(1)]));
+    expect(keys).toHaveLength(16);
+  });
+
+  it("drops stored days older than 730 days and keeps 700-day-old ones", async () => {
+    const storage = memoryStorage();
+    const sample = { ...today, date: key(1) };
+    storage.data.set(
+      "days",
+      JSON.stringify({
+        [key(KEEP_DAYS + 1)]: { ...sample, date: key(KEEP_DAYS + 1) },
+        [key(700)]: { ...sample, date: key(700) },
+      }),
+    );
+
+    await loadScoreRange(
+      new MockHealthProvider(),
+      storage,
+      key(2),
+      key(1),
+      NOW,
+    );
+
+    const keys = Object.keys(stored(storage));
+    expect(keys).toContain(key(700));
+    expect(keys).not.toContain(key(KEEP_DAYS + 1));
   });
 });
