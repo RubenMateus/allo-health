@@ -308,6 +308,18 @@ describe("HealthConnectProvider.getWorkouts", () => {
     expect(workouts[0]!.heartRate.average).toBe(150);
     expect(workouts[0]!.activeEnergyKcal).toBe(455);
   });
+
+  it("reads sessions only up to `until` when given", async () => {
+    serve({ ExerciseSession: [] });
+    const until = new Date(2026, 9, 8);
+    await provider().getWorkouts(new Date(2026, 9, 1), until);
+    expect(mocked.readRecords).toHaveBeenCalledWith(
+      "ExerciseSession",
+      expect.objectContaining({
+        timeRangeFilter: expect.objectContaining({ endTime: until.toISOString() }),
+      }),
+    );
+  });
 });
 
 describe("HealthConnectProvider.getBiomarkerHistory", () => {

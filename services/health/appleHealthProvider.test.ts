@@ -323,6 +323,17 @@ describe("AppleHealthProvider.getWorkouts", () => {
     expect(workouts[0]!.activeEnergyKcal).toBe(412);
     expect(workouts[0]!.heartRate.average).toBe(148);
   });
+
+  it("reads only up to `until` when given", async () => {
+    mocked.queryWorkoutSamples.mockResolvedValue([] as never);
+    const until = at(8, 0);
+    await provider().getWorkouts(at(1, 0), until);
+    expect(mocked.queryWorkoutSamples).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: { date: { startDate: at(1, 0), endDate: until } },
+      }),
+    );
+  });
 });
 
 describe("AppleHealthProvider.getBiomarkerHistory", () => {

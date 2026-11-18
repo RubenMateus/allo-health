@@ -68,3 +68,13 @@ describe("MockHealthProvider day-aware readings", () => {
     expect((await provider.getNutrition()).calories).toBe(1840);
   });
 });
+
+describe("MockHealthProvider.getWorkouts", () => {
+  it("leaves out workouts that start after `until`", async () => {
+    const since = new Date(Date.now() - 28 * 86_400_000);
+    const until = new Date(Date.now() - 14 * 86_400_000);
+    const workouts = await new MockHealthProvider().getWorkouts(since, until);
+    expect(workouts.length).toBeGreaterThan(0);
+    for (const w of workouts) expect(new Date(w.startedAt).getTime()).toBeLessThan(until.getTime());
+  });
+});

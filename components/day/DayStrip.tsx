@@ -1,5 +1,6 @@
 import * as Haptics from "expo-haptics";
-import { ChevronDown } from "lucide-react-native";
+import { router } from "expo-router";
+import { ChevronDown, ChevronRight } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { PanResponder, Pressable, Text, View } from "react-native";
 
@@ -198,6 +199,19 @@ export function DayStrip() {
           })}
         </View>
       </View>
+
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Week summary"
+        onPress={() => {
+          void Haptics.selectionAsync();
+          router.push(`/summary?period=week&start=${weekStart}`);
+        }}
+        className="flex-row items-center self-end gap-2xs active:opacity-70"
+      >
+        <Text className="type-caption text-text-muted">Week summary</Text>
+        <ChevronRight color={colors.textMuted} size={14} />
+      </Pressable>
 
       <MonthCalendarSheet
         visible={calendarOpen}
