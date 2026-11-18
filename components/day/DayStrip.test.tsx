@@ -98,14 +98,28 @@ describe("DayStrip", () => {
   it("labels the week by its Thursday", async () => {
     useDayStore.setState({ selectedDay: "2026-10-28" });
     await render(<DayStrip />);
-    expect(screen.getByLabelText(/^Pick a day, Oct 2026/)).toBeTruthy();
-    expect(screen.getByText(/Oct 2026/)).toBeTruthy();
+    expect(screen.getByLabelText(/^Pick a day, October 2026/)).toBeTruthy();
+    expect(screen.getByText("October")).toBeTruthy();
     expect(screen.getByLabelText(/^Sun, Nov 1,/)).toBeTruthy();
+  });
+
+  it("shows the year only for a month outside the current year", async () => {
+    useDayStore.setState({ selectedDay: "2025-12-10" });
+    await render(<DayStrip />);
+    expect(screen.getByText("December 2025")).toBeTruthy();
+    expect(screen.getByLabelText("Pick a day, December 2025")).toBeTruthy();
+  });
+
+  it("exposes the strip as an adjustable element", async () => {
+    await render(<DayStrip />);
+    const strip = screen.getByTestId("day-strip");
+    expect(strip.props.accessibilityRole).toBe("adjustable");
+    expect(strip.props.accessibilityLabel).toMatch(/^Week of /);
   });
 
   it("opens the month calendar and picks a day", async () => {
     await render(<DayStrip />);
-    await fireEvent.press(screen.getByLabelText(/^Pick a day, Nov 2026/));
+    await fireEvent.press(screen.getByLabelText(/^Pick a day, November 2026/));
     await fireEvent.press(screen.getByLabelText(/^Tue, Nov 3,/));
     expect(useDayStore.getState().selectedDay).toBe("2026-11-03");
   });

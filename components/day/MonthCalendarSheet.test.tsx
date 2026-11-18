@@ -19,6 +19,7 @@ const mockScores = jest.mocked(useDayScores);
 describe("MonthCalendarSheet", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
+    mockScores.mockReset();
     mockScores.mockReturnValue({});
   });
   afterEach(() => {
@@ -43,6 +44,30 @@ describe("MonthCalendarSheet", () => {
     expect(screen.getByLabelText(/^Thu, Nov 19,/)).toBeDisabled();
     expect(screen.getByLabelText(/^Next month/)).toBeDisabled();
     expect(screen.getByLabelText(/^Previous month/)).toBeEnabled();
+  });
+
+  it("shows the full month and year as title", async () => {
+    await render(
+      <MonthCalendarSheet
+        visible
+        month="2026-11"
+        onClose={jest.fn()}
+        onPick={jest.fn()}
+      />,
+    );
+    expect(screen.getByText("November 2026")).toBeTruthy();
+  });
+
+  it("does not read scores while closed", async () => {
+    await render(
+      <MonthCalendarSheet
+        visible={false}
+        month="2026-11"
+        onClose={jest.fn()}
+        onPick={jest.fn()}
+      />,
+    );
+    expect(mockScores).not.toHaveBeenCalled();
   });
 
   it("picks a day then closes", async () => {

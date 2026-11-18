@@ -8,7 +8,7 @@ import { useDayScores } from "@/hooks/useDayScores";
 import { fromDayKey, toDayKey } from "@/services/journal";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "@/utils/cn";
-import { formatMonth } from "@/utils/formatters";
+import { formatMonthName } from "@/utils/formatters";
 
 import { dayCellLabel } from "./dayLabels";
 import { recoveryDotColor } from "./recoveryDot";
@@ -37,14 +37,32 @@ export function MonthCalendarSheet({
   onClose: () => void;
   onPick: (key: string) => void;
 }) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      {/* Mounted only while open, so no scores are read for a hidden sheet. */}
+      {visible ? (
+        <CalendarContent month={month} onClose={onClose} onPick={onPick} />
+      ) : null}
+    </Modal>
+  );
+}
+
+function CalendarContent({
+  month,
+  onClose,
+  onPick,
+}: {
+  month: string;
+  onClose: () => void;
+  onPick: (key: string) => void;
+}) {
   const { colors, scheme } = useTheme();
   const [shown, setShown] = useState(month);
-  // Reopening (or a new starting month) resets the grid (adjusting state during render).
-  const [opened, setOpened] = useState({ visible, month });
-  if (opened.visible !== visible || opened.month !== month) {
-    setOpened({ visible, month });
-    if (visible) setShown(month);
-  }
 
   const first = fromDayKey(`${shown}-01`);
   const daysInMonth = new Date(
@@ -68,118 +86,113 @@ export function MonthCalendarSheet({
   );
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 justify-end bg-scrim">
-        <Pressable
-          accessibilityLabel="Close calendar"
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-        />
-        <BlurView
-          intensity={25}
-          tint={scheme}
-          className="px-2xl pt-md pb-3xl rounded-tl-xl rounded-tr-xl overflow-hidden bg-surface-elevated-prose border border-outline-glass"
-        >
-          <View className="self-center w-9 h-1 rounded-full bg-text-subtle mb-xl" />
-          <View className="flex-row justify-between items-center mb-lg">
-            <View className="flex-row items-center gap-sm">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Previous month"
-                onPress={() => setShown((m) => shiftMonth(m, -1))}
-                className="w-10 h-10 items-center justify-center rounded-full bg-surface-high active:opacity-70"
-              >
-                <ChevronLeft color={colors.textMuted} size={18} />
-              </Pressable>
-              <Text className="type-title text-text">{formatMonth(first)}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Next month"
-                accessibilityState={{ disabled: isCurrentMonth }}
-                disabled={isCurrentMonth}
-                onPress={() => setShown((m) => shiftMonth(m, 1))}
-                className={cn(
-                  "w-10 h-10 items-center justify-center rounded-full bg-surface-high active:opacity-70",
-                  isCurrentMonth && "opacity-40",
-                )}
-              >
-                <ChevronRight color={colors.textMuted} size={18} />
-              </Pressable>
-            </View>
+    <View className="flex-1 justify-end bg-scrim">
+      <Pressable
+        accessibilityLabel="Close calendar"
+        style={StyleSheet.absoluteFill}
+        onPress={onClose}
+      />
+      <BlurView
+        intensity={25}
+        tint={scheme}
+        className="px-2xl pt-md pb-3xl rounded-tl-xl rounded-tr-xl overflow-hidden bg-surface-elevated-prose border border-outline-glass"
+      >
+        <View className="self-center w-9 h-1 rounded-full bg-text-subtle mb-xl" />
+        <View className="flex-row justify-between items-center mb-lg">
+          <View className="flex-row items-center gap-sm">
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close"
-              onPress={onClose}
-              className="w-10 h-10 items-center justify-center rounded-full bg-surface-high"
+              accessibilityLabel="Previous month"
+              onPress={() => setShown((m) => shiftMonth(m, -1))}
+              className="w-10 h-10 items-center justify-center rounded-full bg-surface-high active:opacity-70"
             >
-              <X color={colors.textMuted} size={18} />
+              <ChevronLeft color={colors.textMuted} size={18} />
+            </Pressable>
+            <Text className="type-title text-text">
+              {formatMonthName(first, true)}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
+              accessibilityState={{ disabled: isCurrentMonth }}
+              disabled={isCurrentMonth}
+              onPress={() => setShown((m) => shiftMonth(m, 1))}
+              className={cn(
+                "w-10 h-10 items-center justify-center rounded-full bg-surface-high active:opacity-70",
+                isCurrentMonth && "opacity-40",
+              )}
+            >
+              <ChevronRight color={colors.textMuted} size={18} />
             </Pressable>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            onPress={onClose}
+            className="w-10 h-10 items-center justify-center rounded-full bg-surface-high"
+          >
+            <X color={colors.textMuted} size={18} />
+          </Pressable>
+        </View>
 
-          <View className="flex-row mb-xs">
-            {WEEKDAYS.map((letter, i) => (
-              <Text
-                key={i}
-                className="flex-1 type-caption text-text-subtle text-center"
-              >
-                {letter}
-              </Text>
-            ))}
-          </View>
-          <View className="gap-xs">
-            {rows.map((row, r) => (
-              <View key={r} className="flex-row gap-xs">
-                {row.map((key, c) => {
-                  if (!key) {
-                    return (
-                      <View
-                        key={c}
-                        testID={`cal-cell-pad-${r * 7 + c}`}
-                        className="flex-1 h-12"
-                      />
-                    );
-                  }
-                  const future = key > today;
-                  const recovery = scores[key]?.recovery ?? null;
-                  const dot = recoveryDotColor(recovery, colors);
+        <View className="flex-row mb-xs">
+          {WEEKDAYS.map((letter, i) => (
+            <Text
+              key={i}
+              className="flex-1 type-caption text-text-subtle text-center"
+            >
+              {letter}
+            </Text>
+          ))}
+        </View>
+        <View className="gap-xs">
+          {rows.map((row, r) => (
+            <View key={r} className="flex-row gap-xs">
+              {row.map((key, c) => {
+                if (!key) {
                   return (
-                    <Pressable
+                    <View
                       key={c}
-                      testID={`cal-cell-${key}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={dayCellLabel(key, recovery)}
-                      accessibilityState={{ disabled: future }}
-                      disabled={future}
-                      onPress={() => {
-                        void Haptics.selectionAsync();
-                        onPick(key);
-                        onClose();
-                      }}
-                      className={cn(
-                        "flex-1 h-12 items-center justify-center gap-2xs rounded-card border border-outline-soft bg-surface-prose active:opacity-70",
-                        future && "opacity-40",
-                      )}
-                    >
-                      <Text className="type-body-small text-text">
-                        {Number(key.slice(8))}
-                      </Text>
-                      <View
-                        className="w-[5px] h-[5px] rounded-full"
-                        style={{ backgroundColor: dot ?? colors.transparent }}
-                      />
-                    </Pressable>
+                      testID={`cal-cell-pad-${r * 7 + c}`}
+                      className="flex-1 h-12"
+                    />
                   );
-                })}
-              </View>
-            ))}
-          </View>
-        </BlurView>
-      </View>
-    </Modal>
+                }
+                const future = key > today;
+                const recovery = scores[key]?.recovery ?? null;
+                const dot = recoveryDotColor(recovery, colors);
+                return (
+                  <Pressable
+                    key={c}
+                    testID={`cal-cell-${key}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={dayCellLabel(key, recovery)}
+                    accessibilityState={{ disabled: future }}
+                    disabled={future}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      onPick(key);
+                      onClose();
+                    }}
+                    className={cn(
+                      "flex-1 h-12 items-center justify-center gap-2xs rounded-card border border-outline-soft bg-surface-prose active:opacity-70",
+                      future && "opacity-40",
+                    )}
+                  >
+                    <Text className="type-body-small text-text">
+                      {Number(key.slice(8))}
+                    </Text>
+                    <View
+                      className="w-[5px] h-[5px] rounded-full"
+                      style={{ backgroundColor: dot ?? colors.transparent }}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </BlurView>
+    </View>
   );
 }

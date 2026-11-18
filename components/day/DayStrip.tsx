@@ -9,7 +9,7 @@ import { fromDayKey, shiftDayKey, toDayKey } from "@/services/journal";
 import { useDayStore, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "@/utils/cn";
-import { formatMonth } from "@/utils/formatters";
+import { formatMonthName } from "@/utils/formatters";
 
 import { dayCellLabel } from "./dayLabels";
 import { MonthCalendarSheet } from "./MonthCalendarSheet";
@@ -21,6 +21,13 @@ const SWIPE_DISTANCE = 40;
 /** Monday of the week containing `key`. */
 function weekStartOf(key: string): string {
   return shiftDayKey(key, -((fromDayKey(key).getDay() + 6) % 7));
+}
+
+function formatWeekStart(key: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+  }).format(fromDayKey(key));
 }
 
 /** Moves a week start by whole weeks, never past the current week. */
@@ -72,7 +79,8 @@ export function DayStrip() {
   const days = Array.from({ length: 7 }, (_, i) => shiftDayKey(weekStart, i));
   const scores = useDayScores(days[0]!, days[6]!);
   const monthDate = fromDayKey(shiftDayKey(weekStart, 3));
-  const monthLabel = formatMonth(monthDate);
+  const monthLabel = formatMonthName(monthDate);
+  const monthFull = formatMonthName(monthDate, true);
   const showToday = selectedDay !== null || weekStart !== thisWeekStart;
 
   return (
@@ -80,7 +88,7 @@ export function DayStrip() {
       <View className="flex-row items-center justify-between">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Pick a day, ${monthLabel}`}
+          accessibilityLabel={`Pick a day, ${monthFull}`}
           onPress={() => {
             void Haptics.selectionAsync();
             setCalendarOpen(true);
@@ -108,6 +116,9 @@ export function DayStrip() {
 
       <View
         testID="day-strip"
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={`Week of ${formatWeekStart(weekStart)}`}
         accessibilityActions={[
           { name: "increment", label: "Next week" },
           { name: "decrement", label: "Previous week" },
