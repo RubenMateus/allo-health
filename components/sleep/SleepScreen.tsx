@@ -182,7 +182,7 @@ function StagesCard({ sleep }: { sleep: SleepData }) {
   );
 }
 
-function PrivacyNote() {
+export function PrivacyNote() {
   const { colors } = useTheme();
   return (
     <View className="flex-row items-center gap-sm">
