@@ -2,7 +2,12 @@ import { MockHealthProvider } from "@/services/health/mockProvider";
 import { toDayKey } from "@/services/journal";
 import type { DailyScore } from "@/services/metrics/daily";
 
-import { KEEP_DAYS, loadScoreHistory, loadScoreRange } from "./history";
+import {
+  KEEP_DAYS,
+  loadScoreHistory,
+  loadScoreRange,
+  withStoredDays,
+} from "./history";
 import type { ScoreStorage } from "./types";
 
 const NOW = new Date(2026, 10, 18, 12);
@@ -232,5 +237,40 @@ describe("loadScoreRange", () => {
     const keys = Object.keys(stored(storage));
     expect(keys).toContain(key(700));
     expect(keys).not.toContain(key(KEEP_DAYS + 1));
+  });
+
+  it("keeps the days computed before a failure", async () => {
+    const storage = memoryStorage();
+    const provider = new MockHealthProvider();
+    const real = provider.getStrainInputs.bind(provider);
+    let calls = 0;
+    jest.spyOn(provider, "getStrainInputs").mockImplementation((day) => {
+      calls += 1;
+      if (calls === 3) throw new Error("interrupted");
+      return real(day);
+    });
+    const landed: string[] = [];
+
+    await expect(
+      loadScoreRange(provider, storage, key(5), key(1), NOW, (score) =>
+        landed.push(score.date),
+      ),
+    ).rejects.toThrow("interrupted");
+
+    expect(landed).toEqual([key(5), key(4)]);
+    expect(Object.keys(stored(storage)).sort()).toEqual(
+      [key(5), key(4)].sort(),
+    );
+  });
+});
+
+describe("withStoredDays", () => {
+  it("keeps running after a rejected step", async () => {
+    await expect(
+      withStoredDays(async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+    await expect(withStoredDays(async () => 7)).resolves.toBe(7);
   });
 });

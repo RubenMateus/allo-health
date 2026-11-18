@@ -44,7 +44,7 @@ async function readStored(
 let storedDaysQueue: Promise<unknown> = Promise.resolve();
 
 /** Runs every read-modify-write of the stored days one after another. */
-function withStoredDays<T>(fn: () => Promise<T>): Promise<T> {
+export function withStoredDays<T>(fn: () => Promise<T>): Promise<T> {
   const run = storedDaysQueue.then(fn, fn);
   storedDaysQueue = run.catch(() => undefined);
   return run;
@@ -154,14 +154,13 @@ export async function loadScoreRange(
     span + BASELINE_DAYS + 1,
     fromDayKey(to),
   );
-  const fresh: Record<string, DailyScore> = {};
   for (const date of missing) {
     const score = await computeDay(provider, date, histories, now);
-    fresh[date] = score;
+    // Durable before it is reported, so an interrupted backfill keeps its days.
+    await saveDays(storage, todayKey, { [date]: score });
     result[date] = score;
     onDay?.(score);
   }
-  await saveDays(storage, todayKey, fresh);
   return result;
 }
 
