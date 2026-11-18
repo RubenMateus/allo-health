@@ -55,12 +55,15 @@ bunx expo start --dev-client --clear
 
 If permission is denied, the request fails, or every native read fails, the app falls back to sample data and shows a message saying so.
 
+The first launch opens the intro (`app/onboarding.tsx`) before anything else, in both modes. Its Connect step is the same permission request as the connect button in the top bar. To see the intro again, use **Replay intro** in Settings.
+
 ### Apple Health (iOS)
 
 - The HealthKit entitlement and usage strings (`NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription`) come from the HealthKit config plugin in `app.json`. Access is read only.
 - The iOS simulator supports HealthKit but starts with no data. Open the Health app in the simulator and add samples by hand (for example resting heart rate, HRV and sleep), or use a real iPhone that already has data.
 - iOS never reports which individual read types the user declined. The app treats a completed permission request as connected and shows an empty signal as unavailable.
-- Workouts are read from `HKWorkoutType` for the Fitness tab.
+- Workouts are read from `HKWorkoutType` for the Fitness tab and the Workouts pages. A workout's detail page also reads walking/running, cycling and swimming distance, step count, and the Apple Watch running form metrics (stride length, vertical oscillation and ground contact time) for that workout's time span.
+- Date of birth and biological sex are read as characteristics for VO₂ max and body fat ratings. If either is missing, the intro and Settings ask for it and store it on the device.
 - To see the permission sheet again, delete the app or reset access under Settings › Health › Data Access & Devices › Allo Health.
 
 ### Health Connect (Android)
@@ -68,7 +71,8 @@ If permission is denied, the request fails, or every native read fails, the app 
 - `minSdkVersion` is 26 (Android 8.0). On Android 14 and newer Health Connect is part of the system. On older versions install the Health Connect app from Google Play.
 - Use an emulator image **with Google Play** so Health Connect is available.
 - Read permissions are declared in `app.json` under `android.permissions` and wired up by the `react-native-health-connect` plugin. Add new record types there and rebuild.
-- The app also requests `READ_HEALTH_DATA_HISTORY` so the Fitness tab can read a 60-day window, and `READ_EXERCISE` for workouts.
+- The app requests 18 permissions, all of them read only: heart rate, resting heart rate, HRV, sleep, active calories, nutrition, blood glucose, respiratory rate, exercise, weight, body fat, lean body mass, VO₂ max, oxygen saturation, distance, elevation gained and steps, plus `READ_HEALTH_DATA_HISTORY`. Without the history permission Health Connect only returns the last 30 days, which is not enough for the Fitness tab's 60-day window or for browsing older days.
+- Health Connect has no date of birth or sex, so the intro (and Settings › Age and sex) asks for them.
 - Unlike iOS, Health Connect reports exactly which permissions were granted.
 - Seed test data with any app that writes to Health Connect, or through the Health Connect toolbox app.
 - Revoke or re-grant access from Settings › Health Connect › App permissions › Allo Health.
@@ -97,10 +101,40 @@ bun run web   # expo start --web, serves the app at http://localhost:8081
 What is different on web:
 
 - **Sample data only.** HealthKit and Health Connect don't exist in a browser. `services/health/provider.web.ts` replaces the provider module there, so neither native library is bundled and the app stays on sample data even when `EXPO_PUBLIC_HEALTH_PROVIDER=native`.
-- **Browser storage instead of SQLite.** Journal entries, settings and the profile are saved to the browser's `localStorage` (keys start with `allo-health/`) through the `storage.web.ts` files next to each `storage.ts`. expo-sqlite's web build can't open the app's three databases at once, so it is not used on web. Clear the site data in the browser to reset.
+- **Browser storage instead of SQLite.** Journal entries, settings, the profile and the score history are saved to the browser's `localStorage` (keys start with `allo-health/<store>/`) through the `storage.web.ts` files next to each `storage.ts`. expo-sqlite's web build can't open several databases at once, so it is not used on web. Clear the site data in the browser to reset, which also brings the intro back.
+- **Sample scores are never saved.** Scores computed from sample data are not written to the score history on any platform, so the week strip dots and the 14-day charts come from the sample provider each time.
 - **Single-page output.** `app.json` sets `web.output` to `single`. Static rendering would try to run expo-sqlite in Node and fails.
 
 If you add a module that only works on iOS and Android, give it a `.web.ts` sibling that falls back to sample data or does nothing, the same way.
+
+### Screenshots for docs and pull requests
+
+The README screenshots come from the web build with sample data, at a 390×844 viewport and a device scale factor of 2:
+
+```sh
+bunx expo export -p web --output-dir dist   # static build of the app
+```
+
+Serve `dist/` with any static server that falls back to `index.html` for unknown paths, so routes like `/sleep` or `/summary?period=week` load directly. Then, in the browser or a Playwright script:
+
+- Pick the theme and skip the intro by setting `localStorage["allo-health/settings/allo-settings"]` to `{"state":{"themePreference":"dark","onboardingCompletedAt":"2026-01-01T00:00:00.000Z"},"version":2}` before the page loads. Leave `onboardingCompletedAt` as `null` to shoot the intro.
+- Freeze the clock in the late afternoon (for example 17:30). Sample data is generated relative to now, and early-morning shots show a mostly empty day.
+- On web, sheets (the month calendar, quick add, connect) render outside the element that carries the theme's CSS variables. Copy that element's `style` attribute onto `<body>` before taking a screenshot of a sheet.
+
+Screenshots of features live in `docs/images/`, named `<theme>-<screen>.png`.
+
+## What is stored on the device
+
+Everything the app saves stays on the phone, in SQLite key-value stores (expo-sqlite) on iOS and Android:
+
+| Database | What it holds |
+| --- | --- |
+| `settings.db` | Theme, last sync time, and when the intro was finished |
+| `journal.db` | Journal check-ins |
+| `profile.db` | Birth year and sex entered in the app |
+| `scores.db` | Daily strain, recovery and sleep scores for up to 730 days, so the week strip, month calendar, 14-day charts and summaries load without re-reading Health |
+
+The score history is a cache (`services/scores/history.ts`). The first time, the app computes the last 14 days from Health. After that it keeps finished days and only recomputes the last 2 (watches sync late) plus any empty day from the past week, at most every 6 hours. Days you browse further back are read live from Health and then cached. Deleting the app clears all four databases.
 
 ## When to rebuild the development client
 
@@ -126,20 +160,30 @@ bun run lint        # expo lint
 bun run test        # jest, run in band
 ```
 
-Tests cover the pure logic in `services/` (metrics, coaching and data loading), the health store, and the styling setup: `theme/nativewind.test.tsx` compiles the Tailwind config the way the iOS and Android builds do and checks every color, type, spacing and radius class against `theme/tokens.ts`. They run in Node and do not need a simulator. Use `bun run test`, not `bun test`: `bun test` starts Bun's own test runner, which does not work with the jest-expo preset.
+Tests cover the pure logic in `services/` (metrics, coaching, scores, summaries and data loading), the stores and hooks, the native adapters against payload fixtures, key screens and navigation (`RootStack.test.tsx` checks the intro gate with `expo-router/testing-library`), and the styling setup: `theme/nativewind.test.tsx` compiles the Tailwind config the way the iOS and Android builds do and checks every color, type, spacing and radius class against `theme/tokens.ts`. They run in Node and do not need a simulator. Use `bun run test`, not `bun test`: `bun test` starts Bun's own test runner, which does not work with the jest-expo preset.
 
 ## Project layout
 
 ```
 app/                 Expo Router routes; every file is a screen
   (tabs)/            Bottom tabs: Home, Journal, Fitness, Biomarkers
-  biomarkers/, fitness/  Detail pages
+  biomarkers/, fitness/  Metric detail pages
+  workouts/          Workouts list and workout detail
+  sleep, strain, recovery, readiness  Pages behind the Home rings and the coach card
+  summary            Week or month summary (?period=week|month&start=YYYY-MM-DD)
+  onboarding         First-launch intro
+  settings           Settings
 components/          UI: ui/ primitives, charts/, detail/, and one folder per screen
-hooks/               React Query hooks: useHealthDashboard, useFitnessDashboard, useBiomarkers
+  navigation/        RootStack (every route, behind the intro gate), TabHeader, tab bar, quick add sheet
+  day/               Week strip and month calendar sheet for browsing by day
+hooks/               React Query hooks: dashboard, fitness, biomarkers, workout details, day scores, score history, period summary, sync
 services/health/     HealthProvider contract, HealthKit / Health Connect / mock adapters, data loaders
-services/metrics/    Pure estimates: sleep, recovery, strain, stress, energy (index.ts), training load and zones (fitness.ts)
+services/metrics/    Pure estimates: sleep, recovery, strain, stress, energy (index.ts), daily scores (daily.ts), training load and zones (fitness.ts, training.ts), workouts, load balance, summaries
 services/coaching/   Deterministic daily training guidance
-stores/              Zustand stores (active health provider and connection state, journal, settings)
+services/scores/     Daily score history cache (scores.db)
+services/onboarding/ Intro steps and which ones to show
+services/journal, profile, settings, storage/  Persistence: SQLite on device, localStorage on web
+stores/              Zustand stores (health provider and connection, selected day, journal, profile, settings)
 theme/tokens.ts      Design tokens: dark and light palettes, spacing, radii, typography
 theme/ThemeProvider  Applies the saved theme; useTheme() for colors outside className
 theme/variables.ts   The CSS variables behind the color classes, per theme
@@ -152,9 +196,10 @@ design/              DESIGN.md design system and reference screenshots
 
 ### Adding a screen
 
-1. Add a route under `app/(tabs)/` and register it in `app/(tabs)/_layout.tsx`.
+1. Add a route under `app/`. A new tab goes under `app/(tabs)/` and is registered in `app/(tabs)/_layout.tsx`; any other page is registered in `components/navigation/RootStack.tsx`, inside the `Stack.Protected` group that needs the intro finished.
 2. Build it from `components/ui` and the platform-independent services. Style it with `className` and the token classes so it follows the light and dark themes (see below).
 3. Read health data through the `HealthProvider` (via a hook like `hooks/useHealthDashboard`), never by importing a platform health library directly from a screen.
+4. If the page shows one day's data, read the selected day from `stores/dayStore.ts` so it follows the week strip, and hide coaching advice on days that are not today.
 
 ### Design tokens
 
@@ -238,6 +283,8 @@ If a feature would need a network call (weather, for example), leave it out or r
 | "No development build installed" or Expo Go opens | Build the client first with `bun run ios` / `bun run android`. |
 | Native module not found on launch | Native dependencies changed. Rebuild the development client. |
 | App still shows sample data with `native` set | Restart Metro with `--clear`, then tap connect and grant access. |
+| A new data type shows as unavailable after updating | Existing installs keep their old grant. Tap connect again, or reinstall. |
+| Need to see the intro again | Settings › Replay intro, or clear the app's data (site data on web). |
 | Every card is unavailable on the iOS simulator | Add sample data in the simulator's Health app. |
 | Health Connect missing on Android emulator | Use a Google Play system image, or install Health Connect on Android 13 and older. |
 | Web build shows a red Metro error about a native module | Something imported a native-only package on web. Add a `.web.ts` fallback next to the importing file. |
