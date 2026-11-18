@@ -71,7 +71,7 @@ async function renderJournal() {
 describe("JournalScreen day navigation", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
-    useDayStore.setState({ selectedDay: null });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
     useJournalStore.setState({
       entries: [entry("2026-11-16"), entry("2026-11-14")],
       hydrated: true,

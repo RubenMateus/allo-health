@@ -33,7 +33,7 @@ async function swipeToPreviousWeek() {
 describe("DayStrip", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
-    useDayStore.setState({ selectedDay: null });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
     mockScores.mockReturnValue({
       "2026-11-16": score(80),
       "2026-11-17": score(null),

@@ -410,12 +410,16 @@ function DashboardSections({
               title={
                 data.sectionErrors.stress
                   ? "Stress unavailable"
-                  : "No stress samples yet"
+                  : isToday
+                    ? "No stress samples yet"
+                    : "No stress samples that day"
               }
               detail={
                 data.sectionErrors.stress
                   ? "Stress samples could not be read from the health source."
-                  : "Heart-rate and HRV readings will build a timeline here."
+                  : isToday
+                    ? "Heart-rate and HRV readings will build a timeline here."
+                    : "No heart-rate or HRV readings were recorded that day."
               }
             />
           )}
@@ -495,7 +499,11 @@ function DashboardSections({
             <View>
               <MetricLabel>CONTINUOUS GLUCOSE</MetricLabel>
               <Text className="type-caption text-text-subtle mt-xs">
-                {data.glucose ? "CURRENT GLUCOSE" : "CGM SIGNAL"}
+                {data.glucose
+                  ? isToday
+                    ? "CURRENT GLUCOSE"
+                    : "LAST READING THAT DAY"
+                  : "CGM SIGNAL"}
               </Text>
             </View>
             {data.glucose && data.glucose.samples.length > 0 ? (

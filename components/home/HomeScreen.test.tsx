@@ -55,7 +55,7 @@ async function renderHome() {
 describe("HomeScreen day navigation", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
-    useDayStore.setState({ selectedDay: null });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
   });
   afterEach(async () => {
     await cleanup();
@@ -75,6 +75,13 @@ describe("HomeScreen day navigation", () => {
     expect(await screen.findByText("SAMPLE · MONDAY'S DATA")).toBeTruthy();
     expect(screen.queryByText("AI readiness")).toBeNull();
     expect(screen.queryByText(/TARGET STRAIN/)).toBeNull();
+  });
+
+  it("words glucose as the day's last reading on a past day", async () => {
+    useDayStore.setState({ selectedDay: "2026-11-16" });
+    await renderHome();
+    expect(await screen.findByText("LAST READING THAT DAY")).toBeTruthy();
+    expect(screen.queryByText("CURRENT GLUCOSE")).toBeNull();
   });
 
   it("labels yesterday", async () => {

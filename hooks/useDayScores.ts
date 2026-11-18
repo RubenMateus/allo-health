@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
-import { toDayKey } from "@/services/journal";
+import { useTodayKey } from "@/stores/dayStore";
 import type { DailyScore } from "@/services/metrics/daily";
 import { loadScoreRange } from "@/services/scores/history";
 import { scoreStorage } from "@/services/scores/storage";
@@ -19,7 +19,7 @@ export function useDayScores(from: string, to: string): DayScores {
   const provider = useHealthStore((state) => state.provider);
   const queryClient = useQueryClient();
   const { data: dashboard } = useHealthDashboard();
-  const todayKey = toDayKey(new Date());
+  const todayKey = useTodayKey();
   const queryKey = ["day-scores", provider.kind, todayKey, from, to];
   const { data } = useQuery({
     queryKey,

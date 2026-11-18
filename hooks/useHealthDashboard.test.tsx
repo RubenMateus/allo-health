@@ -28,7 +28,7 @@ const past = shiftDayKey(today, -5);
 describe("dashboard hooks", () => {
   beforeEach(() => {
     useHealthStore.setState({ provider: mockHealthProvider });
-    useDayStore.setState({ selectedDay: past });
+    useDayStore.setState({ selectedDay: past, todayKey: today });
   });
   afterEach(async () => {
     jest.restoreAllMocks();

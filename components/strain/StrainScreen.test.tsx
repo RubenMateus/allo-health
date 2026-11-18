@@ -57,7 +57,7 @@ async function renderStrain() {
 describe("StrainScreen day navigation", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
-    useDayStore.setState({ selectedDay: null });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
   });
   afterEach(async () => {
     await cleanup();
@@ -85,7 +85,7 @@ describe("StrainScreen day navigation", () => {
     expect(screen.queryByText("NOW")).toBeNull();
     await cleanup();
     client.clear();
-    useDayStore.setState({ selectedDay: null });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
     await renderStrain();
     expect(await screen.findByText("NOW")).toBeTruthy();
     expect(screen.queryByText("24:00")).toBeNull();

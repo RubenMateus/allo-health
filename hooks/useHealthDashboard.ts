@@ -4,7 +4,7 @@ import { loadDashboardData } from "@/services/health/dashboard";
 import { mockHealthProvider } from "@/services/health/provider";
 import { fromDayKey, toDayKey } from "@/services/journal";
 import { REFRESH_RECENT_DAYS } from "@/services/scores/history";
-import { useSelectedDayKey } from "@/stores/dayStore";
+import { useSelectedDayKey, useTodayKey } from "@/stores/dayStore";
 import { useHealthStore } from "@/stores/healthStore";
 
 const FIVE_MINUTES = 5 * 60_000;
@@ -16,11 +16,11 @@ function daysBetween(dayKey: string, now: Date) {
   );
 }
 
-function useDashboardQuery(dayKey: string) {
+function useDashboardQuery(dayKey: string, todayKey: string) {
   const provider = useHealthStore((state) => state.provider);
   const permissionState = useHealthStore((state) => state.permissionState);
   const now = new Date();
-  const isToday = dayKey === toDayKey(now);
+  const isToday = dayKey === todayKey;
   return useQuery({
     queryKey: ["health-dashboard", provider.kind, dayKey],
     queryFn: async () => {
@@ -48,10 +48,11 @@ function useDashboardQuery(dayKey: string) {
 
 /** Today's dashboard. Rolls over at midnight and shares its cache with `useDayDashboard`. */
 export function useHealthDashboard() {
-  return useDashboardQuery(toDayKey(new Date()));
+  const todayKey = useTodayKey();
+  return useDashboardQuery(todayKey, todayKey);
 }
 
 /** The dashboard for the selected day (today unless a past day is chosen). */
 export function useDayDashboard() {
-  return useDashboardQuery(useSelectedDayKey());
+  return useDashboardQuery(useSelectedDayKey(), useTodayKey());
 }

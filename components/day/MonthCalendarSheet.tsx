@@ -6,6 +6,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useDayScores } from "@/hooks/useDayScores";
 import { fromDayKey, toDayKey } from "@/services/journal";
+import { useTodayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "@/utils/cn";
 import { formatMonthName } from "@/utils/formatters";
@@ -78,7 +79,7 @@ function CalendarContent({
   const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...keys];
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const today = toDayKey(new Date());
+  const today = useTodayKey();
   const isCurrentMonth = shown >= today.slice(0, 7);
   const scores = useDayScores(keys[0]!, keys[daysInMonth - 1]!);
   const rows = Array.from({ length: cells.length / 7 }, (_, r) =>

@@ -6,7 +6,7 @@ import { PanResponder, Pressable, Text, View } from "react-native";
 import { Pill } from "@/components/ui/primitives";
 import { useDayScores } from "@/hooks/useDayScores";
 import { fromDayKey, shiftDayKey, toDayKey } from "@/services/journal";
-import { useDayStore, useSelectedDayKey } from "@/stores/dayStore";
+import { useDayStore, useSelectedDayKey, useTodayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "@/utils/cn";
 import { formatMonthName } from "@/utils/formatters";
@@ -39,9 +39,9 @@ function formatWeekStart(key: string): string {
 }
 
 /** Moves a week start by whole weeks, never past the current week. */
-function shiftWeek(weekStart: string, weeks: number): string {
+function shiftWeek(weekStart: string, weeks: number, today: string): string {
   const next = shiftDayKey(weekStart, weeks * 7);
-  const limit = weekStartOf(toDayKey(new Date()));
+  const limit = weekStartOf(today);
   return next > limit ? limit : next;
 }
 
@@ -56,20 +56,22 @@ export function DayStrip() {
   const selectedDay = useDayStore((s) => s.selectedDay);
   const selectDay = useDayStore((s) => s.selectDay);
   const goToToday = useDayStore((s) => s.goToToday);
-  const today = toDayKey(new Date());
+  const today = useTodayKey();
   const thisWeekStart = weekStartOf(today);
 
   const [weekStart, setWeekStart] = useState(() => weekStartOf(selected));
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Follow the selection into its week (adjusting state during render).
-  const [followed, setFollowed] = useState(selectedDay);
-  if (followed !== selectedDay) {
-    setFollowed(selectedDay);
+  // Also follows today into a new week when the day rolls over at midnight.
+  const follow = `${selectedDay ?? ""}|${today}`;
+  const [followed, setFollowed] = useState(follow);
+  if (followed !== follow) {
+    setFollowed(follow);
     setWeekStart(weekStartOf(selected));
   }
 
-  const move = (weeks: number) => setWeekStart((c) => shiftWeek(c, weeks));
+  const move = (weeks: number) => setWeekStart((c) => shiftWeek(c, weeks, today));
 
   const pan = useMemo(
     () =>
@@ -77,11 +79,11 @@ export function DayStrip() {
         onMoveShouldSetPanResponder: (_, g) =>
           Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
         onPanResponderRelease: (_, g) => {
-          if (g.dx > SWIPE_DISTANCE) setWeekStart((c) => shiftWeek(c, -1));
-          else if (g.dx < -SWIPE_DISTANCE) setWeekStart((c) => shiftWeek(c, 1));
+          if (g.dx > SWIPE_DISTANCE) setWeekStart((c) => shiftWeek(c, -1, today));
+          else if (g.dx < -SWIPE_DISTANCE) setWeekStart((c) => shiftWeek(c, 1, today));
         },
       }),
-    [],
+    [today],
   );
 
   const days = Array.from({ length: 7 }, (_, i) => shiftDayKey(weekStart, i));
@@ -185,11 +187,10 @@ export function DayStrip() {
                 <View
                   className="w-[6px] h-[6px] rounded-full"
                   style={{
-                    backgroundColor: dot
-                      ? isSelected
-                        ? colors.canvas
-                        : dot
-                      : colors.transparent,
+                    backgroundColor: dot ?? colors.transparent,
+                    // A canvas ring keeps the recovery colour readable on the filled cell.
+                    borderWidth: dot && isSelected ? 1.5 : 0,
+                    borderColor: colors.canvas,
                   }}
                 />
               </Pressable>
