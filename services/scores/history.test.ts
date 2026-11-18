@@ -70,8 +70,10 @@ describe("loadScoreHistory", () => {
     const storage = memoryStorage();
     await loadScoreHistory(new MockHealthProvider(), storage, today, NOW);
     const days = stored(storage);
-    days[key(4)] = { ...days[key(4)]!, strain: null };
-    days[key(10)] = { ...days[key(10)]!, recovery: null };
+    const earlier = new Date(NOW.getTime() - 7 * 3_600_000).toISOString();
+    days[key(4)] = { ...days[key(4)]!, strain: null, computedAt: earlier };
+    days[key(5)] = { ...days[key(5)]!, recovery: null };
+    days[key(10)] = { ...days[key(10)]!, recovery: null, computedAt: earlier };
     storage.data.set("days", JSON.stringify(days));
     const { provider, strain } = countingProvider();
 
@@ -80,9 +82,41 @@ describe("loadScoreHistory", () => {
     expect(strain).toHaveBeenCalledTimes(3);
     expect(stored(storage)[key(10)]!.recovery).toBeNull();
     expect(stored(storage)[key(4)]!.strain).not.toBeNull();
+    // Day 5 came out empty only just now, so it isn't read again yet.
+    expect(stored(storage)[key(5)]!.recovery).toBeNull();
   });
 
-  it("stores an empty day when one day's read fails", async () => {
+  it("anchors the days on today's date, even after midnight passes", async () => {
+    const storage = memoryStorage();
+    const yesterday = { ...today, date: key(1) };
+    const later = new Date(2026, 10, 18, 8);
+
+    const days = await loadScoreHistory(
+      new MockHealthProvider(),
+      storage,
+      yesterday,
+      later,
+    );
+
+    expect(days).toHaveLength(14);
+    expect(days.every(Boolean)).toBe(true);
+    expect(days.at(-1)).toBe(yesterday);
+    expect(days.at(-2)!.date).toBe(key(2));
+  });
+
+  it("keeps strain when only sleep can't be read", async () => {
+    const storage = memoryStorage();
+    const provider = new MockHealthProvider();
+    jest.spyOn(provider, "getSleep").mockRejectedValue(new Error("denied"));
+
+    const days = await loadScoreHistory(provider, storage, today, NOW);
+
+    expect(days[5]!.strain).not.toBeNull();
+    expect(days[5]!.recovery).toBeNull();
+    expect(days[5]!.recoveryInputs.hrv.value).not.toBeNull();
+  });
+
+  it("stores no strain for a day whose heart-rate read fails", async () => {
     const storage = memoryStorage();
     const { provider, strain } = countingProvider();
     const failing = new Date(2026, 10, 15).toDateString();
@@ -95,7 +129,7 @@ describe("loadScoreHistory", () => {
 
     const failed = days.find((day) => day.date === key(3))!;
     expect(failed.strain).toBeNull();
-    expect(failed.recovery).toBeNull();
+    expect(failed.recovery).not.toBeNull();
     expect(days).toHaveLength(14);
   });
 

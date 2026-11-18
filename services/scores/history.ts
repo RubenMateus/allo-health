@@ -17,6 +17,8 @@ export const HISTORY_DAYS = 14;
 export const REFRESH_RECENT_DAYS = 2;
 /** Empty days this recent are tried again. */
 export const RETRY_NULL_DAYS = 7;
+/** An empty day is read again only after this long, so pages don't re-read every open. */
+export const RETRY_AFTER_HOURS = 6;
 /** Stored days older than this are dropped. */
 const KEEP_DAYS = 45;
 const STORAGE_KEY = "days";
@@ -39,11 +41,17 @@ async function readStored(
   }
 }
 
-const needsCompute = (stored: DailyScore | undefined, daysAgo: number) =>
+const needsCompute = (
+  stored: DailyScore | undefined,
+  daysAgo: number,
+  now: Date,
+) =>
   !stored ||
   daysAgo <= REFRESH_RECENT_DAYS ||
   (daysAgo < RETRY_NULL_DAYS &&
-    (stored.strain === null || stored.recovery === null));
+    (stored.strain === null || stored.recovery === null) &&
+    now.getTime() - new Date(stored.computedAt).getTime() >=
+      RETRY_AFTER_HOURS * 3_600_000);
 
 /**
  * The last 14 days of scores, oldest first, ending with `today` (computed live by
@@ -57,12 +65,15 @@ export async function loadScoreHistory(
   now = new Date(),
 ): Promise<DailyScore[]> {
   const stored = await readStored(storage);
+  // Count back from today's date, not the clock: the dashboard may have been
+  // read before midnight and the app left open.
+  const anchor = fromDayKey(today.date);
   const past = Array.from({ length: HISTORY_DAYS - 1 }, (_, index) => {
     const daysAgo = HISTORY_DAYS - 1 - index;
-    return { daysAgo, date: toDayKey(daysBefore(now, daysAgo)) };
+    return { daysAgo, date: toDayKey(daysBefore(anchor, daysAgo)) };
   });
   const stale = past.filter(({ date, daysAgo }) =>
-    needsCompute(stored[date], daysAgo),
+    needsCompute(stored[date], daysAgo, now),
   );
 
   if (stale.length) {
@@ -74,7 +85,7 @@ export async function loadScoreHistory(
     for (const { date } of stale) {
       stored[date] = await computeDay(provider, date, histories, now);
     }
-    const oldest = toDayKey(daysBefore(now, KEEP_DAYS));
+    const oldest = toDayKey(daysBefore(anchor, KEEP_DAYS));
     for (const date of Object.keys(stored))
       if (date < oldest || date >= today.date) delete stored[date];
     await storage.setItem(STORAGE_KEY, JSON.stringify(stored));
@@ -98,20 +109,18 @@ async function computeDay(
     restingHeartRate: dailyValue(histories.restingHeartRate, date),
     respiratoryRate: dailyValue(histories.respiratoryRate, date),
   };
-  try {
-    const [sleep, strainInputs] = await Promise.all([
-      provider.getSleep(asOf),
-      provider.getStrainInputs(day),
-    ]);
-    return scoreDay({ date, sleep, strainInputs, signals, histories, now });
-  } catch {
-    return scoreDay({
-      date,
-      sleep: null,
-      strainInputs: null,
-      signals: { hrv: null, restingHeartRate: null, respiratoryRate: null },
-      histories,
-      now,
-    });
-  }
+  // Each read on its own: a type the user didn't grant mustn't empty the others.
+  const [sleep, strainInputs] = await Promise.allSettled([
+    provider.getSleep(asOf),
+    provider.getStrainInputs(day),
+  ]);
+  return scoreDay({
+    date,
+    sleep: sleep.status === "fulfilled" ? sleep.value : null,
+    strainInputs:
+      strainInputs.status === "fulfilled" ? strainInputs.value : null,
+    signals,
+    histories,
+    now,
+  });
 }

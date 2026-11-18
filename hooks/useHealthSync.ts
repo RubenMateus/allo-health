@@ -9,7 +9,6 @@ export const HEALTH_QUERY_KEYS = [
   "health-dashboard",
   "fitness-dashboard",
   "biomarkers",
-  "score-history",
 ];
 
 const isHealthQuery = (query: { queryKey: readonly unknown[] }) =>
