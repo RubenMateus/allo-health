@@ -23,6 +23,14 @@ function weekStartOf(key: string): string {
   return shiftDayKey(key, -((fromDayKey(key).getDay() + 6) % 7));
 }
 
+function formatWeekRange(weekStart: string): string {
+  const format = new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+  return `${format.format(fromDayKey(weekStart))} – ${format.format(fromDayKey(shiftDayKey(weekStart, 6)))}`;
+}
+
 function formatWeekStart(key: string): string {
   return new Intl.DateTimeFormat(undefined, {
     day: "numeric",
@@ -86,18 +94,38 @@ export function DayStrip() {
   return (
     <View className="gap-md mb-lg">
       <View className="flex-row items-center justify-between">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Pick a day, ${monthFull}`}
-          onPress={() => {
-            void Haptics.selectionAsync();
-            setCalendarOpen(true);
-          }}
-          className="flex-row items-center gap-xs active:opacity-70"
-        >
-          <Text className="type-subheading text-text">{monthLabel}</Text>
-          <ChevronDown color={colors.textMuted} size={16} />
-        </Pressable>
+        <View className="flex-row items-center gap-md">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Pick a day, ${monthFull}`}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              setCalendarOpen(true);
+            }}
+            className="flex-row items-center gap-xs active:opacity-70"
+          >
+            <Text className="type-subheading text-text">{monthLabel}</Text>
+            <ChevronDown color={colors.textMuted} size={16} />
+          </Pressable>
+          <View
+            testID="day-strip"
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={`Week of ${formatWeekStart(weekStart)}`}
+            accessibilityActions={[
+              { name: "increment", label: "Next week" },
+              { name: "decrement", label: "Previous week" },
+            ]}
+            onAccessibilityAction={(event) => {
+              if (event.nativeEvent.actionName === "increment") move(1);
+              if (event.nativeEvent.actionName === "decrement") move(-1);
+            }}
+          >
+            <Text className="type-caption text-text-subtle">
+              {formatWeekRange(weekStart)}
+            </Text>
+          </View>
+        </View>
         {showToday ? (
           <Pressable
             accessibilityRole="button"
@@ -114,20 +142,7 @@ export function DayStrip() {
         ) : null}
       </View>
 
-      <View
-        testID="day-strip"
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel={`Week of ${formatWeekStart(weekStart)}`}
-        accessibilityActions={[
-          { name: "increment", label: "Next week" },
-          { name: "decrement", label: "Previous week" },
-        ]}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === "increment") move(1);
-          if (event.nativeEvent.actionName === "decrement") move(-1);
-        }}
-      >
+      <View>
         <View className="flex-row gap-xs" {...pan.panHandlers}>
           {days.map((key, index) => {
             const future = key > today;

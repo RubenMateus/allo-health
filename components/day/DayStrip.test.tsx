@@ -115,6 +115,8 @@ describe("DayStrip", () => {
     const strip = screen.getByTestId("day-strip");
     expect(strip.props.accessibilityRole).toBe("adjustable");
     expect(strip.props.accessibilityLabel).toMatch(/^Week of /);
+    // The adjustable element must not swallow the day cells.
+    expect(screen.getByLabelText(/^Mon, Nov 16,/)).toBeTruthy();
   });
 
   it("opens the month calendar and picks a day", async () => {
