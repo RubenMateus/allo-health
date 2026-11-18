@@ -99,6 +99,10 @@ function ThemedStack() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="onboarding"
+          options={{ gestureEnabled: false, animation: "fade" }}
+        />
         <Stack.Screen name="settings" />
         <Stack.Screen name="biomarkers/[kind]" />
         <Stack.Screen name="fitness/[metric]" />
