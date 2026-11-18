@@ -7,9 +7,11 @@ import type {
   NutritionData,
   PermissionResult,
   SleepData,
+  SleepStage,
   StrainInputs,
   StressSample,
   Workout,
+  WorkoutDetails,
 } from "./types";
 
 const minutesAgo = (minutes: number) =>
@@ -84,6 +86,13 @@ function mockHeartRateTrace(
   });
 }
 
+// Average speed in m/s for activities that cover distance.
+const mockSpeeds: Record<string, number> = {
+  Run: 3.32,
+  "Long run": 3.05,
+  Ride: 7.4,
+};
+
 function mockWorkouts(since: Date): Workout[] {
   const workouts: Workout[] = [];
   const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
@@ -123,6 +132,14 @@ function mockWorkouts(since: Date): Workout[] {
             averageHeartRate,
             activity === "Intervals",
           ),
+          distanceMeters: mockSpeeds[activity]
+            ? Math.round(
+                mockSpeeds[activity] * duration * 60 * (0.98 + scale * 0.02),
+              )
+            : null,
+          source: "Apple Watch",
+          sourceId: "mock",
+          indoor: activity === "Intervals" ? true : null,
         });
       },
     );
@@ -185,13 +202,57 @@ export class MockHealthProvider implements HealthProvider {
   }
 
   async getSleep(): Promise<SleepData> {
+    // Last night from 23:15 to 07:30: about five cycles, deep early and REM late.
+    const wake = new Date();
+    wake.setHours(7, 30, 0, 0);
+    if (wake.getTime() > Date.now()) wake.setDate(wake.getDate() - 1);
+    const night: Array<[SleepStage, number]> = [
+      ["light", 20],
+      ["deep", 45],
+      ["light", 25],
+      ["rem", 15],
+      ["awake", 5],
+      ["light", 30],
+      ["deep", 30],
+      ["light", 30],
+      ["rem", 25],
+      ["awake", 8],
+      ["light", 40],
+      ["deep", 17],
+      ["light", 35],
+      ["rem", 30],
+      ["awake", 10],
+      ["light", 45],
+      ["rem", 38],
+      ["light", 37],
+      ["awake", 10],
+    ];
+    const inBedMinutes = night.reduce((sum, [, minutes]) => sum + minutes, 0);
+    let cursor = wake.getTime() - inBedMinutes * 60_000;
+    const bedtime = new Date(cursor).toISOString();
+    const stages = night.map(([stage, minutes]) => {
+      const start = new Date(cursor).toISOString();
+      cursor += minutes * 60_000;
+      return { stage, start, end: new Date(cursor).toISOString() };
+    });
+    const total = (stage: SleepStage) =>
+      night
+        .filter(([kind]) => kind === stage)
+        .reduce((sum, [, minutes]) => sum + minutes, 0);
+    const durationMinutes = inBedMinutes - total("awake");
     return {
-      durationMinutes: 7 * 60 + 42,
+      durationMinutes,
       needMinutes: 8 * 60,
-      efficiency: 0.91,
-      deepMinutes: 92,
-      remMinutes: 108,
-      lastSleepAt: new Date(Date.now() - 8 * 60 * 60_000).toISOString(),
+      efficiency: durationMinutes / inBedMinutes,
+      deepMinutes: total("deep"),
+      remMinutes: total("rem"),
+      lightMinutes: total("light"),
+      awakeMinutes: total("awake"),
+      inBedMinutes,
+      bedtime,
+      wakeTime: wake.toISOString(),
+      stages,
+      lastSleepAt: wake.toISOString(),
     };
   }
 
@@ -246,6 +307,40 @@ export class MockHealthProvider implements HealthProvider {
 
   async getWorkouts(since: Date): Promise<Workout[]> {
     return mockWorkouts(since);
+  }
+
+  async getWorkoutDetails(workout: Workout): Promise<WorkoutDetails> {
+    const minutes = workout.heartRateByMinute?.length ?? 0;
+    const total = workout.distanceMeters ?? 0;
+    const start = new Date(workout.startedAt).getTime();
+    // One sample a minute, slower in the warm-up and quicker in the middle.
+    const weights = Array.from(
+      { length: minutes },
+      (_, minute) =>
+        Math.min(1, 0.82 + minute * 0.03) +
+        Math.sin(minute * 0.7) * 0.03 +
+        (minute / Math.max(minutes, 1)) * 0.06,
+    );
+    const weightTotal = weights.reduce((a, b) => a + b, 0) || 1;
+    const running = /run/i.test(workout.activity);
+    return {
+      distanceSamples: total
+        ? weights.map((weight, minute) => ({
+            startedAt: new Date(start + minute * 60_000).toISOString(),
+            endedAt: new Date(start + (minute + 1) * 60_000).toISOString(),
+            meters: (total * weight) / weightTotal,
+          }))
+        : [],
+      elevationGainMeters: total ? Math.round(total / 90) : null,
+      dynamics: running
+        ? {
+            cadence: 172,
+            strideLengthMeters: 1.16,
+            verticalOscillationCm: 8.1,
+            groundContactMs: 228,
+          }
+        : null,
+    };
   }
 
   async getBiomarkerHistory(

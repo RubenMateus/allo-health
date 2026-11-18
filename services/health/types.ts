@@ -17,12 +17,27 @@ export type HealthSample = {
   timestamp: string;
 };
 
+/** A sleep stage. `asleep` is sleep the source recorded without a stage. */
+export type SleepStage = "awake" | "rem" | "light" | "deep" | "asleep";
+
+/** One stretch of the night in a single stage, as ISO times. */
+export type SleepSegment = { stage: SleepStage; start: string; end: string };
+
 export type SleepData = {
   durationMinutes: number;
   needMinutes: number;
   efficiency: number;
   deepMinutes: number;
   remMinutes: number;
+  lightMinutes: number;
+  /** Time in bed minus time asleep. */
+  awakeMinutes: number;
+  /** From getting into bed to getting up, awake time included. */
+  inBedMinutes: number;
+  bedtime: string;
+  wakeTime: string;
+  /** The night from bedtime to wake time, oldest first, with no gaps. */
+  stages: SleepSegment[];
   lastSleepAt: string;
 };
 
@@ -90,6 +105,37 @@ export type Workout = {
   heartRate: WorkoutHeartRate;
   /** Average heart rate for each minute of the workout; 0 where there was no reading. */
   heartRateByMinute?: number[];
+  /** Total distance in meters, where the activity records one. */
+  distanceMeters?: number | null;
+  /** The app or device that recorded the workout, e.g. "Apple Watch". */
+  source?: string | null;
+  /** Internal id of the recording app, used to read its own samples back. */
+  sourceId?: string | null;
+  /** True for treadmill, trainer or pool sessions, where the platform says so. */
+  indoor?: boolean | null;
+};
+
+/** One interval sample of distance covered, as watches write it during a workout. */
+export type DistanceSample = {
+  startedAt: string;
+  endedAt: string;
+  meters: number;
+};
+
+/** Running form averages. Only Apple Watch records stride, oscillation and contact time. */
+export type RunDynamics = {
+  /** Steps per minute. */
+  cadence: number | null;
+  strideLengthMeters: number | null;
+  verticalOscillationCm: number | null;
+  groundContactMs: number | null;
+};
+
+/** The heavier reads behind one workout's detail page, fetched only when it opens. */
+export type WorkoutDetails = {
+  distanceSamples: DistanceSample[];
+  elevationGainMeters: number | null;
+  dynamics: RunDynamics | null;
 };
 
 export interface HealthProvider {
@@ -108,6 +154,8 @@ export interface HealthProvider {
   getGlucose(): Promise<GlucoseData | null>;
   getStressSamples(): Promise<StressSample[]>;
   getWorkouts(since: Date): Promise<Workout[]>;
+  /** Distance samples, elevation and running form for one workout. */
+  getWorkoutDetails(workout: Workout): Promise<WorkoutDetails>;
   /** One value per day (the daily average), oldest first. */
   getBiomarkerHistory(
     kind: BiomarkerKind,

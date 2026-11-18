@@ -7,20 +7,24 @@ import type {
   NutritionData,
   PermissionResult,
   SleepData,
+  SleepStage,
   StrainInputs,
   StressSample,
   Workout,
   WorkoutCategory,
+  WorkoutDetails,
 } from "./types";
 import {
   dayKey,
   heartRateByMinute,
   summarizeWorkoutHeartRate,
 } from "@/services/metrics/fitness";
+import { workoutKind } from "@/services/metrics/workouts";
 import {
   LATEST_READING_DAYS,
   SAMPLE_BUCKET_MINUTES,
   bucketSamples,
+  buildSleepTimeline,
   buildStressSamples,
   clusterIntervals,
   dedupeWorkouts,
@@ -85,6 +89,14 @@ const asleepValues = new Set<number>([
   sleepValues.asleepDeep,
   sleepValues.asleepREM,
 ]);
+// In bed (0) only marks the window, so it has no stage on the timeline.
+const stageOfValue: Partial<Record<number, SleepStage>> = {
+  [sleepValues.asleepUnspecified]: "asleep",
+  [sleepValues.awake]: "awake",
+  [sleepValues.asleepCore]: "light",
+  [sleepValues.asleepDeep]: "deep",
+  [sleepValues.asleepREM]: "rem",
+};
 const stagedValues = new Set<number>([
   sleepValues.asleepCore,
   sleepValues.asleepDeep,
@@ -154,6 +166,37 @@ const biomarkerUnits: Record<BiomarkerKind, string> = {
 // HealthKit reports percentages as fractions (0.278 for 27.8%).
 const fractionKinds = new Set<BiomarkerKind>(["bodyFat", "bloodOxygen"]);
 
+const distanceTypes = {
+  run: "HKQuantityTypeIdentifierDistanceWalkingRunning",
+  walk: "HKQuantityTypeIdentifierDistanceWalkingRunning",
+  ride: "HKQuantityTypeIdentifierDistanceCycling",
+  swim: "HKQuantityTypeIdentifierDistanceSwimming",
+} as const;
+
+const workoutDetailTypes = [
+  "HKQuantityTypeIdentifierDistanceWalkingRunning",
+  "HKQuantityTypeIdentifierDistanceCycling",
+  "HKQuantityTypeIdentifierDistanceSwimming",
+  "HKQuantityTypeIdentifierStepCount",
+  "HKQuantityTypeIdentifierRunningStrideLength",
+  "HKQuantityTypeIdentifierRunningVerticalOscillation",
+  "HKQuantityTypeIdentifierRunningGroundContactTime",
+] as const;
+
+/** A HealthKit quantity in meters, whatever unit it was stored in. */
+function metersFrom(quantity: { quantity: number; unit: string } | undefined) {
+  if (!quantity) return null;
+  const scale: Record<string, number> = {
+    m: 1,
+    km: 1000,
+    cm: 0.01,
+    ft: 0.3048,
+    mi: 1609.344,
+  };
+  const factor = scale[quantity.unit];
+  return factor === undefined ? null : quantity.quantity * factor;
+}
+
 const readTypes = [
   ...coreReadTypes,
   "HKQuantityTypeIdentifierBodyMass",
@@ -163,6 +206,8 @@ const readTypes = [
   "HKQuantityTypeIdentifierOxygenSaturation",
   "HKCharacteristicTypeIdentifierDateOfBirth",
   "HKCharacteristicTypeIdentifierBiologicalSex",
+  // Workout detail: distance samples for splits, steps for cadence, running form.
+  ...workoutDetailTypes,
 ] as const;
 
 type HealthKitModule = typeof import("@kingstinct/react-native-healthkit");
@@ -324,21 +369,31 @@ export class AppleHealthProvider implements HealthProvider {
             night.asleepMinutes >= main.asleepMinutes * 0.5,
         )
         .sort((a, b) => b.asleepMinutes - a.asleepMinutes)[0] ?? main;
-    const stageMinutes = (value: number) =>
+    const minutesIn = (value: number) =>
       unionMinutes(
         chosen.asleep.filter((interval) => interval.value === value),
       );
+    const inBedMinutes = Math.max((chosen.end - chosen.start) / 60_000, 1);
     return {
       durationMinutes: chosen.asleepMinutes,
       needMinutes: 480,
       // Time asleep over the whole night, in bed and awake included.
-      efficiency: Math.min(
-        chosen.asleepMinutes /
-          Math.max((chosen.end - chosen.start) / 60_000, 1),
-        1,
+      efficiency: Math.min(chosen.asleepMinutes / inBedMinutes, 1),
+      deepMinutes: minutesIn(sleepValues.asleepDeep),
+      remMinutes: minutesIn(sleepValues.asleepREM),
+      lightMinutes: minutesIn(sleepValues.asleepCore),
+      awakeMinutes: Math.max(inBedMinutes - chosen.asleepMinutes, 0),
+      inBedMinutes,
+      bedtime: new Date(chosen.start).toISOString(),
+      wakeTime: new Date(chosen.end).toISOString(),
+      stages: buildSleepTimeline(
+        chosen.night.flatMap((interval) => {
+          const stage = stageOfValue[interval.value];
+          return stage ? [{ ...interval, stage }] : [];
+        }),
+        chosen.start,
+        chosen.end,
       ),
-      deepMinutes: stageMinutes(sleepValues.asleepDeep),
-      remMinutes: stageMinutes(sleepValues.asleepREM),
       lastSleepAt: new Date(
         Math.max(...chosen.asleep.map((interval) => interval.end)),
       ).toISOString(),
@@ -481,6 +536,10 @@ export class AppleHealthProvider implements HealthProvider {
           workout.endDate.toISOString(),
         );
         const energy = workout.totalEnergyBurned;
+        const metadata = workout.metadata as
+          | Record<string, unknown>
+          | undefined;
+        const indoor = metadata?.HKIndoorWorkout;
         return {
           id: workout.uuid,
           activity: workoutLabels[type] ?? "Workout",
@@ -499,10 +558,92 @@ export class AppleHealthProvider implements HealthProvider {
             workout.startDate.toISOString(),
             workout.endDate.toISOString(),
           ),
+          distanceMeters: metersFrom(workout.totalDistance),
+          source:
+            workout.device?.name ??
+            workout.sourceRevision?.source?.name ??
+            null,
+          sourceId: workout.sourceRevision?.source?.bundleIdentifier ?? null,
+          indoor: typeof indoor === "boolean" ? indoor : null,
         };
       }),
     );
     return dedupeWorkouts(results);
+  }
+
+  async getWorkoutDetails(workout: Workout): Promise<WorkoutDetails> {
+    const healthKit = await this.loadHealthKit();
+    const [proxy] = await healthKit.queryWorkoutSamples({
+      limit: 1,
+      filter: { uuid: workout.id },
+    });
+    if (!proxy)
+      return { distanceSamples: [], elevationGainMeters: null, dynamics: null };
+    const kind = workoutKind(workout);
+    const distanceType =
+      kind in distanceTypes
+        ? distanceTypes[kind as keyof typeof distanceTypes]
+        : null;
+    const metadata = proxy.metadata as Record<string, unknown> | undefined;
+    const statistic = async (
+      identifier: (typeof workoutDetailTypes)[number],
+      unit: string,
+    ) => proxy.getStatistic(identifier, unit).catch(() => undefined);
+    const [distance, steps, stride, oscillation, contact] = await Promise.all([
+      // Only the samples HealthKit links to this workout, so a phone and a watch
+      // that both counted the distance are not added together.
+      distanceType
+        ? healthKit
+            .queryQuantitySamples(distanceType, {
+              limit: 0,
+              ascending: true,
+              unit: "m",
+              filter: { workout: proxy },
+            } as never)
+            .then((samples) => samples as unknown as QuantitySample[])
+            .catch(() => [] as QuantitySample[])
+        : Promise.resolve([] as QuantitySample[]),
+      kind === "run"
+        ? statistic("HKQuantityTypeIdentifierStepCount", "count")
+        : undefined,
+      kind === "run"
+        ? statistic("HKQuantityTypeIdentifierRunningStrideLength", "m")
+        : undefined,
+      kind === "run"
+        ? statistic("HKQuantityTypeIdentifierRunningVerticalOscillation", "cm")
+        : undefined,
+      kind === "run"
+        ? statistic("HKQuantityTypeIdentifierRunningGroundContactTime", "ms")
+        : undefined,
+    ]);
+    const minutes =
+      (proxy.endDate.getTime() - proxy.startDate.getTime()) / 60_000;
+    const stepTotal = steps?.sumQuantity?.quantity ?? null;
+    return {
+      distanceSamples: distance.map((sample) => ({
+        startedAt: sample.startDate.toISOString(),
+        endedAt: sample.endDate.toISOString(),
+        meters: sample.quantity,
+      })),
+      elevationGainMeters: metersFrom(
+        metadata?.HKElevationAscended as
+          | { quantity: number; unit: string }
+          | undefined,
+      ),
+      dynamics:
+        kind === "run"
+          ? {
+              cadence:
+                stepTotal && minutes > 0
+                  ? Math.round(stepTotal / minutes)
+                  : null,
+              strideLengthMeters: stride?.averageQuantity?.quantity ?? null,
+              verticalOscillationCm:
+                oscillation?.averageQuantity?.quantity ?? null,
+              groundContactMs: contact?.averageQuantity?.quantity ?? null,
+            }
+          : null,
+    };
   }
 
   async getBiomarkerHistory(

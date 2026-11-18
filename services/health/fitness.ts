@@ -50,6 +50,7 @@ export type FitnessData = {
   trainingMix: TrainingMixEntry[];
   workoutCount: number;
   maxHeartRate: number;
+  restingHeartRate: number;
   /** Whether max heart rate comes from the person's age rather than a default. */
   maxHeartRateFromAge: boolean;
   cardioGauge: LoadGauge;
@@ -120,6 +121,7 @@ export async function loadFitnessData(
     trainingMix: summarizeTrainingMix(recent),
     workoutCount: recent.length,
     maxHeartRate: profile.maxHeartRate,
+    restingHeartRate: profile.restingHeartRate,
     maxHeartRateFromAge: age !== null,
     cardioGauge: loadGauge(allDays.map((day) => day.cardioLoad)),
     muscularGauge: loadGauge(allDays.map((day) => day.muscularLoad)),

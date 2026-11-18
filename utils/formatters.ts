@@ -25,6 +25,13 @@ export function formatTime(value: string): string {
   }).format(new Date(value));
 }
 
+/** A time of day on the 24-hour clock, e.g. `23:15`, for chart axes. */
+export function formatClock(value: string): string {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatEnergy(kilocalories: number): {
   value: string;
   unit: "kcal" | "kJ";
@@ -121,4 +128,57 @@ export function formatNumber(value: number, fractionDigits = 0): string {
 /** Converts kilograms to the display unit without formatting, for charts. */
 export function massInDisplayUnit(kilograms: number): number {
   return usesMetricDisplay ? kilograms : kilograms * 2.20462;
+}
+
+/** Meters in one display distance unit, and its label: km, or miles in the US. */
+export const distanceUnit = usesMetricDisplay
+  ? { meters: 1000, label: "km" }
+  : { meters: 1609.344, label: "mi" };
+
+export function formatDistance(
+  meters: number,
+  fractionDigits = 2,
+): { value: string; unit: string } {
+  return {
+    value: formatNumber(meters / distanceUnit.meters, fractionDigits),
+    unit: distanceUnit.label,
+  };
+}
+
+/** Pace as minutes'seconds" per display unit, e.g. 5'01". */
+export function formatPace(secondsPerUnit: number): string {
+  const rounded = Math.round(secondsPerUnit);
+  const minutes = Math.floor(rounded / 60);
+  const seconds = `${rounded % 60}`.padStart(2, "0");
+  return `${minutes}'${seconds}"`;
+}
+
+/** Speed in km/h, or mph in the US. */
+export function formatSpeed(metersPerSecond: number): {
+  value: string;
+  unit: string;
+} {
+  return {
+    value: formatNumber((metersPerSecond * 3600) / distanceUnit.meters, 1),
+    unit: usesMetricDisplay ? "km/h" : "mph",
+  };
+}
+
+/** Elapsed time with seconds, e.g. "52m 18s" or "1h 05m". */
+export function formatElapsed(seconds: number): string {
+  const rounded = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  if (hours > 0) return `${hours}h ${`${minutes}`.padStart(2, "0")}m`;
+  return `${minutes}m ${`${rounded % 60}`.padStart(2, "0")}s`;
+}
+
+/** Elevation in meters, or feet in the US. */
+export function formatElevation(meters: number): {
+  value: string;
+  unit: string;
+} {
+  return usesMetricDisplay
+    ? { value: formatNumber(meters), unit: "m" }
+    : { value: formatNumber(meters * 3.28084), unit: "ft" };
 }

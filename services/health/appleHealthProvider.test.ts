@@ -69,6 +69,12 @@ const quantitySample = (
   metadata: {},
 });
 
+const segment = (stage: string, start: Date, end: Date) => ({
+  stage,
+  start: start.toISOString(),
+  end: end.toISOString(),
+});
+
 /** A Watch staged night: core / deep / core / REM / awake / core, in minutes. */
 function watchNight(start: Date) {
   const stages: Array<[number, number]> = [
@@ -114,6 +120,19 @@ describe("AppleHealthProvider.getSleep", () => {
       efficiency: 390 / 400,
       deepMinutes: 75,
       remMinutes: 45,
+      lightMinutes: 270,
+      awakeMinutes: 10,
+      inBedMinutes: 400,
+      bedtime: at(23, 23, 30).toISOString(),
+      wakeTime: at(24, 6, 10).toISOString(),
+      stages: [
+        segment("light", at(23, 23, 30), at(24, 0, 30)),
+        segment("deep", at(24, 0, 30), at(24, 1, 45)),
+        segment("light", at(24, 1, 45), at(24, 3, 15)),
+        segment("rem", at(24, 3, 15), at(24, 4)),
+        segment("awake", at(24, 4), at(24, 4, 10)),
+        segment("light", at(24, 4, 10), at(24, 6, 10)),
+      ],
       lastSleepAt: at(24, 6, 10).toISOString(),
     });
   });
@@ -329,5 +348,70 @@ describe("AppleHealthProvider.getBiomarkerHistory", () => {
       { day: 1 },
       { unit: "%", filter: { date: { startDate: at(1, 0), endDate: NOW } } },
     );
+  });
+});
+
+describe("AppleHealthProvider.getWorkoutDetails", () => {
+  it("reads the workout's own distance samples, elevation and running form", async () => {
+    const statistics: Record<string, number> = {
+      HKQuantityTypeIdentifierStepCount: 8700,
+      HKQuantityTypeIdentifierRunningStrideLength: 1.18,
+      HKQuantityTypeIdentifierRunningVerticalOscillation: 7.9,
+      HKQuantityTypeIdentifierRunningGroundContactTime: 224,
+    };
+    const proxy = {
+      uuid: "watch-run",
+      startDate: at(23, 7, 15),
+      endDate: at(23, 8, 5),
+      metadata: { HKElevationAscended: { unit: "cm", quantity: 11200 } },
+      getStatistic: jest.fn(async (identifier: string) => {
+        const quantity = statistics[identifier];
+        return identifier === "HKQuantityTypeIdentifierStepCount"
+          ? { sumQuantity: { unit: "count", quantity } }
+          : { averageQuantity: { unit: "", quantity } };
+      }),
+    };
+    mocked.queryWorkoutSamples.mockResolvedValue([proxy] as never);
+    mocked.queryQuantitySamples.mockResolvedValue([
+      {
+        quantity: 410,
+        unit: "m",
+        startDate: at(23, 7, 15),
+        endDate: at(23, 7, 17),
+      },
+    ] as never);
+
+    const details = await provider().getWorkoutDetails({
+      id: "watch-run",
+      activity: "Run",
+      category: "cardio",
+      startedAt: at(23, 7, 15).toISOString(),
+      endedAt: at(23, 8, 5).toISOString(),
+      activeEnergyKcal: 600,
+      heartRate: { average: 150, peak: null, recovery: null },
+    });
+
+    expect(mocked.queryWorkoutSamples).toHaveBeenCalledWith({
+      limit: 1,
+      filter: { uuid: "watch-run" },
+    });
+    expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierDistanceWalkingRunning",
+      expect.objectContaining({ unit: "m", filter: { workout: proxy } }),
+    );
+    expect(details.distanceSamples).toEqual([
+      {
+        startedAt: at(23, 7, 15).toISOString(),
+        endedAt: at(23, 7, 17).toISOString(),
+        meters: 410,
+      },
+    ]);
+    expect(details.elevationGainMeters).toBe(112);
+    expect(details.dynamics).toEqual({
+      cadence: 174,
+      strideLengthMeters: 1.18,
+      verticalOscillationCm: 7.9,
+      groundContactMs: 224,
+    });
   });
 });

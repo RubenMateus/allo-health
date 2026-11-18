@@ -89,8 +89,41 @@ describe("HealthConnectProvider.getSleep", () => {
       efficiency: 390 / 400,
       deepMinutes: 75,
       remMinutes: 45,
+      lightMinutes: 270,
+      awakeMinutes: 10,
+      inBedMinutes: 400,
+      bedtime: at(23, 23, 30),
+      wakeTime: at(24, 6, 10),
+      stages: [
+        { stage: "light", start: at(23, 23, 30), end: at(24, 0, 30) },
+        { stage: "deep", start: at(24, 0, 30), end: at(24, 1, 45) },
+        { stage: "light", start: at(24, 1, 45), end: at(24, 3, 15) },
+        { stage: "rem", start: at(24, 3, 15), end: at(24, 4) },
+        { stage: "awake", start: at(24, 4), end: at(24, 4, 10) },
+        { stage: "light", start: at(24, 4, 10), end: at(24, 6, 10) },
+      ],
       lastSleepAt: at(24, 6, 10),
     });
+  });
+
+  it("shows a session without stages as one stretch of sleep", async () => {
+    serve({
+      SleepSession: [
+        {
+          startTime: at(23, 23),
+          endTime: at(24, 7),
+          metadata: metadata(SAMSUNG, "plain"),
+        },
+      ],
+    });
+
+    const sleep = await provider().getSleep();
+
+    expect(sleep?.stages).toEqual([
+      { stage: "asleep", start: at(23, 23), end: at(24, 7) },
+    ]);
+    expect(sleep?.inBedMinutes).toBe(480);
+    expect(sleep?.awakeMinutes).toBe(0);
   });
 
   it("keeps the night when a later nap was logged", async () => {
@@ -308,5 +341,57 @@ describe("HealthConnectProvider.getBiomarkerHistory", () => {
       [at(22, 0), expect.closeTo(18.4)],
       [at(23, 0), 18.1],
     ]);
+  });
+});
+
+describe("HealthConnectProvider.getWorkoutDetails", () => {
+  it("reads the recording app's distance and the platform's elevation and steps", async () => {
+    serve({
+      Distance: [
+        {
+          startTime: at(23, 7, 15),
+          endTime: at(23, 7, 20),
+          distance: { inMeters: 1020 },
+          metadata: metadata(PIXEL_WATCH, "d-watch"),
+        },
+        {
+          startTime: at(23, 7, 15),
+          endTime: at(23, 7, 20),
+          distance: { inMeters: 990 },
+          metadata: metadata(SAMSUNG, "d-phone"),
+        },
+      ],
+    });
+    mocked.aggregateRecord.mockImplementation(async ({ recordType }) =>
+      recordType === "ElevationGained"
+        ? ({
+            ELEVATION_GAINED_TOTAL: { inMeters: 64 },
+            dataOrigins: [PIXEL_WATCH],
+          } as never)
+        : ({ COUNT_TOTAL: 8500, dataOrigins: [PIXEL_WATCH] } as never),
+    );
+
+    const details = await provider().getWorkoutDetails({
+      id: "run",
+      activity: "Run",
+      category: "cardio",
+      startedAt: at(23, 7, 15),
+      endedAt: at(23, 8, 5),
+      activeEnergyKcal: 600,
+      heartRate: { average: 150, peak: null, recovery: null },
+      distanceMeters: 10_000,
+      sourceId: PIXEL_WATCH,
+    });
+
+    expect(details.distanceSamples.map((sample) => sample.meters)).toEqual([
+      1020,
+    ]);
+    expect(details.elevationGainMeters).toBe(64);
+    expect(details.dynamics).toEqual({
+      cadence: 170,
+      strideLengthMeters: null,
+      verticalOscillationCm: null,
+      groundContactMs: null,
+    });
   });
 });

@@ -1,7 +1,7 @@
 import { calculateEnergyBattery, calculateRecoveryScore, calculateSleepScore, calculateStrainScore, calculateStressTimeline } from './index';
 import type { SleepData, StrainInputs } from '@/services/health/types';
 
-const sleep: SleepData = { durationMinutes: 480, needMinutes: 480, efficiency: 1, deepMinutes: 96, remMinutes: 106, lastSleepAt: '2026-09-30T06:00:00.000Z' };
+const sleep: SleepData = { durationMinutes: 480, needMinutes: 480, efficiency: 1, deepMinutes: 96, remMinutes: 106, lastSleepAt: '2026-09-30T06:00:00.000Z', lightMinutes: 278, awakeMinutes: 0, inBedMinutes: 480, bedtime: '2026-09-29T22:00:00.000Z', wakeTime: '2026-09-30T06:00:00.000Z', stages: [] };
 const strain: StrainInputs = { heartRateSamples: [], activeEnergyKcal: 0, restingHeartRate: 55, maxHeartRate: 190 };
 
 describe('health metric estimates', () => {
