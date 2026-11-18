@@ -46,6 +46,14 @@ export function calculateSleepScore(sleep: SleepData): number {
   );
 }
 
+/** The word shown beside a sleep score: 80+ optimal, 60+ fair, else low. */
+export function sleepScoreStatus(score: number | null) {
+  if (score === null) return "NO DATA";
+  if (score >= 80) return "OPTIMAL";
+  if (score >= 60) return "FAIR";
+  return "LOW";
+}
+
 export function calculateRecoveryScore(inputs: RecoveryInputs): number {
   const hrvScore = clamp(
     50 +

@@ -69,6 +69,12 @@ const quantitySample = (
   metadata: {},
 });
 
+const segment = (stage: string, start: Date, end: Date) => ({
+  stage,
+  start: start.toISOString(),
+  end: end.toISOString(),
+});
+
 /** A Watch staged night: core / deep / core / REM / awake / core, in minutes. */
 function watchNight(start: Date) {
   const stages: Array<[number, number]> = [
@@ -114,6 +120,19 @@ describe("AppleHealthProvider.getSleep", () => {
       efficiency: 390 / 400,
       deepMinutes: 75,
       remMinutes: 45,
+      lightMinutes: 270,
+      awakeMinutes: 10,
+      inBedMinutes: 400,
+      bedtime: at(23, 23, 30).toISOString(),
+      wakeTime: at(24, 6, 10).toISOString(),
+      stages: [
+        segment("light", at(23, 23, 30), at(24, 0, 30)),
+        segment("deep", at(24, 0, 30), at(24, 1, 45)),
+        segment("light", at(24, 1, 45), at(24, 3, 15)),
+        segment("rem", at(24, 3, 15), at(24, 4)),
+        segment("awake", at(24, 4), at(24, 4, 10)),
+        segment("light", at(24, 4, 10), at(24, 6, 10)),
+      ],
       lastSleepAt: at(24, 6, 10).toISOString(),
     });
   });

@@ -89,8 +89,41 @@ describe("HealthConnectProvider.getSleep", () => {
       efficiency: 390 / 400,
       deepMinutes: 75,
       remMinutes: 45,
+      lightMinutes: 270,
+      awakeMinutes: 10,
+      inBedMinutes: 400,
+      bedtime: at(23, 23, 30),
+      wakeTime: at(24, 6, 10),
+      stages: [
+        { stage: "light", start: at(23, 23, 30), end: at(24, 0, 30) },
+        { stage: "deep", start: at(24, 0, 30), end: at(24, 1, 45) },
+        { stage: "light", start: at(24, 1, 45), end: at(24, 3, 15) },
+        { stage: "rem", start: at(24, 3, 15), end: at(24, 4) },
+        { stage: "awake", start: at(24, 4), end: at(24, 4, 10) },
+        { stage: "light", start: at(24, 4, 10), end: at(24, 6, 10) },
+      ],
       lastSleepAt: at(24, 6, 10),
     });
+  });
+
+  it("shows a session without stages as one stretch of sleep", async () => {
+    serve({
+      SleepSession: [
+        {
+          startTime: at(23, 23),
+          endTime: at(24, 7),
+          metadata: metadata(SAMSUNG, "plain"),
+        },
+      ],
+    });
+
+    const sleep = await provider().getSleep();
+
+    expect(sleep?.stages).toEqual([
+      { stage: "asleep", start: at(23, 23), end: at(24, 7) },
+    ]);
+    expect(sleep?.inBedMinutes).toBe(480);
+    expect(sleep?.awakeMinutes).toBe(0);
   });
 
   it("keeps the night when a later nap was logged", async () => {

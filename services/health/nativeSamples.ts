@@ -1,4 +1,10 @@
-import type { HealthSample, StressSample, Workout } from "./types";
+import type {
+  HealthSample,
+  SleepSegment,
+  SleepStage,
+  StressSample,
+  Workout,
+} from "./types";
 
 /** Minutes each strain or stress point stands for; the scores assume this spacing. */
 export const SAMPLE_BUCKET_MINUTES = 5;
@@ -144,6 +150,59 @@ export function pickMainSleep<T extends { end: number; asleepMinutes: number }>(
     [...recent].sort((a, b) => b.asleepMinutes - a.asleepMinutes)[0] ??
     null
   );
+}
+
+/**
+ * Turns one night's stage intervals into a gap-free timeline from bedtime to wake
+ * time. Overlaps go to the interval that started first, uncovered time counts as
+ * awake, and neighbours in the same stage are joined.
+ */
+export function buildSleepTimeline(
+  intervals: Array<Interval & { stage: SleepStage }>,
+  bedtime: number,
+  wakeTime: number,
+): SleepSegment[] {
+  const segments: Array<Interval & { stage: SleepStage }> = [];
+  const push = (stage: SleepStage, start: number, end: number) => {
+    if (end <= start) return;
+    const last = segments.at(-1);
+    if (last && last.stage === stage && last.end >= start) {
+      last.end = Math.max(last.end, end);
+      return;
+    }
+    segments.push({ stage, start, end });
+  };
+  let cursor = bedtime;
+  for (const interval of [...intervals].sort((a, b) => a.start - b.start)) {
+    const start = Math.max(interval.start, cursor, bedtime);
+    const end = Math.min(interval.end, wakeTime);
+    if (end <= start) continue;
+    push("awake", cursor, start);
+    push(interval.stage, start, end);
+    cursor = end;
+  }
+  push("awake", cursor, wakeTime);
+  return segments.map((segment) => ({
+    stage: segment.stage,
+    start: new Date(segment.start).toISOString(),
+    end: new Date(segment.end).toISOString(),
+  }));
+}
+
+/** Minutes spent in each stage across a timeline. */
+export function stageMinutes(segments: SleepSegment[]) {
+  const totals: Record<SleepStage, number> = {
+    awake: 0,
+    rem: 0,
+    light: 0,
+    deep: 0,
+    asleep: 0,
+  };
+  for (const segment of segments)
+    totals[segment.stage] +=
+      (new Date(segment.end).getTime() - new Date(segment.start).getTime()) /
+      minute;
+  return totals;
 }
 
 /**

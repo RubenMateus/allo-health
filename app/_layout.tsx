@@ -105,6 +105,7 @@ function ThemedStack() {
         <Stack.Screen name="workouts/index" />
         <Stack.Screen name="workouts/[id]" />
         <Stack.Screen name="readiness" />
+        <Stack.Screen name="sleep" />
       </Stack>
     </>
   );

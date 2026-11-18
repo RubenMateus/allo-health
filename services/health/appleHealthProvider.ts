@@ -7,6 +7,7 @@ import type {
   NutritionData,
   PermissionResult,
   SleepData,
+  SleepStage,
   StrainInputs,
   StressSample,
   Workout,
@@ -23,6 +24,7 @@ import {
   LATEST_READING_DAYS,
   SAMPLE_BUCKET_MINUTES,
   bucketSamples,
+  buildSleepTimeline,
   buildStressSamples,
   clusterIntervals,
   dedupeWorkouts,
@@ -87,6 +89,14 @@ const asleepValues = new Set<number>([
   sleepValues.asleepDeep,
   sleepValues.asleepREM,
 ]);
+// In bed (0) only marks the window, so it has no stage on the timeline.
+const stageOfValue: Partial<Record<number, SleepStage>> = {
+  [sleepValues.asleepUnspecified]: "asleep",
+  [sleepValues.awake]: "awake",
+  [sleepValues.asleepCore]: "light",
+  [sleepValues.asleepDeep]: "deep",
+  [sleepValues.asleepREM]: "rem",
+};
 const stagedValues = new Set<number>([
   sleepValues.asleepCore,
   sleepValues.asleepDeep,
@@ -359,21 +369,31 @@ export class AppleHealthProvider implements HealthProvider {
             night.asleepMinutes >= main.asleepMinutes * 0.5,
         )
         .sort((a, b) => b.asleepMinutes - a.asleepMinutes)[0] ?? main;
-    const stageMinutes = (value: number) =>
+    const minutesIn = (value: number) =>
       unionMinutes(
         chosen.asleep.filter((interval) => interval.value === value),
       );
+    const inBedMinutes = Math.max((chosen.end - chosen.start) / 60_000, 1);
     return {
       durationMinutes: chosen.asleepMinutes,
       needMinutes: 480,
       // Time asleep over the whole night, in bed and awake included.
-      efficiency: Math.min(
-        chosen.asleepMinutes /
-          Math.max((chosen.end - chosen.start) / 60_000, 1),
-        1,
+      efficiency: Math.min(chosen.asleepMinutes / inBedMinutes, 1),
+      deepMinutes: minutesIn(sleepValues.asleepDeep),
+      remMinutes: minutesIn(sleepValues.asleepREM),
+      lightMinutes: minutesIn(sleepValues.asleepCore),
+      awakeMinutes: Math.max(inBedMinutes - chosen.asleepMinutes, 0),
+      inBedMinutes,
+      bedtime: new Date(chosen.start).toISOString(),
+      wakeTime: new Date(chosen.end).toISOString(),
+      stages: buildSleepTimeline(
+        chosen.night.flatMap((interval) => {
+          const stage = stageOfValue[interval.value];
+          return stage ? [{ ...interval, stage }] : [];
+        }),
+        chosen.start,
+        chosen.end,
       ),
-      deepMinutes: stageMinutes(sleepValues.asleepDeep),
-      remMinutes: stageMinutes(sleepValues.asleepREM),
       lastSleepAt: new Date(
         Math.max(...chosen.asleep.map((interval) => interval.end)),
       ).toISOString(),
