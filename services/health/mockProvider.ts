@@ -28,6 +28,22 @@ function dayNoise(day: Date): number {
   return (Math.sin(index * 1.7) * 0.6 + Math.sin(index * 0.37) * 0.4 + 1) / 2;
 }
 
+const isPastDay = (day?: Date): day is Date =>
+  !!day && !isSameDay(day, new Date());
+
+/** Moves a series so its last reading lands at 18:00 on `day`. */
+function shiftOntoDay(series: HealthSample[], day: Date): HealthSample[] {
+  const end = new Date(day);
+  end.setHours(18, 0, 0, 0);
+  const shift = end.getTime() - new Date(series.at(-1)!.timestamp).getTime();
+  return series.map((sample) => ({
+    ...sample,
+    timestamp: new Date(
+      new Date(sample.timestamp).getTime() + shift,
+    ).toISOString(),
+  }));
+}
+
 function makeSeries(
   values: number[],
   spacingMinutes: number,
@@ -274,20 +290,32 @@ export class MockHealthProvider implements HealthProvider {
     };
   }
 
-  async getHeartRate() {
-    return heartRates;
+  async getHeartRate(day?: Date) {
+    if (!isPastDay(day)) return heartRates;
+    const noise = dayNoise(day);
+    return shiftOntoDay(heartRates, day).map((sample) => ({
+      ...sample,
+      value: Math.round(sample.value * (0.85 + noise * 0.45)),
+    }));
   }
-  async getHRV() {
-    return hrvValues;
+  async getHRV(day?: Date) {
+    if (!isPastDay(day)) return hrvValues;
+    const noise = dayNoise(day);
+    return shiftOntoDay(hrvValues, day).map((sample) => ({
+      ...sample,
+      value: Math.round(sample.value * (0.75 + noise * 0.5) * 10) / 10,
+    }));
   }
-  async getRestingHR() {
-    return 54;
+  async getRestingHR(day?: Date) {
+    return isPastDay(day) ? Math.round(50 + dayNoise(day) * 10) : 54;
   }
-  async getRespiratoryRate() {
-    return 14.2;
+  async getRespiratoryRate(day?: Date) {
+    return isPastDay(day)
+      ? Math.round((13.5 + dayNoise(day) * 2) * 10) / 10
+      : 14.2;
   }
-  async getActiveEnergy() {
-    return 468;
+  async getActiveEnergy(day?: Date) {
+    return isPastDay(day) ? Math.round(250 + dayNoise(day) * 650) : 468;
   }
 
   async getStrainInputs(day?: Date): Promise<StrainInputs> {
@@ -323,24 +351,32 @@ export class MockHealthProvider implements HealthProvider {
     };
   }
 
-  async getNutrition(): Promise<NutritionData> {
+  async getNutrition(day?: Date): Promise<NutritionData> {
+    const scale = isPastDay(day) ? 0.7 + dayNoise(day) * 0.6 : 1;
     return {
-      calories: 1840,
-      proteinGrams: 112,
-      carbohydrateGrams: 186,
-      fatGrams: 61,
+      calories: Math.round(1840 * scale),
+      proteinGrams: Math.round(112 * scale),
+      carbohydrateGrams: Math.round(186 * scale),
+      fatGrams: Math.round(61 * scale),
     };
   }
 
-  async getGlucose(): Promise<GlucoseData> {
-    return { samples: glucoseValues, unit: "mg/dL" };
+  async getGlucose(day?: Date): Promise<GlucoseData> {
+    return {
+      samples: isPastDay(day)
+        ? shiftOntoDay(glucoseValues, day)
+        : glucoseValues,
+      unit: "mg/dL",
+    };
   }
 
-  async getStressSamples(): Promise<StressSample[]> {
-    return heartRates.map((sample, index) => ({
+  async getStressSamples(day?: Date): Promise<StressSample[]> {
+    const hr = await this.getHeartRate(day);
+    const hrv = await this.getHRV(day);
+    return hr.map((sample, index) => ({
       timestamp: sample.timestamp,
       heartRate: sample.value,
-      hrv: hrvValues[Math.min(index, hrvValues.length - 1)]?.value ?? 48,
+      hrv: hrv[Math.min(index, hrv.length - 1)]?.value ?? 48,
     }));
   }
 

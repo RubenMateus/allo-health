@@ -13,6 +13,7 @@ import {
   type LoadDay,
   type LoadVerdict,
 } from "@/services/metrics/loadBalance";
+import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { formatDay, formatNumber } from "@/utils/formatters";
 
@@ -34,10 +35,13 @@ export function LoadBalanceChart({
   days,
   width,
   height = 120,
+  selectedDate,
 }: {
   days: readonly LoadDay[];
   width: number;
   height?: number;
+  /** Outlines this day's bar when it is among `days`. */
+  selectedDate?: string | null;
 }) {
   const { colors } = useTheme();
   const count = Math.max(days.length, 1);
@@ -112,6 +116,8 @@ export function LoadBalanceChart({
                     : colors.strainStart
               }
               opacity={day.strain === null || over ? 1 : 0.55}
+              stroke={day.date === selectedDate ? colors.text : undefined}
+              strokeWidth={day.date === selectedDate ? 1.5 : 0}
             />
           );
         })}
@@ -182,10 +188,12 @@ function LegendDot({
 export function LoadBalanceCard({
   days,
   width,
+  selectedDate,
 }: {
   days: readonly LoadDay[];
   /** Width of the chart, i.e. the card's inner width. */
   width: number;
+  selectedDate?: string | null;
 }) {
   const { colors } = useTheme();
   const shown = lastDays(days, 14);
@@ -197,7 +205,11 @@ export function LoadBalanceCard({
         {loadBalanceSummary(balance)}
       </Text>
 
-      <LoadBalanceChart days={shown} width={width} />
+      <LoadBalanceChart
+        days={shown}
+        width={width}
+        selectedDate={selectedDate}
+      />
 
       <View className="flex-row flex-wrap gap-md">
         <LegendDot color={colors.strainStart} label="Strain" opacity={0.55} />
@@ -224,6 +236,8 @@ export function LoadBalanceCard({
 /** The Load balance section for the Strain and Recovery pages, fed by the cached day history. */
 export function LoadBalanceSection({ width }: { width: number }) {
   const { data: days } = useScoreHistory();
+  const isToday = useIsToday();
+  const selectedDay = useSelectedDayKey();
   const verdict = days ? loadBalance(lastDays(days, 14)).verdict : null;
   const pill = verdict ? verdicts[verdict] : null;
   return (
@@ -238,7 +252,11 @@ export function LoadBalanceSection({ width }: { width: number }) {
       }
     >
       {days ? (
-        <LoadBalanceCard days={days} width={width} />
+        <LoadBalanceCard
+          days={days}
+          width={width}
+          selectedDate={isToday ? null : selectedDay}
+        />
       ) : (
         <Card>
           <Text className="type-caption text-text-subtle">

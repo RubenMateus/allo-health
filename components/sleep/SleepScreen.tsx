@@ -8,9 +8,11 @@ import {
   StatGrid,
 } from "@/components/detail/DetailLayout";
 import { Card, EmptyState } from "@/components/ui/primitives";
-import { useHealthDashboard } from "@/hooks/useHealthDashboard";
+import { dayEyebrow } from "@/components/day/dayLabels";
+import { useDayDashboard } from "@/hooks/useHealthDashboard";
 import type { SleepData, SleepStage } from "@/services/health/types";
 import { sleepScoreStatus } from "@/services/metrics";
+import { useIsToday } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing } from "@/theme/tokens";
 import { formatClock, formatDuration } from "@/utils/formatters";
@@ -24,16 +26,27 @@ const statusLabels = {
 
 /** Last night: the sleep score, time in bed and asleep, and the stages across the night. */
 export function SleepScreen() {
-  const { data } = useHealthDashboard();
+  const { data } = useDayDashboard();
+  const isToday = useIsToday();
+  const subtitle = data && !isToday ? dayEyebrow(data.date) : undefined;
   if (!data)
     return <DetailLayout title="Sleep" value={null} status="Loading" />;
 
   const { sleep, sleepScore } = data;
   if (!sleep || sleepScore === null)
     return (
-      <DetailLayout title="Sleep" value={null} status="No sleep recorded">
+      <DetailLayout
+        title="Sleep"
+        subtitle={subtitle}
+        value={null}
+        status="No sleep recorded"
+      >
         <EmptyState
-          title="Nothing from last night yet"
+          title={
+            isToday
+              ? "Nothing from last night yet"
+              : "Nothing recorded that night"
+          }
           detail="Sleep shows up here once your watch, ring or phone writes a night to Apple Health or Health Connect."
         />
       </DetailLayout>
@@ -43,10 +56,11 @@ export function SleepScreen() {
   return (
     <DetailLayout
       title="Sleep"
+      subtitle={subtitle}
       value={`${sleepScore}`}
       unit="/ 100"
       status={statusLabels[sleepScoreStatus(sleepScore)]}
-      caption={`LAST NIGHT / ${window}`}
+      caption={`${isToday ? "LAST NIGHT" : "THAT NIGHT"} / ${window}`}
     >
       <Card>
         <StatGrid

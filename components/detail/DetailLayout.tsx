@@ -19,9 +19,12 @@ export function DetailLayout({
   status,
   statusColor,
   caption,
+  subtitle,
   children,
 }: PropsWithChildren<{
   title: string;
+  /** Names the day on a past day, e.g. "MONDAY'S DATA". */
+  subtitle?: string;
   value: string | null;
   unit?: string;
   status?: string | null;
@@ -30,7 +33,7 @@ export function DetailLayout({
 }>) {
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-canvas">
-      <DetailTopBar title={title} />
+      <DetailTopBar title={title} subtitle={subtitle} />
       <ScrollView
         contentContainerClassName="gap-2xl px-margin pb-16 pt-xl"
         showsVerticalScrollIndicator={false}
