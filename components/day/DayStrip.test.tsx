@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 
 import { useDayScores } from "@/hooks/useDayScores";
@@ -16,6 +17,7 @@ jest.mock("lucide-react-native", () => ({
   X: () => null,
 }));
 jest.mock("expo-haptics", () => ({ selectionAsync: jest.fn() }));
+jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 
 const mockScores = jest.mocked(useDayScores);
 
@@ -135,5 +137,23 @@ describe("recoveryDotColor", () => {
     expect(recoveryDotColor(50, darkColors)).toBe(darkColors.stress);
     expect(recoveryDotColor(30, darkColors)).toBe(darkColors.error);
     expect(recoveryDotColor(null, darkColors)).toBeNull();
+  });
+});
+
+describe("DayStrip summary link", () => {
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
+    mockScores.mockReturnValue({});
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("opens the summary of the week on screen", async () => {
+    await render(<DayStrip />);
+    await swipeToPreviousWeek();
+    await fireEvent.press(screen.getByLabelText("Week summary"));
+    expect(router.push).toHaveBeenCalledWith("/summary?period=week&start=2026-11-09");
   });
 });

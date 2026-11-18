@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { useDayScores } from "@/hooks/useDayScores";
@@ -13,6 +14,7 @@ jest.mock("lucide-react-native", () => ({
   X: () => null,
 }));
 jest.mock("expo-haptics", () => ({ selectionAsync: jest.fn() }));
+jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 
 const mockScores = jest.mocked(useDayScores);
 
@@ -98,5 +100,16 @@ describe("MonthCalendarSheet", () => {
     await fireEvent.press(screen.getByLabelText(/^Previous month/));
     expect(screen.getByLabelText(/^Sat, Oct 31/)).toBeEnabled();
     expect(screen.getByLabelText(/^Next month/)).toBeEnabled();
+  });
+
+  it("opens the summary of the month on screen and closes", async () => {
+    const onClose = jest.fn();
+    await render(
+      <MonthCalendarSheet visible month="2026-11" onClose={onClose} onPick={jest.fn()} />,
+    );
+    await fireEvent.press(screen.getByLabelText(/^Previous month/));
+    await fireEvent.press(screen.getByLabelText("Month summary"));
+    expect(onClose).toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/summary?period=month&start=2026-10-01");
   });
 });

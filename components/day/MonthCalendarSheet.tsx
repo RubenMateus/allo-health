@@ -1,5 +1,6 @@
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
@@ -193,6 +194,19 @@ function CalendarContent({
             </View>
           ))}
         </View>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Month summary"
+          onPress={() => {
+            void Haptics.selectionAsync();
+            onClose();
+            router.push(`/summary?period=month&start=${shown}-01`);
+          }}
+          className="flex-row items-center self-end gap-2xs mt-md active:opacity-70"
+        >
+          <Text className="type-caption text-text-muted">Month summary</Text>
+          <ChevronRight color={colors.textMuted} size={14} />
+        </Pressable>
       </BlurView>
     </View>
   );
