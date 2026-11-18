@@ -1,4 +1,5 @@
 import { BlurView } from "expo-blur";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -24,22 +25,17 @@ const items = [
   { route: "biomarkers", label: "Biomarkers", Icon: ScanHeart },
 ] as const;
 
-type FloatingTabBarProps = {
-  state: { index: number; routes: { key: string; name: string }[] };
-  navigation: {
-    emit: (event: {
-      type: "tabPress";
-      target?: string;
-      canPreventDefault?: boolean;
-    }) => { defaultPrevented: boolean };
-    navigate: (route: string) => void;
-  };
+type FloatingTabBarProps = Pick<
+  BottomTabBarProps,
+  "state" | "emitter" | "navigateToTab"
+> & {
   blurTarget: RefObject<ComponentRef<typeof View> | null>;
 };
 
 export function FloatingTabBar({
   state,
-  navigation,
+  emitter,
+  navigateToTab,
   blurTarget,
 }: FloatingTabBarProps) {
   const { colors, glow, gradients, scheme } = useTheme();
@@ -76,13 +72,15 @@ export function FloatingTabBar({
                 accessibilityLabel={label}
                 onPress={() => {
                   void Haptics.selectionAsync();
-                  const event = navigation.emit({
+                  const target = state.routes[routeIndex];
+                  if (!target) return;
+                  const event = emitter.emit({
                     type: "tabPress",
-                    target: state.routes[routeIndex]?.key,
+                    target: target.key,
                     canPreventDefault: true,
                   });
                   if (!selected && !event.defaultPrevented)
-                    navigation.navigate(route);
+                    navigateToTab(target.key);
                 }}
                 className="flex-1 h-14 items-center justify-center gap-0.5 active:opacity-70"
               >
