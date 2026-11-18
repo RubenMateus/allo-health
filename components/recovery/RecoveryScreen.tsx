@@ -4,6 +4,7 @@ import { Pressable, Text, useWindowDimensions, View } from "react-native";
 
 import { BarChart } from "@/components/charts/BarChart";
 import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
+import { LoadBalanceSection } from "@/components/loadBalance/LoadBalanceCard";
 import { PrivacyNote } from "@/components/sleep/SleepScreen";
 import { historyLabel } from "@/components/strain/StrainScreen";
 import { Card, Hairline } from "@/components/ui/primitives";
@@ -77,6 +78,7 @@ export function RecoveryScreen() {
       </DetailSection>
 
       <HistorySection width={chartWidth} />
+      <LoadBalanceSection width={chartWidth} />
 
       <DetailSection title="How the score works">
         <Text className="type-caption text-text-muted -mt-xs">

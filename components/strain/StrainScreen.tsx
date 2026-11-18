@@ -3,6 +3,7 @@ import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "@/components/charts/BarChart";
 import { StrainCurve } from "@/components/charts/StrainCurve";
 import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
+import { LoadBalanceSection } from "@/components/loadBalance/LoadBalanceCard";
 import { PrivacyNote } from "@/components/sleep/SleepScreen";
 import { Card, EmptyState } from "@/components/ui/primitives";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
@@ -45,6 +46,8 @@ export function StrainScreen() {
           detail="Strain builds from your heart rate and active energy as your watch writes them to Apple Health or Health Connect."
         />
         <HistorySection width={chartWidth} />
+        <LoadBalanceSection width={chartWidth} />
+        <LoadBalanceSection width={chartWidth} />
       </DetailLayout>
     );
 
@@ -77,6 +80,7 @@ export function StrainScreen() {
       </DetailSection>
 
       <HistorySection width={chartWidth} />
+      <LoadBalanceSection width={chartWidth} />
 
       <DetailSection title="How the score works">
         <Text className="type-caption text-text-muted -mt-xs">
