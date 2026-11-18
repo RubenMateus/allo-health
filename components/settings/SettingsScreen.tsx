@@ -3,9 +3,11 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import {
   ChevronLeft,
+  ChevronRight,
   HeartPulse,
   Moon,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   Smartphone,
   Sun,
@@ -19,6 +21,7 @@ import {
   View,
 } from "react-native";
 
+import { ProfileForm } from "@/components/profile/ProfileForm";
 import {
   Card,
   Hairline,
@@ -29,6 +32,7 @@ import {
 import { useHealthSync } from "@/hooks/useHealthSync";
 import type { PermissionState } from "@/services/health/types";
 import { useHealthStore } from "@/stores/healthStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore, type ThemePreference } from "@/stores/settingsStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "@/utils/cn";
@@ -50,6 +54,10 @@ export function SettingsScreen() {
   const { colors } = useTheme();
   const permissionState = useHealthStore((state) => state.permissionState);
   const { sync, syncing, failed, lastSyncedAt } = useHealthSync();
+  const birthDate = useProfileStore((state) => state.birthDate);
+  const sex = useProfileStore((state) => state.sex);
+  const profileHydrated = useProfileStore((state) => state.hydrated);
+  const resetOnboarding = useSettingsStore((state) => state.resetOnboarding);
 
   return (
     <Screen>
@@ -78,6 +86,22 @@ export function SettingsScreen() {
           <Text className="type-caption text-text-subtle mt-md">
             System follows your phone&apos;s light or dark setting.
           </Text>
+        </Card>
+      </View>
+
+      <View className="mb-section">
+        <SectionHeader eyebrow="About you" title="Age and sex" />
+        <Card>
+          <Text className="type-caption text-text-subtle mb-lg">
+            Used to rate VO₂ max, body fat and Fitness Age. Values from{" "}
+            {sourceName} take priority when it has them.
+          </Text>
+          {profileHydrated ? (
+            <ProfileForm
+              key={`${birthDate}-${sex}`}
+              initial={{ birthDate, sex }}
+            />
+          ) : null}
         </Card>
       </View>
 
@@ -139,6 +163,29 @@ export function SettingsScreen() {
           )}
         </Card>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => {
+          void Haptics.selectionAsync();
+          // The root stack swaps to the intro as soon as the flag clears.
+          resetOnboarding();
+        }}
+        className="mb-section active:opacity-70"
+      >
+        <Card className="flex-row items-center gap-md">
+          <View className="w-[38px] h-[38px] rounded-md bg-surface-high items-center justify-center">
+            <RotateCcw color={colors.textMuted} size={18} />
+          </View>
+          <View className="flex-1 gap-2xs">
+            <Text className="type-subheading text-text">Replay intro</Text>
+            <Text className="type-caption text-text-subtle">
+              What the rings mean and where things are
+            </Text>
+          </View>
+          <ChevronRight color={colors.textSubtle} size={18} />
+        </Card>
+      </Pressable>
 
       <View className="flex-row items-center justify-center gap-sm py-sm">
         <ShieldCheck color={colors.textSubtle} size={14} />

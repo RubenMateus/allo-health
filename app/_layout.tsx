@@ -10,7 +10,6 @@ import {
 } from "@expo-google-fonts/jetbrains-mono";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -21,8 +20,10 @@ import "../global.css";
 import "@/theme/interop";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { RootStack } from "@/components/navigation/RootStack";
 import { useResetDayOnForeground } from "@/stores/dayStore";
 import { useHealthStore } from "@/stores/healthStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 export {
@@ -85,6 +86,9 @@ export default function RootLayout() {
 
 function ThemedStack() {
   const { colors, scheme } = useTheme();
+  const onboarded = useSettingsStore(
+    (state) => state.onboardingCompletedAt !== null,
+  );
 
   // The root view shows through during screen transitions and keyboard
   // animations, so keep it on the canvas color.
@@ -95,23 +99,7 @@ function ThemedStack() {
   return (
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.canvas },
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="biomarkers/[kind]" />
-        <Stack.Screen name="fitness/[metric]" />
-        <Stack.Screen name="workouts/index" />
-        <Stack.Screen name="workouts/[id]" />
-        <Stack.Screen name="readiness" />
-        <Stack.Screen name="sleep" />
-        <Stack.Screen name="strain" />
-        <Stack.Screen name="recovery" />
-      </Stack>
+      <RootStack onboarded={onboarded} canvas={colors.canvas} />
     </>
   );
 }
