@@ -479,4 +479,131 @@ describe("AppleHealthProvider reads for a given day", () => {
       }),
     );
   });
+
+  it("reads a past day's nutrition from its midnight to the next", async () => {
+    mocked.queryStatisticsForQuantity.mockResolvedValue({
+      sumQuantity: { unit: "kcal", quantity: 700 },
+      sources: [],
+    } as never);
+
+    const nutrition = await provider().getNutrition(at(21, 15));
+
+    expect(nutrition?.calories).toBe(700);
+    expect(mocked.queryStatisticsForQuantity).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+      ["cumulativeSum"],
+      {
+        unit: "kcal",
+        filter: { date: { startDate: at(21, 0), endDate: at(22, 0) } },
+      },
+    );
+  });
+
+  it("still reads today's nutrition from midnight to now with no day", async () => {
+    mocked.queryStatisticsForQuantity.mockResolvedValue({
+      sumQuantity: { unit: "kcal", quantity: 700 },
+      sources: [],
+    } as never);
+
+    await provider().getNutrition();
+
+    expect(mocked.queryStatisticsForQuantity).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+      ["cumulativeSum"],
+      {
+        unit: "kcal",
+        filter: { date: { startDate: at(24, 0), endDate: NOW } },
+      },
+    );
+  });
+
+  it("sums a past day's active energy over that day", async () => {
+    mocked.queryStatisticsForQuantity.mockResolvedValue({
+      sumQuantity: { unit: "kcal", quantity: 480 },
+      sources: [],
+    } as never);
+
+    expect(await provider().getActiveEnergy(at(21, 15))).toBe(480);
+    expect(mocked.queryStatisticsForQuantity).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierActiveEnergyBurned",
+      ["cumulativeSum"],
+      {
+        unit: "kcal",
+        filter: { date: { startDate: at(21, 0), endDate: at(22, 0) } },
+      },
+    );
+  });
+
+  it("treats today's date as today, not as a past day", async () => {
+    mocked.queryStatisticsForQuantity.mockResolvedValue({
+      sumQuantity: { unit: "kcal", quantity: 1 },
+      sources: [],
+    } as never);
+
+    await provider().getActiveEnergy(at(24, 3));
+
+    expect(mocked.queryStatisticsForQuantity).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierActiveEnergyBurned",
+      ["cumulativeSum"],
+      {
+        unit: "kcal",
+        filter: { date: { startDate: at(24, 0), endDate: NOW } },
+      },
+    );
+  });
+
+  it("reads a past day's HRV and glucose in that day's window", async () => {
+    mocked.queryQuantitySamples.mockResolvedValue([] as never);
+    const window = { startDate: at(21, 0), endDate: at(22, 0) };
+
+    await provider().getHRV(at(21, 15));
+    await provider().getGlucose(at(21, 15));
+    await provider().getHeartRate(at(21, 15));
+
+    for (const id of [
+      "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+      "HKQuantityTypeIdentifierBloodGlucose",
+      "HKQuantityTypeIdentifierHeartRate",
+    ])
+      expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({ filter: { date: window } }),
+      );
+  });
+
+  it("reads a past day's resting heart rate and respiratory rate as of its end", async () => {
+    mocked.queryQuantitySamples.mockResolvedValue([] as never);
+    const date = {
+      startDate: new Date(at(22, 0).getTime() - 7 * 86_400_000),
+      endDate: at(22, 0),
+    };
+
+    await provider().getRestingHR(at(21, 15));
+    await provider().getRespiratoryRate(at(21, 15));
+
+    for (const id of [
+      "HKQuantityTypeIdentifierRestingHeartRate",
+      "HKQuantityTypeIdentifierRespiratoryRate",
+    ])
+      expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({ filter: { date } }),
+      );
+  });
+
+  it("builds a past day's stress from that day's samples", async () => {
+    mocked.queryQuantitySamples.mockResolvedValue([] as never);
+
+    await provider().getStressSamples(at(21, 15));
+
+    const window = { startDate: at(21, 0), endDate: at(22, 0) };
+    expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierHeartRate",
+      expect.objectContaining({ filter: { date: window } }),
+    );
+    expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+      expect.objectContaining({ filter: { date: window } }),
+    );
+  });
 });

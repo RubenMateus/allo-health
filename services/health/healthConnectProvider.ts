@@ -39,6 +39,13 @@ const todayStart = () => {
   return start;
 };
 
+/** The window of an earlier day, or null for today (or no day), which keeps the live windows. */
+const pastWindow = (day?: Date) => {
+  if (!day) return null;
+  const window = dayWindow(day, now());
+  return window.start.getTime() === todayStart().getTime() ? null : window;
+};
+
 const requestedRecords = [
   "SleepSession",
   "HeartRate",
@@ -328,8 +335,9 @@ export class HealthConnectProvider implements HealthProvider {
     };
   }
 
-  async getHeartRate(): Promise<HealthSample[]> {
-    const records = await this.read("HeartRate");
+  async getHeartRate(day?: Date): Promise<HealthSample[]> {
+    const past = pastWindow(day);
+    const records = await this.read("HeartRate", past?.start, past?.end);
     return records.flatMap((record) =>
       record.samples.map((sample) => ({
         value: sample.beatsPerMinute,
@@ -339,8 +347,13 @@ export class HealthConnectProvider implements HealthProvider {
     );
   }
 
-  async getHRV(): Promise<HealthSample[]> {
-    const records = await this.read("HeartRateVariabilityRmssd");
+  async getHRV(day?: Date): Promise<HealthSample[]> {
+    const past = pastWindow(day);
+    const records = await this.read(
+      "HeartRateVariabilityRmssd",
+      past?.start,
+      past?.end,
+    );
     return records.map((record) => ({
       value: record.heartRateVariabilityMillis,
       unit: "ms",
@@ -348,16 +361,23 @@ export class HealthConnectProvider implements HealthProvider {
     }));
   }
 
-  async getRestingHR(): Promise<number | null> {
-    return (await this.latest("RestingHeartRate"))?.beatsPerMinute ?? null;
+  async getRestingHR(day?: Date): Promise<number | null> {
+    return (
+      (await this.latest("RestingHeartRate", pastWindow(day)?.end))
+        ?.beatsPerMinute ?? null
+    );
   }
 
-  async getRespiratoryRate(): Promise<number | null> {
-    return (await this.latest("RespiratoryRate"))?.rate ?? null;
+  async getRespiratoryRate(day?: Date): Promise<number | null> {
+    return (
+      (await this.latest("RespiratoryRate", pastWindow(day)?.end))?.rate ?? null
+    );
   }
 
-  async getActiveEnergy(): Promise<number> {
-    return (await this.activeCalories(todayStart())).kcal;
+  async getActiveEnergy(day?: Date): Promise<number> {
+    const past = pastWindow(day);
+    return (await this.activeCalories(past?.start ?? todayStart(), past?.end))
+      .kcal;
   }
 
   async getStrainInputs(day = now()): Promise<StrainInputs> {
@@ -385,14 +405,15 @@ export class HealthConnectProvider implements HealthProvider {
     };
   }
 
-  async getNutrition(): Promise<NutritionData | null> {
+  async getNutrition(day?: Date): Promise<NutritionData | null> {
+    const past = pastWindow(day);
     const api = await this.api();
     const result = await api.aggregateRecord({
       recordType: "Nutrition",
       timeRangeFilter: {
         operator: "between",
-        startTime: todayStart().toISOString(),
-        endTime: now().toISOString(),
+        startTime: (past?.start ?? todayStart()).toISOString(),
+        endTime: (past?.end ?? now()).toISOString(),
       },
     });
     if (result.dataOrigins.length === 0) return null;
@@ -404,8 +425,9 @@ export class HealthConnectProvider implements HealthProvider {
     };
   }
 
-  async getGlucose(): Promise<GlucoseData | null> {
-    const records = await this.read("BloodGlucose");
+  async getGlucose(day?: Date): Promise<GlucoseData | null> {
+    const past = pastWindow(day);
+    const records = await this.read("BloodGlucose", past?.start, past?.end);
     if (!records.length) return null;
     const unit = "mg/dL" as const;
     return {
@@ -418,12 +440,12 @@ export class HealthConnectProvider implements HealthProvider {
     };
   }
 
-  async getStressSamples(): Promise<StressSample[]> {
+  async getStressSamples(day?: Date): Promise<StressSample[]> {
     const [heartRate, hrv] = await Promise.all([
-      this.getHeartRate(),
-      this.getHRV(),
+      this.getHeartRate(day),
+      this.getHRV(day),
     ]);
-    return buildStressSamples(heartRate, hrv, now());
+    return buildStressSamples(heartRate, hrv, pastWindow(day)?.end ?? now());
   }
 
   async getWorkouts(since: Date): Promise<Workout[]> {

@@ -451,4 +451,123 @@ describe("HealthConnectProvider reads for a given day", () => {
       }),
     );
   });
+
+  it("reads a past day's nutrition from its midnight to the next", async () => {
+    mocked.aggregateRecord.mockResolvedValue({
+      ENERGY_TOTAL: { inKilocalories: 700 },
+      dataOrigins: [SAMSUNG],
+    } as never);
+
+    const nutrition = await provider().getNutrition(new Date(at(21, 15)));
+
+    expect(nutrition?.calories).toBe(700);
+    expect(mocked.aggregateRecord).toHaveBeenCalledWith({
+      recordType: "Nutrition",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: at(21, 0),
+        endTime: at(22, 0),
+      },
+    });
+  });
+
+  it("still reads today's nutrition from midnight to now with no day", async () => {
+    mocked.aggregateRecord.mockResolvedValue({ dataOrigins: [] } as never);
+
+    await provider().getNutrition();
+
+    expect(mocked.aggregateRecord).toHaveBeenCalledWith({
+      recordType: "Nutrition",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: at(24, 0),
+        endTime: NOW.toISOString(),
+      },
+    });
+  });
+
+  it("sums a past day's active energy over that day", async () => {
+    mocked.aggregateRecord.mockResolvedValue({
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: 480 },
+      dataOrigins: [SAMSUNG],
+    } as never);
+
+    expect(await provider().getActiveEnergy(new Date(at(21, 15)))).toBe(480);
+    expect(mocked.aggregateRecord).toHaveBeenCalledWith({
+      recordType: "ActiveCaloriesBurned",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: at(21, 0),
+        endTime: at(22, 0),
+      },
+    });
+  });
+
+  it("treats today's date as today, not as a past day", async () => {
+    mocked.aggregateRecord.mockResolvedValue({ dataOrigins: [] } as never);
+
+    await provider().getActiveEnergy(new Date(at(24, 3)));
+
+    expect(mocked.aggregateRecord).toHaveBeenCalledWith({
+      recordType: "ActiveCaloriesBurned",
+      timeRangeFilter: {
+        operator: "between",
+        startTime: at(24, 0),
+        endTime: NOW.toISOString(),
+      },
+    });
+  });
+
+  it("reads a past day's HR, HRV, glucose and stress in that day's window", async () => {
+    serve({});
+    const day = new Date(at(21, 15));
+    const range = {
+      operator: "between",
+      startTime: at(21, 0),
+      endTime: at(22, 0),
+    };
+
+    await provider().getHeartRate(day);
+    await provider().getHRV(day);
+    await provider().getGlucose(day);
+    await provider().getStressSamples(day);
+
+    for (const type of [
+      "HeartRate",
+      "HeartRateVariabilityRmssd",
+      "BloodGlucose",
+    ])
+      expect(mocked.readRecords).toHaveBeenCalledWith(
+        type,
+        expect.objectContaining({ timeRangeFilter: range }),
+      );
+    expect(mocked.readRecords).not.toHaveBeenCalledWith(
+      "HeartRate",
+      expect.objectContaining({
+        timeRangeFilter: expect.objectContaining({
+          startTime: new Date(NOW.getTime() - 36 * 3_600_000).toISOString(),
+        }),
+      }),
+    );
+  });
+
+  it("reads a past day's resting heart rate and respiratory rate as of its end", async () => {
+    serve({});
+    const timeRangeFilter = {
+      operator: "between",
+      startTime: new Date(
+        new Date(at(22, 0)).getTime() - 7 * 86_400_000,
+      ).toISOString(),
+      endTime: at(22, 0),
+    };
+
+    await provider().getRestingHR(new Date(at(21, 15)));
+    await provider().getRespiratoryRate(new Date(at(21, 15)));
+
+    for (const type of ["RestingHeartRate", "RespiratoryRate"])
+      expect(mocked.readRecords).toHaveBeenCalledWith(
+        type,
+        expect.objectContaining({ timeRangeFilter }),
+      );
+  });
 });

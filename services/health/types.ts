@@ -145,16 +145,16 @@ export interface HealthProvider {
   getConnectionStatus(): Promise<PermissionResult | null>;
   /** The main sleep that ended in the 24 hours before `asOf` (default now). */
   getSleep(asOf?: Date): Promise<SleepData | null>;
-  getHeartRate(): Promise<HealthSample[]>;
-  getHRV(): Promise<HealthSample[]>;
-  getRestingHR(): Promise<number | null>;
-  getRespiratoryRate(): Promise<number | null>;
-  getActiveEnergy(): Promise<number>;
+  getHeartRate(day?: Date): Promise<HealthSample[]>;
+  getHRV(day?: Date): Promise<HealthSample[]>;
+  getRestingHR(day?: Date): Promise<number | null>;
+  getRespiratoryRate(day?: Date): Promise<number | null>;
+  getActiveEnergy(day?: Date): Promise<number>;
   /** Strain inputs for one local day (default today). */
   getStrainInputs(day?: Date): Promise<StrainInputs>;
-  getNutrition(): Promise<NutritionData | null>;
-  getGlucose(): Promise<GlucoseData | null>;
-  getStressSamples(): Promise<StressSample[]>;
+  getNutrition(day?: Date): Promise<NutritionData | null>;
+  getGlucose(day?: Date): Promise<GlucoseData | null>;
+  getStressSamples(day?: Date): Promise<StressSample[]>;
   getWorkouts(since: Date): Promise<Workout[]>;
   /** Distance samples, elevation and running form for one workout. */
   getWorkoutDetails(workout: Workout): Promise<WorkoutDetails>;
