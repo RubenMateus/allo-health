@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Platform, Text, View } from "react-native";
+import { ChevronRight } from "lucide-react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -34,10 +35,15 @@ export function GlowRing({
   metric,
   size = 104,
   strokeWidth = 8,
+  onPress,
+  accessibilityHint,
 }: {
   metric: RingMetric;
   size?: number;
   strokeWidth?: number;
+  /** Makes the ring a button and adds a chevron after its label. */
+  onPress?: () => void;
+  accessibilityHint?: string;
 }) {
   const { colors, glow } = useTheme();
   const progress = useSharedValue(0);
@@ -73,12 +79,18 @@ export function GlowRing({
   });
   const glowStyle = metric.glowStyle ? glow[metric.glowStyle] : null;
 
+  const Container = onPress ? Pressable : View;
+
   return (
-    <View
+    <Container
       accessible
-      accessibilityRole="image"
+      accessibilityRole={onPress ? "button" : "image"}
       accessibilityLabel={`${metric.label} ${accessibilityValue}, ${metric.status.toLowerCase()}`}
-      className="items-center gap-2"
+      accessibilityHint={accessibilityHint}
+      onPress={onPress}
+      className={
+        onPress ? "items-center gap-2 active:opacity-70" : "items-center gap-2"
+      }
       style={{ width: size }}
     >
       <View
@@ -132,14 +144,23 @@ export function GlowRing({
           >
             {metric.value === null ? "--" : metric.value}
           </Text>
-          <Text numberOfLines={1} className="type-caption text-text-muted">
-            {metric.label}
-          </Text>
+          <View className="flex-row items-center">
+            <Text numberOfLines={1} className="type-caption text-text-muted">
+              {metric.label}
+            </Text>
+            {onPress ? (
+              <ChevronRight
+                color={colors.textMuted}
+                size={12}
+                strokeWidth={2.5}
+              />
+            ) : null}
+          </View>
         </View>
       </View>
       <Text className="type-badge text-text-subtle uppercase">
         {metric.status}
       </Text>
-    </View>
+    </Container>
   );
 }
