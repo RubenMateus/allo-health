@@ -34,7 +34,11 @@ import {
   StatValue,
 } from "@/components/ui/primitives";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
-import { coachingEngine, coachingInputFrom } from "@/services/coaching";
+import {
+  coachingEngine,
+  coachingInputFrom,
+  morningTargetStrain,
+} from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
 import { sleepScoreStatus } from "@/services/metrics";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -173,6 +177,7 @@ function DashboardSections({
     },
   ];
   const coaching = coachingEngine.recommend(coachingInputFrom(data));
+  const target = morningTargetStrain(data);
 
   return (
     <View className="gap-2xl">
@@ -284,8 +289,7 @@ function DashboardSections({
                 {coaching.mode}
               </Pill>
               <Text className="type-mono-small text-text-subtle shrink text-right">
-                TARGET STRAIN {coaching.targetStrain[0]}–
-                {coaching.targetStrain[1]}
+                TARGET STRAIN {target[0]}–{target[1]}
               </Text>
             </View>
             <Text className="type-heading text-text">

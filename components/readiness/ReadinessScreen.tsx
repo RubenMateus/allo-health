@@ -11,6 +11,7 @@ import {
   coachingThresholds,
   explainInputs,
   MAX_STRAIN,
+  morningTargetStrain,
   type InputEffect,
 } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
@@ -41,12 +42,13 @@ export function ReadinessScreen() {
 
   const input = coachingInputFrom(data);
   const coaching = coachingEngine.recommend(input);
+  const target = morningTargetStrain(data);
   const waiting = data.recoveryScore === null || data.sleepScore === null;
 
   return (
     <DetailLayout
       title="Readiness"
-      value={`${coaching.targetStrain[0]}–${coaching.targetStrain[1]}`}
+      value={`${target[0]}–${target[1]}`}
       unit="TARGET STRAIN"
       status={waiting ? "Waiting for enough signals" : coaching.title}
       caption={`${modeLabels[coaching.mode].toUpperCase()} / ESTIMATE, NOT MEDICAL ADVICE`}
@@ -58,10 +60,7 @@ export function ReadinessScreen() {
             scale built from time in heart rate zones and active energy. Aim to
             end the day inside the highlighted band.
           </Text>
-          <StrainScale
-            target={coaching.targetStrain}
-            current={data.strainScore}
-          />
+          <StrainScale target={target} current={data.strainScore} />
         </Card>
       </DetailSection>
 
