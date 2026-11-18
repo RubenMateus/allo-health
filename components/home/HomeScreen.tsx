@@ -34,7 +34,11 @@ import {
   StatValue,
 } from "@/components/ui/primitives";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
-import { coachingEngine, coachingInputFrom } from "@/services/coaching";
+import {
+  coachingEngine,
+  coachingInputFrom,
+  morningTargetStrain,
+} from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
 import { sleepScoreStatus } from "@/services/metrics";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -146,7 +150,10 @@ function DashboardSections({
           ? "MODERATE"
           : "LOW";
   const sleepStatus = sleepScoreStatus(data.sleepScore);
-  const rings: RingMetric[] = [
+  const rings: (RingMetric & {
+    href: "/strain" | "/recovery" | "/sleep";
+    hint: string;
+  })[] = [
     {
       label: "STRAIN",
       value: data.strainScore,
@@ -154,6 +161,8 @@ function DashboardSections({
       colors: gradients.strain,
       status: strainStatus,
       glowStyle: "strain",
+      href: "/strain",
+      hint: "Opens today's strain",
     },
     {
       label: "RECOVERY",
@@ -162,6 +171,8 @@ function DashboardSections({
       colors: gradients.recovery,
       status: recoveryStatus,
       glowStyle: "recovery",
+      href: "/recovery",
+      hint: "Opens today's recovery",
     },
     {
       label: "SLEEP",
@@ -170,9 +181,12 @@ function DashboardSections({
       colors: gradients.sleep,
       status: sleepStatus,
       glowStyle: "sleep",
+      href: "/sleep",
+      hint: "Opens last night's sleep",
     },
   ];
   const coaching = coachingEngine.recommend(coachingInputFrom(data));
+  const target = morningTargetStrain(data);
 
   return (
     <View className="gap-2xl">
@@ -201,30 +215,19 @@ function DashboardSections({
       />
       <Card className="px-md py-xl">
         <View className="flex-row justify-between items-start gap-md">
-          {rings.map((metric) =>
-            metric.label === "SLEEP" ? (
-              <Pressable
-                key={metric.label}
-                accessibilityRole="button"
-                accessibilityLabel={`Sleep ${metric.value ?? "no data"}, ${metric.status.toLowerCase()}`}
-                accessibilityHint="Opens last night's sleep"
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  router.push("/sleep");
-                }}
-                className="active:opacity-70"
-              >
-                <GlowRing metric={metric} size={ringSize} strokeWidth={8} />
-              </Pressable>
-            ) : (
-              <GlowRing
-                key={metric.label}
-                metric={metric}
-                size={ringSize}
-                strokeWidth={8}
-              />
-            ),
-          )}
+          {rings.map(({ href, hint, ...metric }) => (
+            <GlowRing
+              key={metric.label}
+              metric={metric}
+              size={ringSize}
+              strokeWidth={8}
+              accessibilityHint={hint}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                router.push(href);
+              }}
+            />
+          ))}
         </View>
         <Hairline className="my-lg" />
         <View className="flex-row items-center justify-between">
@@ -284,8 +287,7 @@ function DashboardSections({
                 {coaching.mode}
               </Pill>
               <Text className="type-mono-small text-text-subtle shrink text-right">
-                TARGET STRAIN {coaching.targetStrain[0]}–
-                {coaching.targetStrain[1]}
+                TARGET STRAIN {target[0]}–{target[1]}
               </Text>
             </View>
             <Text className="type-heading text-text">

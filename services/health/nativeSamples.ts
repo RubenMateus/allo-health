@@ -233,3 +233,12 @@ export function dedupeWorkouts(workouts: Workout[]): Workout[] {
   }
   return kept.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 }
+
+/** Local midnight of `day` to the next midnight, cut off at `now` for today. */
+export function dayWindow(day: Date, now: Date): { start: Date; end: Date } {
+  const start = new Date(day);
+  start.setHours(0, 0, 0, 0);
+  const next = new Date(start);
+  next.setDate(next.getDate() + 1);
+  return { start, end: next < now ? next : now };
+}

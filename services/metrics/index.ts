@@ -5,6 +5,8 @@ import type {
   StressSample,
 } from "@/services/health/types";
 
+import { strainZoneOf } from "./daily";
+
 const clamp = (value: number, min = 0, max = 100) =>
   Math.max(min, Math.min(max, value));
 const average = (values: number[]) =>
@@ -86,30 +88,27 @@ export function calculateRecoveryScore(inputs: RecoveryInputs): number {
 export function calculateStrainScore(inputs: StrainInputs): number {
   const reserve = Math.max(inputs.maxHeartRate - inputs.restingHeartRate, 1);
   const weightedZoneMinutes = inputs.heartRateSamples.reduce(
-    (total, sample) => {
-      const intensity = (sample.value - inputs.restingHeartRate) / reserve;
-      const zoneWeight =
-        intensity >= 0.9
-          ? 2
-          : intensity >= 0.8
-            ? 1.4
-            : intensity >= 0.7
-              ? 0.9
-              : intensity >= 0.6
-                ? 0.5
-                : 0.2;
-      return total + sample.sampleMinutes * zoneWeight;
-    },
+    (total, sample) =>
+      total +
+      sample.sampleMinutes *
+        strainZoneOf((sample.value - inputs.restingHeartRate) / reserve).weight,
     0,
   );
-  // Strain estimates weighted heart-rate-zone minutes plus a small active-energy contribution, capped at 21.
+  return strainFromWeightedMinutes(
+    weightedZoneMinutes,
+    inputs.activeEnergyKcal,
+  );
+}
+
+/** Strain estimates weighted heart-rate-zone minutes plus a small active-energy contribution, capped at 21. */
+export function strainFromWeightedMinutes(
+  weightedZoneMinutes: number,
+  activeEnergyKcal: number,
+): number {
   return (
     Math.round(
-      clamp(
-        weightedZoneMinutes * 0.075 + inputs.activeEnergyKcal * 0.006,
-        0,
-        21,
-      ) * 10,
+      clamp(weightedZoneMinutes * 0.075 + activeEnergyKcal * 0.006, 0, 21) *
+        10,
     ) / 10
   );
 }

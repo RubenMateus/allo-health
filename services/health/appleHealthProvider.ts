@@ -25,6 +25,7 @@ import {
   SAMPLE_BUCKET_MINUTES,
   bucketSamples,
   buildSleepTimeline,
+  dayWindow,
   buildStressSamples,
   clusterIntervals,
   dedupeWorkouts,
@@ -33,9 +34,9 @@ import {
 } from "./nativeSamples";
 
 const now = () => new Date();
-const recentWindow = () => ({
-  startDate: new Date(Date.now() - 36 * 60 * 60_000),
-  endDate: now(),
+const recentWindow = (end = now()) => ({
+  startDate: new Date(end.getTime() - 36 * 60 * 60_000),
+  endDate: end,
 });
 const todayStart = () => {
   const start = new Date();
@@ -309,11 +310,12 @@ export class AppleHealthProvider implements HealthProvider {
       (typeof import("@kingstinct/react-native-healthkit"))["queryQuantitySamples"]
     >[0],
     unit: string,
+    asOf = now(),
   ): Promise<number | null> {
     const samples = await this.quantity(identifier, unit, {
       date: {
-        startDate: new Date(Date.now() - LATEST_READING_DAYS * 86_400_000),
-        endDate: now(),
+        startDate: new Date(asOf.getTime() - LATEST_READING_DAYS * 86_400_000),
+        endDate: asOf,
       },
       limit: 1,
       ascending: false,
@@ -321,11 +323,11 @@ export class AppleHealthProvider implements HealthProvider {
     return samples[0]?.quantity ?? null;
   }
 
-  async getSleep(): Promise<SleepData | null> {
+  async getSleep(asOf = now()): Promise<SleepData | null> {
     const healthKit = await this.loadHealthKit();
     const samples = await healthKit.queryCategorySamples(
       "HKCategoryTypeIdentifierSleepAnalysis",
-      { limit: 0, ascending: true, filter: { date: recentWindow() } },
+      { limit: 0, ascending: true, filter: { date: recentWindow(asOf) } },
     );
     const intervals = samples.map((sample) => ({
       start: sample.startDate.getTime(),
@@ -356,7 +358,7 @@ export class AppleHealthProvider implements HealthProvider {
         };
       }),
     );
-    const main = pickMainSleep(nights, now());
+    const main = pickMainSleep(nights, asOf);
     if (!main) return null;
     // Prefer staged data (Watch) for the same night over another source's summary.
     const chosen =
@@ -440,19 +442,30 @@ export class AppleHealthProvider implements HealthProvider {
     );
   }
 
-  async getStrainInputs(): Promise<StrainInputs> {
-    const [heartRateSamples, activeEnergyKcal, resting] = await Promise.all([
-      this.getHeartRate(),
-      this.getActiveEnergy(),
-      this.getRestingHR(),
+  async getStrainInputs(day = now()): Promise<StrainInputs> {
+    const { start, end } = dayWindow(day, now());
+    const [heartRate, activeEnergyKcal, resting] = await Promise.all([
+      this.quantity("HKQuantityTypeIdentifierHeartRate", "count/min", {
+        date: { startDate: start, endDate: end },
+      }),
+      this.sum(
+        "HKQuantityTypeIdentifierActiveEnergyBurned",
+        "kcal",
+        start,
+        end,
+      ),
+      this.latest("HKQuantityTypeIdentifierRestingHeartRate", "count/min", end),
     ]);
+    const heartRateSamples = heartRate.map((sample) => ({
+      value: sample.quantity,
+      unit: "bpm",
+      timestamp: sample.endDate.toISOString(),
+    }));
     return {
-      // Today's heart rate only, in five-minute buckets.
-      heartRateSamples: bucketSamples(
-        heartRateSamples,
-        todayStart(),
-        now(),
-      ).map((sample) => ({ ...sample, sampleMinutes: SAMPLE_BUCKET_MINUTES })),
+      // That day's heart rate only, in five-minute buckets.
+      heartRateSamples: bucketSamples(heartRateSamples, start, end).map(
+        (sample) => ({ ...sample, sampleMinutes: SAMPLE_BUCKET_MINUTES }),
+      ),
       activeEnergyKcal,
       restingHeartRate: resting ?? 60,
       maxHeartRate: 190,

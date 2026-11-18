@@ -1,15 +1,21 @@
+import { toDayKey } from "@/services/journal";
 import {
   averageSamples,
   calculateEnergyBattery,
-  calculateRecoveryScore,
-  calculateSleepScore,
-  calculateStrainScore,
   calculateStressTimeline,
 } from "@/services/metrics";
+import {
+  BASELINE_DAYS,
+  dailyValue,
+  scoreDay,
+  type DailyScore,
+  type SignalKind,
+} from "@/services/metrics/daily";
 
 import type {
   GlucoseData,
   HealthProvider,
+  HealthSample,
   NutritionData,
   PermissionState,
   SleepData,
@@ -22,6 +28,9 @@ export type DashboardData = {
   permissionState: PermissionState;
   sleep: SleepData | null;
   sleepScore: number | null;
+  /** Today's scores with what went into them; the same shape as stored history. */
+  today: DailyScore;
+  strainInputs: StrainInputs;
   recoveryScore: number | null;
   strainScore: number | null;
   stress: ReturnType<typeof calculateStressTimeline> | null;
@@ -65,6 +74,7 @@ export async function loadDashboardData(
     provider.getGlucose(),
     provider.getStressSamples(),
   ]);
+  const histories = await readSignalHistories(provider);
   const fulfilled = results.filter(
     (result) => result.status === "fulfilled",
   ).length;
@@ -88,33 +98,30 @@ export async function loadDashboardData(
     a.timestamp.localeCompare(b.timestamp),
   );
   const hrv = hrvSamples.at(-1)?.value ?? null;
-  const sleepScore = sleep ? calculateSleepScore(sleep) : null;
-  const strainScore =
-    strainInputs.heartRateSamples.length || strainInputs.activeEnergyKcal > 0
-      ? calculateStrainScore(strainInputs)
-      : null;
+  const date = toDayKey(new Date());
+  const today = scoreDay({
+    date,
+    sleep,
+    strainInputs,
+    // Today's daily average where the platform has one, else the latest reading.
+    signals: {
+      hrv: dailyValue(histories.hrv, date) ?? hrv,
+      restingHeartRate:
+        dailyValue(histories.restingHeartRate, date) ?? restingHeartRate,
+      respiratoryRate:
+        dailyValue(histories.respiratoryRate, date) ?? respiratoryRate,
+    },
+    histories,
+    now: new Date(),
+  });
+  const { sleepScore, strain: strainScore, recovery: recoveryScore } = today;
   const stress = stressSamples.length
     ? calculateStressTimeline(
         stressSamples,
         restingHeartRate ?? strainInputs.restingHeartRate,
-        48,
+        today.recoveryInputs.hrv.baseline,
       )
     : null;
-  const recoveryScore =
-    hrv !== null &&
-    restingHeartRate !== null &&
-    sleepScore !== null &&
-    respiratoryRate !== null
-      ? calculateRecoveryScore({
-          hrv,
-          hrvBaseline: 48,
-          restingHeartRate,
-          restingHeartRateBaseline: 58,
-          sleepPerformance: sleepScore,
-          respiratoryRate,
-          respiratoryRateBaseline: 15,
-        })
-      : null;
   const restorativeMinutes = stress
     ? stress.samples.filter((sample) => sample.value <= 25).length * 5
     : 0;
@@ -138,6 +145,8 @@ export async function loadDashboardData(
           : permissionState,
     sleep,
     sleepScore,
+    today,
+    strainInputs,
     recoveryScore,
     strainScore,
     stress,
@@ -160,4 +169,30 @@ export async function loadDashboardData(
       glucose: results[6]?.status === "rejected",
     },
   };
+}
+
+const SIGNALS: SignalKind[] = ["hrv", "restingHeartRate", "respiratoryRate"];
+
+/**
+ * Daily averages for the recovery signals over the baseline window and today.
+ * A history that can't be read leaves that signal on its fixed baseline.
+ */
+export async function readSignalHistories(
+  provider: HealthProvider,
+  days = BASELINE_DAYS + 1,
+): Promise<Record<SignalKind, HealthSample[]>> {
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  since.setDate(since.getDate() - days);
+  const results = await Promise.allSettled(
+    SIGNALS.map((kind) =>
+      Promise.resolve().then(() => provider.getBiomarkerHistory(kind, since)),
+    ),
+  );
+  return Object.fromEntries(
+    SIGNALS.map((kind, index) => {
+      const result = results[index];
+      return [kind, result?.status === "fulfilled" ? result.value : []];
+    }),
+  ) as Record<SignalKind, HealthSample[]>;
 }
