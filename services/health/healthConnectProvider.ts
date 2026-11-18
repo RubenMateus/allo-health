@@ -26,6 +26,7 @@ import {
   SAMPLE_BUCKET_MINUTES,
   bucketSamples,
   buildSleepTimeline,
+  dayWindow,
   buildStressSamples,
   dedupeWorkouts,
   pickMainSleep,
@@ -237,21 +238,29 @@ export class HealthConnectProvider implements HealthProvider {
 
   private async latest<T extends "RestingHeartRate" | "RespiratoryRate">(
     recordType: T,
+    asOf = now(),
   ): Promise<RecordResult<T> | null> {
     const records = await this.read(
       recordType,
-      new Date(Date.now() - LATEST_READING_DAYS * 86_400_000),
+      new Date(asOf.getTime() - LATEST_READING_DAYS * 86_400_000),
+      asOf,
     );
     return records.at(-1) ?? null;
   }
 
-  async getSleep(): Promise<SleepData | null> {
+  async getSleep(asOf = now()): Promise<SleepData | null> {
     const minutesBetween = (start: string, end: string) =>
       Math.max(
         0,
         (new Date(end).getTime() - new Date(start).getTime()) / 60_000,
       );
-    const sessions = (await this.read("SleepSession")).map((session) => {
+    const sessions = (
+      await this.read(
+        "SleepSession",
+        new Date(asOf.getTime() - 36 * 60 * 60_000),
+        asOf,
+      )
+    ).map((session) => {
       const asleep = (session.stages ?? []).filter((stage) =>
         [2, 4, 5, 6].includes(stage.stage),
       );
@@ -269,7 +278,7 @@ export class HealthConnectProvider implements HealthProvider {
       };
     });
     // A 36-hour window can hold a nap or, in the morning, the night before too.
-    const main = pickMainSleep(sessions, now());
+    const main = pickMainSleep(sessions, asOf);
     if (!main) return null;
     const { session } = main;
     const stages = session.stages ?? [];
@@ -351,21 +360,27 @@ export class HealthConnectProvider implements HealthProvider {
     return (await this.activeCalories(todayStart())).kcal;
   }
 
-  async getStrainInputs(): Promise<StrainInputs> {
-    const [heartRateSamples, activeEnergyKcal, resting] = await Promise.all([
-      this.getHeartRate(),
-      this.getActiveEnergy(),
-      this.getRestingHR(),
+  async getStrainInputs(day = now()): Promise<StrainInputs> {
+    const { start, end } = dayWindow(day, now());
+    const [records, calories, resting] = await Promise.all([
+      this.read("HeartRate", start, end),
+      this.activeCalories(start, end),
+      this.latest("RestingHeartRate", end),
     ]);
+    const heartRateSamples = records.flatMap((record) =>
+      record.samples.map((sample) => ({
+        value: sample.beatsPerMinute,
+        unit: "bpm",
+        timestamp: sample.time,
+      })),
+    );
     return {
-      // Today's heart rate only, in five-minute buckets.
-      heartRateSamples: bucketSamples(
-        heartRateSamples,
-        todayStart(),
-        now(),
-      ).map((sample) => ({ ...sample, sampleMinutes: SAMPLE_BUCKET_MINUTES })),
-      activeEnergyKcal,
-      restingHeartRate: resting ?? 60,
+      // That day's heart rate only, in five-minute buckets.
+      heartRateSamples: bucketSamples(heartRateSamples, start, end).map(
+        (sample) => ({ ...sample, sampleMinutes: SAMPLE_BUCKET_MINUTES }),
+      ),
+      activeEnergyKcal: calories.kcal,
+      restingHeartRate: resting?.beatsPerMinute ?? 60,
       maxHeartRate: 190,
     };
   }

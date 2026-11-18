@@ -97,3 +97,16 @@ export function coachingInputFrom(scores: {
     sleep: scores.sleepScore ?? 50,
   };
 }
+
+/**
+ * Today's target strain, set from recovery and sleep as if no strain had been
+ * done yet. It stays fixed all day instead of dropping once you pass the push cut-off.
+ */
+export function morningTargetStrain(scores: {
+  recoveryScore: number | null;
+  sleepScore: number | null;
+}): readonly [number, number] {
+  return coachingEngine.recommend(
+    coachingInputFrom({ ...scores, strainScore: 0 }),
+  ).targetStrain;
+}

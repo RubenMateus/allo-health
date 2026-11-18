@@ -1,5 +1,6 @@
-import { LockKeyhole } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { router } from "expo-router";
+import { ChevronRight, LockKeyhole } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
 import { Card, Hairline, Pill } from "@/components/ui/primitives";
@@ -11,6 +12,7 @@ import {
   coachingThresholds,
   explainInputs,
   MAX_STRAIN,
+  morningTargetStrain,
   type InputEffect,
 } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
@@ -41,12 +43,13 @@ export function ReadinessScreen() {
 
   const input = coachingInputFrom(data);
   const coaching = coachingEngine.recommend(input);
+  const target = morningTargetStrain(data);
   const waiting = data.recoveryScore === null || data.sleepScore === null;
 
   return (
     <DetailLayout
       title="Readiness"
-      value={`${coaching.targetStrain[0]}–${coaching.targetStrain[1]}`}
+      value={`${target[0]}–${target[1]}`}
       unit="TARGET STRAIN"
       status={waiting ? "Waiting for enough signals" : coaching.title}
       caption={`${modeLabels[coaching.mode].toUpperCase()} / ESTIMATE, NOT MEDICAL ADVICE`}
@@ -58,10 +61,7 @@ export function ReadinessScreen() {
             scale built from time in heart rate zones and active energy. Aim to
             end the day inside the highlighted band.
           </Text>
-          <StrainScale
-            target={coaching.targetStrain}
-            current={data.strainScore}
-          />
+          <StrainScale target={target} current={data.strainScore} />
         </Card>
       </DetailSection>
 
@@ -72,37 +72,25 @@ export function ReadinessScreen() {
       </DetailSection>
 
       <DetailSection title="Behind recovery">
-        <Card className="gap-md">
-          <View className="flex-row">
-            <Signal
-              label="HRV"
-              value={data.hrv === null ? null : `${Math.round(data.hrv)}`}
-              unit="ms"
-            />
-            <Signal
-              label="RESTING HR"
-              value={
-                data.restingHeartRate === null
-                  ? null
-                  : `${Math.round(data.restingHeartRate)}`
-              }
-              unit="bpm"
-            />
-            <Signal
-              label="RESP. RATE"
-              value={
-                data.respiratoryRate === null
-                  ? null
-                  : data.respiratoryRate.toFixed(1)
-              }
-              unit="/min"
-            />
-          </View>
-          <Text className="type-caption text-text-muted">
-            Recovery compares last night to your baseline: HRV counts for 35%,
-            resting heart rate 30%, sleep 25% and breathing rate 10%.
-          </Text>
-        </Card>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="See what moved recovery"
+          onPress={() => router.push("/recovery")}
+          className="active:opacity-80"
+        >
+          <Card className="flex-row items-center gap-md">
+            <View className="flex-1 gap-2xs">
+              <Text className="type-body-small text-text">
+                See what moved recovery
+              </Text>
+              <Text className="type-caption text-text-muted">
+                HRV, resting heart rate, sleep and breathing against your 30-day
+                average, and the last two weeks.
+              </Text>
+            </View>
+            <ChevronRight color={colors.textSubtle} size={18} />
+          </Card>
+        </Pressable>
       </DetailSection>
 
       <DetailSection title="How it's decided">
@@ -249,26 +237,4 @@ function InputRows({ data }: { data: DashboardData }) {
       </View>
     </View>
   ));
-}
-
-function Signal({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string | null;
-  unit: string;
-}) {
-  return (
-    <View className="flex-1 gap-2xs">
-      <Text className="type-caption text-text-muted">{label}</Text>
-      <Text className="type-mono text-text tabular-nums">
-        {value ?? "--"}
-        {value ? (
-          <Text className="type-mono-small text-text-subtle"> {unit}</Text>
-        ) : null}
-      </Text>
-    </View>
-  );
 }

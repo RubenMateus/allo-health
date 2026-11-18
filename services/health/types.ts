@@ -143,13 +143,15 @@ export interface HealthProvider {
   requestPermissions(): Promise<PermissionResult>;
   /** Silently reports an existing grant, or null if the user still needs to be asked. */
   getConnectionStatus(): Promise<PermissionResult | null>;
-  getSleep(): Promise<SleepData | null>;
+  /** The main sleep that ended in the 24 hours before `asOf` (default now). */
+  getSleep(asOf?: Date): Promise<SleepData | null>;
   getHeartRate(): Promise<HealthSample[]>;
   getHRV(): Promise<HealthSample[]>;
   getRestingHR(): Promise<number | null>;
   getRespiratoryRate(): Promise<number | null>;
   getActiveEnergy(): Promise<number>;
-  getStrainInputs(): Promise<StrainInputs>;
+  /** Strain inputs for one local day (default today). */
+  getStrainInputs(day?: Date): Promise<StrainInputs>;
   getNutrition(): Promise<NutritionData | null>;
   getGlucose(): Promise<GlucoseData | null>;
   getStressSamples(): Promise<StressSample[]>;

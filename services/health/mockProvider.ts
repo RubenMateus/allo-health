@@ -17,6 +17,17 @@ import type {
 const minutesAgo = (minutes: number) =>
   new Date(Date.now() - minutes * 60_000).toISOString();
 
+const isSameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+
+/** Repeatable 0–1 noise for a calendar day. */
+function dayNoise(day: Date): number {
+  const index = Math.floor(
+    new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime() /
+      86_400_000,
+  );
+  return (Math.sin(index * 1.7) * 0.6 + Math.sin(index * 0.37) * 0.4 + 1) / 2;
+}
+
 function makeSeries(
   values: number[],
   spacingMinutes: number,
@@ -201,32 +212,39 @@ export class MockHealthProvider implements HealthProvider {
     return this.requestPermissions();
   }
 
-  async getSleep(): Promise<SleepData> {
+  async getSleep(asOf = new Date()): Promise<SleepData> {
     // Last night from 23:15 to 07:30: about five cycles, deep early and REM late.
-    const wake = new Date();
+    const wake = new Date(asOf);
     wake.setHours(7, 30, 0, 0);
-    if (wake.getTime() > Date.now()) wake.setDate(wake.getDate() - 1);
-    const night: Array<[SleepStage, number]> = [
-      ["light", 20],
-      ["deep", 45],
-      ["light", 25],
-      ["rem", 15],
-      ["awake", 5],
-      ["light", 30],
-      ["deep", 30],
-      ["light", 30],
-      ["rem", 25],
-      ["awake", 8],
-      ["light", 40],
-      ["deep", 17],
-      ["light", 35],
-      ["rem", 30],
-      ["awake", 10],
-      ["light", 45],
-      ["rem", 38],
-      ["light", 37],
-      ["awake", 10],
-    ];
+    if (wake.getTime() > asOf.getTime()) wake.setDate(wake.getDate() - 1);
+    // Earlier nights run a little shorter or longer, the same way each time.
+    const scale = isSameDay(asOf, new Date()) ? 1 : 0.8 + dayNoise(wake) * 0.3;
+    const night: Array<[SleepStage, number]> = (
+      [
+        ["light", 20],
+        ["deep", 45],
+        ["light", 25],
+        ["rem", 15],
+        ["awake", 5],
+        ["light", 30],
+        ["deep", 30],
+        ["light", 30],
+        ["rem", 25],
+        ["awake", 8],
+        ["light", 40],
+        ["deep", 17],
+        ["light", 35],
+        ["rem", 30],
+        ["awake", 10],
+        ["light", 45],
+        ["rem", 38],
+        ["light", 37],
+        ["awake", 10],
+      ] satisfies Array<[SleepStage, number]>
+    ).map(([stage, minutes]) => [
+      stage,
+      stage === "awake" ? minutes : Math.round(minutes * scale),
+    ]);
     const inBedMinutes = night.reduce((sum, [, minutes]) => sum + minutes, 0);
     let cursor = wake.getTime() - inBedMinutes * 60_000;
     const bedtime = new Date(cursor).toISOString();
@@ -272,7 +290,28 @@ export class MockHealthProvider implements HealthProvider {
     return 468;
   }
 
-  async getStrainInputs(): Promise<StrainInputs> {
+  async getStrainInputs(day?: Date): Promise<StrainInputs> {
+    if (day && !isSameDay(day, new Date())) {
+      // An earlier day: today's shape moved to that afternoon, harder or easier.
+      const noise = dayNoise(day);
+      const end = new Date(day);
+      end.setHours(18, 0, 0, 0);
+      const last = new Date(heartRates.at(-1)!.timestamp).getTime();
+      const shift = end.getTime() - last;
+      return {
+        heartRateSamples: heartRates.map((sample) => ({
+          value: Math.round(sample.value * (0.85 + noise * 0.45)),
+          unit: sample.unit,
+          timestamp: new Date(
+            new Date(sample.timestamp).getTime() + shift,
+          ).toISOString(),
+          sampleMinutes: 5,
+        })),
+        activeEnergyKcal: Math.round(250 + noise * 650),
+        restingHeartRate: 54,
+        maxHeartRate: 190,
+      };
+    }
     return {
       heartRateSamples: heartRates.map((sample) => ({
         ...sample,

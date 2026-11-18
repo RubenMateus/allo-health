@@ -395,3 +395,60 @@ describe("HealthConnectProvider.getWorkoutDetails", () => {
     });
   });
 });
+
+describe("HealthConnectProvider reads for a given day", () => {
+  it("reads strain inputs from that day's midnight to the next", async () => {
+    serve({
+      HeartRate: [
+        {
+          startTime: at(21, 10),
+          endTime: at(21, 10, 5),
+          samples: [{ time: at(21, 10), beatsPerMinute: 150 }],
+          metadata: metadata(PIXEL_WATCH, "hr"),
+        },
+      ],
+    });
+    mocked.aggregateRecord.mockResolvedValue({
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: 420 },
+      dataOrigins: [SAMSUNG],
+    } as never);
+
+    const inputs = await provider().getStrainInputs(new Date(at(21, 15)));
+
+    expect(inputs.heartRateSamples).toHaveLength(1);
+    expect(inputs.activeEnergyKcal).toBe(420);
+    const range = {
+      operator: "between",
+      startTime: at(21, 0),
+      endTime: at(22, 0),
+    };
+    expect(mocked.readRecords).toHaveBeenCalledWith(
+      "HeartRate",
+      expect.objectContaining({ timeRangeFilter: range }),
+    );
+    expect(mocked.aggregateRecord).toHaveBeenCalledWith({
+      recordType: "ActiveCaloriesBurned",
+      timeRangeFilter: range,
+    });
+  });
+
+  it("reads the night that ended on that day's morning", async () => {
+    serve({ SleepSession: [night(at(20, 23), "n1")] });
+
+    const sleep = await provider().getSleep(new Date(at(21, 18)));
+
+    expect(sleep?.bedtime).toBe(at(20, 23));
+    expect(mocked.readRecords).toHaveBeenCalledWith(
+      "SleepSession",
+      expect.objectContaining({
+        timeRangeFilter: {
+          operator: "between",
+          startTime: new Date(
+            new Date(at(21, 18)).getTime() - 36 * 3_600_000,
+          ).toISOString(),
+          endTime: at(21, 18),
+        },
+      }),
+    );
+  });
+});
