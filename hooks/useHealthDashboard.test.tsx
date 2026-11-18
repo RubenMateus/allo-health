@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { cleanup, renderHook, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
 import { shiftDayKey, toDayKey } from "@/services/journal";
@@ -9,10 +9,13 @@ import { useHealthStore } from "@/stores/healthStore";
 
 import { useDayDashboard, useHealthDashboard } from "./useHealthDashboard";
 
+const clients: QueryClient[] = [];
+
 function wrapper() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
+  clients.push(client);
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -27,8 +30,10 @@ describe("dashboard hooks", () => {
     useHealthStore.setState({ provider: mockHealthProvider });
     useDayStore.setState({ selectedDay: past });
   });
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
+    await cleanup();
+    clients.splice(0).forEach((client) => client.clear());
   });
 
   it("keeps useHealthDashboard on today while useDayDashboard follows the selected day", async () => {
