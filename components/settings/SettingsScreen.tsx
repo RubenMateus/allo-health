@@ -168,8 +168,8 @@ export function SettingsScreen() {
         accessibilityRole="button"
         onPress={() => {
           void Haptics.selectionAsync();
+          // The root stack swaps to the intro as soon as the flag clears.
           resetOnboarding();
-          router.push("/onboarding");
         }}
         className="mb-section active:opacity-70"
       >

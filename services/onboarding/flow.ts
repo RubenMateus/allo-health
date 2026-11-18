@@ -56,16 +56,30 @@ export function connectPageState(
   return "idle";
 }
 
-/**
- * After connecting, ask for age and sex only if the source left one out. When
- * access wasn't granted, the Biomarkers card asks later instead.
- */
-export function afterConnect(
-  permission: PermissionState,
-  profile: HealthProfile,
-): "profile" | "done" {
-  if (permission !== "granted" && permission !== "partial") return "done";
+/** Ask for age and sex whenever one is still missing, whatever was chosen on Connect. */
+export function afterConnect(profile: HealthProfile): "profile" | "done" {
   return needsProfile(profile) ? "profile" : "done";
+}
+
+/**
+ * The health source's age and sex count only when access was granted. With
+ * sample data the sample profile is not the person's own.
+ */
+export function usesSourceProfile(permission: PermissionState): boolean {
+  return permission === "granted" || permission === "partial";
+}
+
+/** The line under the age and sex title, naming what the health app left out. */
+export function profileIntro(
+  source: HealthProfile | null,
+  sourceName: string,
+): string {
+  if (!source) return "Add them here. They stay on this phone.";
+  if (source.birthDate && !source.sex)
+    return `${sourceName} shared your birth year. Add your sex to finish.`;
+  if (source.sex && !source.birthDate)
+    return `${sourceName} shared your sex. Add your birth year to finish.`;
+  return `${sourceName} doesn't share these, so add them here.`;
 }
 
 /**
@@ -82,9 +96,4 @@ export function pageAfterSwipe(
 ): number {
   if (!dragged) return current;
   return Math.min(Math.round(offsetX / width), pages.indexOf("connect"));
-}
-
-/** Replaying from Settings returns to the Home underneath; first launch replaces the intro. */
-export function finishRoute(canGoBack: boolean): "dismissTo" | "replace" {
-  return canGoBack ? "dismissTo" : "replace";
 }

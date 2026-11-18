@@ -34,14 +34,20 @@ export const useSettingsStore = create<SettingsStore>()(
       name: "allo-settings",
       version: 2,
       storage: createJSONStorage(() => settingsStorage),
-      // Installs from before the intro existed see it once after updating.
-      migrate: (state) => ({
-        ...(state as object),
-        onboardingCompletedAt: null,
-      }),
+      migrate: migrateSettings,
     },
   ),
 );
+
+/**
+ * Upgrades saved settings. Installs from before the intro existed (v1) see it
+ * once after updating; later versions keep whatever was saved.
+ */
+export function migrateSettings(persisted: unknown, version: number) {
+  const state = (persisted ?? {}) as Record<string, unknown>;
+  if (version < 2) return { ...state, onboardingCompletedAt: null };
+  return state;
+}
 
 /** The scheme to render, given the user's choice and the OS appearance. */
 export function resolveColorScheme(

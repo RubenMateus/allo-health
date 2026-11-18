@@ -1,11 +1,12 @@
 import {
   afterConnect,
   connectPageState,
-  finishRoute,
   pageAfterSwipe,
+  profileIntro,
   mergeProfile,
   needsProfile,
   skipTarget,
+  usesSourceProfile,
 } from "./flow";
 
 const missing = { birthDate: null, sex: null };
@@ -45,14 +46,33 @@ describe("onboarding flow", () => {
     expect(connectPageState("granted", false, true)).toBe("unavailable");
   });
 
-  it("asks for age and sex only after a granted connection that lacks them", () => {
-    expect(afterConnect("granted", missing)).toBe("profile");
-    expect(afterConnect("partial", { birthDate: null, sex: "male" })).toBe(
-      "profile",
+  it("asks for age and sex whenever a value is still missing", () => {
+    expect(afterConnect(missing)).toBe("profile");
+    expect(afterConnect({ birthDate: null, sex: "male" })).toBe("profile");
+    expect(afterConnect(complete)).toBe("done");
+  });
+
+  it("only trusts the health source's profile when access was granted", () => {
+    expect(usesSourceProfile("granted")).toBe(true);
+    expect(usesSourceProfile("partial")).toBe(true);
+    expect(usesSourceProfile("denied")).toBe(false);
+    expect(usesSourceProfile("mock")).toBe(false);
+    expect(usesSourceProfile("unrequested")).toBe(false);
+  });
+
+  it("explains which values the health app left out", () => {
+    expect(profileIntro(missing, "Health Connect")).toBe(
+      "Health Connect doesn't share these, so add them here.",
     );
-    expect(afterConnect("partial", complete)).toBe("done");
-    expect(afterConnect("denied", missing)).toBe("done");
-    expect(afterConnect("mock", missing)).toBe("done");
+    expect(
+      profileIntro({ birthDate: "1990-03-14", sex: null }, "Apple Health"),
+    ).toBe("Apple Health shared your birth year. Add your sex to finish.");
+    expect(
+      profileIntro({ birthDate: null, sex: "female" }, "Apple Health"),
+    ).toBe("Apple Health shared your sex. Add your birth year to finish.");
+    expect(profileIntro(null, "Apple Health")).toBe(
+      "Add them here. They stay on this phone.",
+    );
   });
 });
 
@@ -70,15 +90,5 @@ describe("pageAfterSwipe", () => {
   it("ignores scrolls the app made itself", () => {
     // Android reports momentum for scrollTo; the page set by goTo stands.
     expect(pageAfterSwipe(1560, 390, [...pages], 4, false)).toBe(4);
-  });
-});
-
-describe("finishRoute", () => {
-  it("returns to the Home already underneath after a replay", () => {
-    expect(finishRoute(true)).toBe("dismissTo");
-  });
-
-  it("replaces the intro with Home on first launch", () => {
-    expect(finishRoute(false)).toBe("replace");
   });
 });

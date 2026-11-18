@@ -232,18 +232,20 @@ export function ConnectPage({
 
 export function ProfilePage({
   initial,
+  intro,
   onSaved,
   onSkip,
 }: {
   initial: HealthProfile;
+  intro: string;
   onSaved: () => void;
   onSkip: () => void;
 }) {
   return (
     <View className="flex-1 justify-center gap-2xl">
       <PageTitle eyebrow="One last thing" title="Your age and sex">
-        Used to rate VO₂ max, body fat and Fitness Age against people like you.
-        Your health app doesn&apos;t share them.
+        Used to rate VO₂ max, body fat and Fitness Age against people like you.{" "}
+        {intro}
       </PageTitle>
       <ProfileForm initial={initial} submitLabel="Finish" onSaved={onSaved} />
       <Pressable

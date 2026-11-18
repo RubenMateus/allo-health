@@ -12,7 +12,11 @@ jest.mock("@/services/settings/storage", () => ({
   },
 }));
 
-import { resolveColorScheme, useSettingsStore } from "./settingsStore";
+import {
+  migrateSettings,
+  resolveColorScheme,
+  useSettingsStore,
+} from "./settingsStore";
 
 describe("settings store", () => {
   beforeEach(() => {
@@ -74,6 +78,20 @@ describe("settings store", () => {
     void useSettingsStore.persist.rehydrate();
     expect(useSettingsStore.getState().themePreference).toBe("light");
     expect(useSettingsStore.getState().onboardingCompletedAt).toBeNull();
+  });
+
+  it("keeps a finished intro when a later version migrates", () => {
+    // A future version bump migrates v2 data, which already has the flag.
+    const v2 = {
+      themePreference: "dark",
+      lastSyncedAt: null,
+      onboardingCompletedAt: "2026-11-18T09:00:00.000Z",
+    };
+    expect(migrateSettings(v2, 2)).toEqual(v2);
+    expect(migrateSettings({ themePreference: "light" }, 1)).toEqual({
+      themePreference: "light",
+      onboardingCompletedAt: null,
+    });
   });
 
   it("restores a saved choice synchronously", () => {

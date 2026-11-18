@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import {
@@ -26,11 +25,12 @@ import type { HealthProfile } from "@/services/health/types";
 import {
   afterConnect,
   connectPageState,
-  finishRoute,
   INTRO_PAGES,
   mergeProfile,
   pageAfterSwipe,
+  profileIntro,
   skipTarget,
+  usesSourceProfile,
   type OnboardingPage,
 } from "@/services/onboarding/flow";
 import { useHealthStore } from "@/stores/healthStore";
@@ -64,6 +64,9 @@ export function OnboardingScreen() {
   const [connecting, setConnecting] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);
   const [profile, setProfile] = useState<HealthProfile | null>(null);
+  const [profileSource, setProfileSource] = useState<HealthProfile | null>(
+    null,
+  );
 
   const page = pages[index];
   const connectState = connectPageState(
@@ -78,13 +81,12 @@ export function OnboardingScreen() {
     scroller.current?.scrollTo({ x: next * width, animated: true });
   };
 
+  // Finishing flips the flag; the root stack then swaps the intro for Home.
   const finishing = useRef(false);
   const finish = () => {
     if (finishing.current) return;
     finishing.current = true;
     completeOnboarding();
-    if (finishRoute(router.canGoBack()) === "dismissTo") router.dismissTo("/");
-    else router.replace("/");
   };
 
   // Android's back button walks back through the pages and never skips the intro.
@@ -110,20 +112,24 @@ export function OnboardingScreen() {
     }
   };
 
-  // After connecting, ask for age and sex only if the health source left one out.
+  // Ask for age and sex next if either is still missing. The health app's values
+  // count only when access was granted, never the sample profile.
   const continueFromConnect = async () => {
     setCheckingProfile(true);
     try {
       const { provider, permissionState: permission } =
         useHealthStore.getState();
       const { birthDate, sex } = useProfileStore.getState();
-      const source = await provider.getProfile().catch(() => null);
+      const source = usesSourceProfile(permission)
+        ? await provider.getProfile().catch(() => null)
+        : null;
       const merged = mergeProfile(source, { birthDate, sex });
-      if (afterConnect(permission, merged) === "done") {
+      if (afterConnect(merged) === "done") {
         finish();
         return;
       }
       setProfile(merged);
+      setProfileSource(source);
       setPages([...INTRO_PAGES, "profile"]);
       // Wait a frame so the new page exists before scrolling to it.
       requestAnimationFrame(() => goTo(INTRO_PAGES.length));
@@ -158,7 +164,7 @@ export function OnboardingScreen() {
     if (primaryAction === "next") goTo(index + 1);
     else if (primaryAction === "connect") void connect();
     else if (primaryAction === "continue") void continueFromConnect();
-    else if (primaryAction === "sample") finish();
+    else if (primaryAction === "sample") void continueFromConnect();
   };
 
   return (
@@ -231,7 +237,12 @@ export function OnboardingScreen() {
               />
             ) : null}
             {key === "profile" && profile ? (
-              <ProfilePage initial={profile} onSaved={finish} onSkip={finish} />
+              <ProfilePage
+                initial={profile}
+                intro={profileIntro(profileSource, sourceName)}
+                onSaved={finish}
+                onSkip={finish}
+              />
             ) : null}
           </ScrollView>
         ))}
@@ -272,7 +283,7 @@ export function OnboardingScreen() {
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
-            onPress={finish}
+            onPress={() => void continueFromConnect()}
             className="items-center"
           >
             <Text className="type-caption text-text-subtle">
