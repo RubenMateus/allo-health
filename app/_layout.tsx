@@ -111,6 +111,7 @@ function ThemedStack() {
         <Stack.Screen name="sleep" />
         <Stack.Screen name="strain" />
         <Stack.Screen name="recovery" />
+        <Stack.Screen name="summary" />
       </Stack>
     </>
   );

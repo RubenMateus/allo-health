@@ -134,7 +134,7 @@ function workout(startedAt: string, minutes: number, kcal: number | null): Worko
     startedAt,
     endedAt: end.toISOString(),
     activeEnergyKcal: kcal,
-    heartRate: { average: null, max: null },
+    heartRate: { average: null, max: null, peak: null, recovery: null },
   } as Workout;
 }
 
