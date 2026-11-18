@@ -8,6 +8,7 @@ import {
   BASELINE_DAYS,
   dailyValue,
   scoreDay,
+  sleepAsOf,
   type DailyScore,
   type SignalKind,
 } from "@/services/metrics/daily";
@@ -69,26 +70,23 @@ export async function loadDashboardData(
 ): Promise<DashboardData> {
   const now = new Date();
   const past = !!day && toDayKey(day) !== toDayKey(now);
-  // Late afternoon picks the night that ended that morning, as computeDay does.
-  const asOf = past ? new Date(day) : undefined;
-  asOf?.setHours(18, 0, 0, 0);
+  const asOf = past ? sleepAsOf(day) : undefined;
   const anchor = past ? new Date(day) : undefined;
   anchor?.setHours(23, 59, 59, 999);
-  const results = await Promise.allSettled([
-    provider.getSleep(asOf),
-    provider.getHRV(day),
-    provider.getRestingHR(day),
-    provider.getRespiratoryRate(day),
-    provider.getStrainInputs(day),
-    provider.getNutrition(day),
-    provider.getGlucose(day),
-    provider.getStressSamples(day),
+  // The baseline histories don't depend on the day's reads, so both go at once.
+  const [results, histories] = await Promise.all([
+    Promise.allSettled([
+      provider.getSleep(asOf),
+      provider.getHRV(day),
+      provider.getRestingHR(day),
+      provider.getRespiratoryRate(day),
+      provider.getStrainInputs(day),
+      provider.getNutrition(day),
+      provider.getGlucose(day),
+      provider.getStressSamples(day),
+    ]),
+    readSignalHistories(provider, BASELINE_DAYS + 1, anchor),
   ]);
-  const histories = await readSignalHistories(
-    provider,
-    BASELINE_DAYS + 1,
-    anchor,
-  );
   const fulfilled = results.filter(
     (result) => result.status === "fulfilled",
   ).length;

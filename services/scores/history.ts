@@ -5,6 +5,7 @@ import {
   BASELINE_DAYS,
   dailyValue,
   scoreDay,
+  sleepAsOf,
   type DailyScore,
   type SignalKind,
 } from "@/services/metrics/daily";
@@ -23,13 +24,6 @@ export const RETRY_AFTER_HOURS = 6;
 export const KEEP_DAYS = 730;
 const STORAGE_KEY = "days";
 
-const daysBefore = (now: Date, days: number) => {
-  const day = new Date(now);
-  day.setHours(0, 0, 0, 0);
-  day.setDate(day.getDate() - days);
-  return day;
-};
-
 async function readStored(
   storage: ScoreStorage,
 ): Promise<Record<string, DailyScore>> {
@@ -39,6 +33,20 @@ async function readStored(
   } catch {
     return {};
   }
+}
+
+/** Keeps nothing: sample scores are cheap to recompute and must never pass for real ones. */
+const discardingStorage: ScoreStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+};
+
+/** The store to keep `provider`'s scores in; the sample provider's are never kept. */
+export function scoreStorageFor(
+  provider: HealthProvider,
+  storage: ScoreStorage,
+): ScoreStorage {
+  return provider.kind === "mock" ? discardingStorage : storage;
 }
 
 let storedDaysQueue: Promise<unknown> = Promise.resolve();
@@ -96,10 +104,9 @@ export async function loadScoreHistory(
   const stored = await withStoredDays(() => readStored(storage));
   // Count back from today's date, not the clock: the dashboard may have been
   // read before midnight and the app left open.
-  const anchor = fromDayKey(today.date);
   const past = Array.from({ length: HISTORY_DAYS - 1 }, (_, index) => {
     const daysAgo = HISTORY_DAYS - 1 - index;
-    return { daysAgo, date: toDayKey(daysBefore(anchor, daysAgo)) };
+    return { daysAgo, date: shiftDayKey(today.date, -daysAgo) };
   });
   const stale = past.filter(({ date, daysAgo }) =>
     needsCompute(stored[date], daysAgo, now),
@@ -116,8 +123,7 @@ export async function loadScoreHistory(
       fresh[date] = await computeDay(provider, date, histories, now);
     }
     Object.assign(stored, fresh);
-    // Sample scores are cheap to recompute and must never pass for real ones.
-    if (provider.kind !== "mock") await saveDays(storage, today.date, fresh);
+    await saveDays(storage, today.date, fresh);
   }
 
   return [...past.map(({ date }) => stored[date]!), today];
@@ -127,7 +133,7 @@ export async function loadScoreHistory(
  * Scores for every day in [from, to]. Today and later map to null and are never
  * stored. Days already stored are passed to `onStored` first, then missing
  * finished days are computed one at a time, saved, and passed to `onDay` as
- * they land. Scores from the sample provider are returned but never saved.
+ * they land.
  * Once `signal` aborts, no further reads or writes happen.
  */
 export async function loadScoreRange(
@@ -168,8 +174,7 @@ export async function loadScoreRange(
     const score = await computeDay(provider, date, histories, now);
     if (signal?.aborted) break;
     // Durable before it is reported, so an interrupted backfill keeps its days.
-    if (provider.kind !== "mock")
-      await saveDays(storage, todayKey, { [date]: score });
+    await saveDays(storage, todayKey, { [date]: score });
     result[date] = score;
     onDay?.(score);
   }
@@ -183,9 +188,7 @@ async function computeDay(
   now: Date,
 ): Promise<DailyScore> {
   const day = fromDayKey(date);
-  // Late afternoon picks the night that ended that morning, not a later nap.
-  const asOf = new Date(day);
-  asOf.setHours(18, 0, 0, 0);
+  const asOf = sleepAsOf(day);
   const signals = {
     hrv: dailyValue(histories.hrv, date),
     restingHeartRate: dailyValue(histories.restingHeartRate, date),

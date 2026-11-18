@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { DetailSection } from "@/components/detail/DetailLayout";
+import { HistoryLoading } from "@/components/detail/ScoreHistorySection";
 import { Card, Pill } from "@/components/ui/primitives";
 import { useScoreHistory } from "@/hooks/useScoreHistory";
 import { MAX_STRAIN } from "@/services/coaching";
@@ -10,12 +11,16 @@ import {
   lastDays,
   loadBalance,
   loadBalanceSummary,
+  type LoadBalance,
   type LoadDay,
   type LoadVerdict,
 } from "@/services/metrics/loadBalance";
-import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
+import { useBrowsedDay } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { formatDay, formatNumber } from "@/utils/formatters";
+
+/** Days the Load balance chart shows, ending with the newest. */
+const LOAD_BALANCE_DAYS = 14;
 
 const verdicts: Record<
   LoadVerdict,
@@ -189,18 +194,21 @@ export function LoadBalanceCard({
   days,
   width,
   selectedDate,
-  count = 14,
+  count = LOAD_BALANCE_DAYS,
+  balance: computed,
 }: {
   days: readonly LoadDay[];
   /** How many days the chart shows, ending with the newest. */
   count?: number;
+  /** The verdict for these days, when the caller already worked it out. */
+  balance?: LoadBalance;
   /** Width of the chart, i.e. the card's inner width. */
   width: number;
   selectedDate?: string | null;
 }) {
   const { colors } = useTheme();
   const shown = lastDays(days, count);
-  const balance = loadBalance(shown);
+  const balance = computed ?? loadBalance(shown);
 
   return (
     <Card className="gap-lg">
@@ -239,32 +247,30 @@ export function LoadBalanceCard({
 /** The Load balance section for the Strain and Recovery pages, fed by the cached day history. */
 export function LoadBalanceSection({ width }: { width: number }) {
   const { data: days } = useScoreHistory();
-  const isToday = useIsToday();
-  const selectedDay = useSelectedDayKey();
-  const verdict = days ? loadBalance(lastDays(days, 14)).verdict : null;
-  const pill = verdict ? verdicts[verdict] : null;
+  const browsed = useBrowsedDay();
+  const balance = days ? loadBalance(lastDays(days, LOAD_BALANCE_DAYS)) : null;
+  const pill = balance?.verdict ? verdicts[balance.verdict] : null;
   return (
     <DetailSection
       title="Load balance"
       trailing={
-        !days ? null : pill ? (
+        !balance ? null : pill ? (
           <Pill tone={pill.tone}>{pill.label}</Pill>
         ) : (
           <Pill>Not enough data</Pill>
         )
       }
     >
-      {days ? (
+      {days && balance ? (
         <LoadBalanceCard
           days={days}
+          balance={balance}
           width={width}
-          selectedDate={isToday ? null : selectedDay}
+          selectedDate={browsed}
         />
       ) : (
         <Card>
-          <Text className="type-caption text-text-subtle">
-            Reading the last two weeks…
-          </Text>
+          <HistoryLoading />
         </Card>
       )}
     </DetailSection>

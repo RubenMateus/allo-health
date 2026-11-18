@@ -6,6 +6,7 @@ import {
   KEEP_DAYS,
   loadScoreHistory,
   loadScoreRange,
+  scoreStorageFor,
   withStoredDays,
 } from "./history";
 import type { ScoreStorage } from "./types";
@@ -275,9 +276,10 @@ describe("sample data and cancellation", () => {
     const storage = memoryStorage();
     const setItem = jest.spyOn(storage, "setItem");
     const mock = new MockHealthProvider();
+    const kept = scoreStorageFor(mock, storage);
 
-    const range = await loadScoreRange(mock, storage, key(5), key(1), NOW);
-    const history = await loadScoreHistory(mock, storage, today, NOW);
+    const range = await loadScoreRange(mock, kept, key(5), key(1), NOW);
+    const history = await loadScoreHistory(mock, kept, today, NOW);
 
     expect(Object.values(range).every(Boolean)).toBe(true);
     expect(history).toHaveLength(14);

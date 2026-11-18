@@ -1,12 +1,16 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { BarChart } from "@/components/charts/BarChart";
-import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
+import {
+  DetailLayout,
+  DetailSection,
+  PrivacyNote,
+  useDetailChartWidth,
+} from "@/components/detail/DetailLayout";
 import { LoadBalanceCard } from "@/components/loadBalance/LoadBalanceCard";
-import { PrivacyNote } from "@/components/sleep/SleepScreen";
 import { Card, EmptyState } from "@/components/ui/primitives";
 import { usePeriodSummary } from "@/hooks/usePeriodSummary";
 import { fromDayKey, tagLabels } from "@/services/journal";
@@ -22,7 +26,6 @@ import {
 } from "@/services/metrics/summary";
 import { useDayStore, useTodayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
-import { spacing } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
 import { formatDay, formatDuration, formatMonthName } from "@/utils/formatters";
 
@@ -61,8 +64,7 @@ export function SummaryScreen() {
   const today = useTodayKey();
   const period = periodFromParams(params, today);
   const summary = usePeriodSummary(period);
-  const { width } = useWindowDimensions();
-  const chartWidth = width - spacing.margin * 2 - spacing.lg * 2;
+  const chartWidth = useDetailChartWidth();
   const { colors } = useTheme();
   const selectDay = useDayStore((s) => s.selectDay);
 

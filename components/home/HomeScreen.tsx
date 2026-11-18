@@ -42,7 +42,11 @@ import {
   morningTargetStrain,
 } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
-import { sleepScoreStatus } from "@/services/metrics";
+import {
+  recoveryScoreStatus,
+  sleepScoreStatus,
+  strainScoreStatus,
+} from "@/services/metrics";
 import { fromDayKey } from "@/services/journal";
 import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -146,22 +150,8 @@ function DashboardSections({
   chartWidth: number;
 }) {
   const { colors, gradients } = useTheme();
-  const strainStatus =
-    data.strainScore === null
-      ? "NO DATA"
-      : data.strainScore >= 15
-        ? "HIGH"
-        : data.strainScore >= 9
-          ? "MODERATE"
-          : "LOW";
-  const recoveryStatus =
-    data.recoveryScore === null
-      ? "NO DATA"
-      : data.recoveryScore >= 75
-        ? "HIGH"
-        : data.recoveryScore >= 50
-          ? "MODERATE"
-          : "LOW";
+  const strainStatus = strainScoreStatus(data.strainScore);
+  const recoveryStatus = recoveryScoreStatus(data.recoveryScore);
   const sleepStatus = sleepScoreStatus(data.sleepScore);
   const rings: (RingMetric & {
     href: "/strain" | "/recovery" | "/sleep";

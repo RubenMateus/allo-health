@@ -1,12 +1,19 @@
+import { recoveryScoreStatus } from "@/services/metrics";
 import type { ColorTokens } from "@/theme/tokens";
 
-/** Dot colour for a day's recovery, matching the recovery ring's bands; null means no dot. */
+/** Colour for a day's recovery, matching the recovery ring's bands; null means no score. */
 export function recoveryDotColor(
   score: number | null,
   colors: ColorTokens,
 ): string | null {
-  if (score === null) return null;
-  if (score >= 75) return colors.primary;
-  if (score >= 50) return colors.stress;
-  return colors.error;
+  switch (recoveryScoreStatus(score)) {
+    case "NO DATA":
+      return null;
+    case "HIGH":
+      return colors.primary;
+    case "MODERATE":
+      return colors.stress;
+    case "LOW":
+      return colors.error;
+  }
 }

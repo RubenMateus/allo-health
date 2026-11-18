@@ -14,6 +14,15 @@ import {
 
 /** Recovery compares a day to the average of the days before it. */
 export const BASELINE_DAYS = 30;
+/**
+ * When to read a past day's sleep: late afternoon picks the night that ended
+ * that morning, not a later nap.
+ */
+export function sleepAsOf(day: Date): Date {
+  const asOf = new Date(day);
+  asOf.setHours(18, 0, 0, 0);
+  return asOf;
+}
 /** Fewer days than this and the baseline isn't trusted yet. */
 export const MIN_BASELINE_DAYS = 7;
 /** Used while a personal baseline is still building. */

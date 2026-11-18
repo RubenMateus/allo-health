@@ -1,34 +1,27 @@
-import { LockKeyhole } from "lucide-react-native";
-import { Text, useWindowDimensions, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { Hypnogram, stageLabels } from "@/components/charts/Hypnogram";
 import {
   DetailLayout,
   DetailSection,
+  PrivacyNote,
   StatGrid,
+  useDetailChartWidth,
 } from "@/components/detail/DetailLayout";
 import { Card, EmptyState } from "@/components/ui/primitives";
-import { dayEyebrow } from "@/components/day/dayLabels";
+import { usePastDayEyebrow } from "@/components/day/dayLabels";
 import { useDayDashboard } from "@/hooks/useHealthDashboard";
 import type { SleepData, SleepStage } from "@/services/health/types";
-import { sleepScoreStatus } from "@/services/metrics";
+import { scoreStatusLabels, sleepScoreStatus } from "@/services/metrics";
 import { useIsToday } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
-import { spacing } from "@/theme/tokens";
 import { formatClock, formatDuration } from "@/utils/formatters";
-
-const statusLabels = {
-  OPTIMAL: "Optimal",
-  FAIR: "Fair",
-  LOW: "Low",
-  "NO DATA": "No data",
-} as const;
 
 /** Last night: the sleep score, time in bed and asleep, and the stages across the night. */
 export function SleepScreen() {
   const { data } = useDayDashboard();
   const isToday = useIsToday();
-  const subtitle = data && !isToday ? dayEyebrow(data.date) : undefined;
+  const subtitle = usePastDayEyebrow();
   if (!data)
     return <DetailLayout title="Sleep" value={null} status="Loading" />;
 
@@ -59,7 +52,7 @@ export function SleepScreen() {
       subtitle={subtitle}
       value={`${sleepScore}`}
       unit="/ 100"
-      status={statusLabels[sleepScoreStatus(sleepScore)]}
+      status={scoreStatusLabels[sleepScoreStatus(sleepScore)]}
       caption={`${isToday ? "LAST NIGHT" : "THAT NIGHT"} / ${window}`}
     >
       <Card>
@@ -104,8 +97,7 @@ export function SleepScreen() {
 
 function StagesCard({ sleep }: { sleep: SleepData }) {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
-  const chartWidth = width - spacing.margin * 2 - spacing.lg * 2;
+  const chartWidth = useDetailChartWidth();
   const staged = sleep.deepMinutes + sleep.remMinutes + sleep.lightMinutes > 0;
   const totals: { stage: SleepStage; minutes: number; color: string }[] = staged
     ? [
@@ -192,17 +184,5 @@ function StagesCard({ sleep }: { sleep: SleepData }) {
         </Text>
       )}
     </Card>
-  );
-}
-
-export function PrivacyNote() {
-  const { colors } = useTheme();
-  return (
-    <View className="flex-row items-center gap-sm">
-      <LockKeyhole color={colors.textSubtle} size={14} />
-      <Text className="type-caption text-text-subtle flex-1">
-        Read on this phone from your health data. Nothing is sent anywhere.
-      </Text>
-    </View>
   );
 }

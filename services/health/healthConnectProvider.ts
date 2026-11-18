@@ -27,6 +27,7 @@ import {
   bucketSamples,
   buildSleepTimeline,
   dayWindow,
+  pastDayWindow,
   buildStressSamples,
   dedupeWorkouts,
   pickMainSleep,
@@ -39,12 +40,7 @@ const todayStart = () => {
   return start;
 };
 
-/** The window of an earlier day, or null for today (or no day), which keeps the live windows. */
-const pastWindow = (day?: Date) => {
-  if (!day) return null;
-  const window = dayWindow(day, now());
-  return window.start.getTime() === todayStart().getTime() ? null : window;
-};
+const pastWindow = (day?: Date) => pastDayWindow(day, now());
 
 const requestedRecords = [
   "SleepSession",
