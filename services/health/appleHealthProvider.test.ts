@@ -415,3 +415,68 @@ describe("AppleHealthProvider.getWorkoutDetails", () => {
     });
   });
 });
+
+describe("AppleHealthProvider reads for a given day", () => {
+  it("reads strain inputs from that day's midnight to the next", async () => {
+    mocked.queryQuantitySamples.mockImplementation(async (identifier) => {
+      if (identifier === "HKQuantityTypeIdentifierHeartRate")
+        return [
+          quantitySample(150, "count/min", at(20, 23, 50)),
+          quantitySample(150, "count/min", at(21, 10)),
+          quantitySample(150, "count/min", at(22, 0, 10)),
+        ] as never;
+      return [] as never;
+    });
+    mocked.queryStatisticsForQuantity.mockResolvedValue({
+      sumQuantity: { unit: "kcal", quantity: 500 },
+      sources: [],
+    } as never);
+
+    const inputs = await provider().getStrainInputs(at(21, 15));
+
+    expect(inputs.heartRateSamples).toHaveLength(1);
+    expect(inputs.activeEnergyKcal).toBe(500);
+    const window = { startDate: at(21, 0), endDate: at(22, 0) };
+    expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierHeartRate",
+      expect.objectContaining({ filter: { date: window } }),
+    );
+    expect(mocked.queryStatisticsForQuantity).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierActiveEnergyBurned",
+      ["cumulativeSum"],
+      { unit: "kcal", filter: { date: window } },
+    );
+    expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(
+      "HKQuantityTypeIdentifierRestingHeartRate",
+      expect.objectContaining({
+        filter: {
+          date: {
+            startDate: new Date(at(22, 0).getTime() - 7 * 86_400_000),
+            endDate: at(22, 0),
+          },
+        },
+      }),
+    );
+  });
+
+  it("reads the night that ended on that day's morning", async () => {
+    mocked.queryCategorySamples.mockResolvedValue([
+      ...watchNight(at(20, 23, 30)),
+    ] as never);
+
+    const sleep = await provider().getSleep(at(21, 18));
+
+    expect(sleep?.durationMinutes).toBe(390);
+    expect(mocked.queryCategorySamples).toHaveBeenCalledWith(
+      "HKCategoryTypeIdentifierSleepAnalysis",
+      expect.objectContaining({
+        filter: {
+          date: {
+            startDate: new Date(at(21, 18).getTime() - 36 * 3_600_000),
+            endDate: at(21, 18),
+          },
+        },
+      }),
+    );
+  });
+});
