@@ -78,6 +78,7 @@ export function StrainScreen() {
             points={strainCurve(strainInputs)}
             band={target}
             now={curveEnd}
+            endLabel={isToday ? "NOW" : "24:00"}
             width={chartWidth}
             accessibilityLabel={
               target

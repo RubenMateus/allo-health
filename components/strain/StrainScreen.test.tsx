@@ -77,4 +77,17 @@ describe("StrainScreen day navigation", () => {
     expect(await screen.findByText("MONDAY'S DATA")).toBeTruthy();
     expect(screen.queryByText(/TARGET/)).toBeNull();
   });
+
+  it("ends the strain curve at 24:00 on a past day and NOW on today", async () => {
+    useDayStore.setState({ selectedDay: "2026-11-16" });
+    await renderStrain();
+    expect(await screen.findByText("24:00")).toBeTruthy();
+    expect(screen.queryByText("NOW")).toBeNull();
+    await cleanup();
+    client.clear();
+    useDayStore.setState({ selectedDay: null });
+    await renderStrain();
+    expect(await screen.findByText("NOW")).toBeTruthy();
+    expect(screen.queryByText("24:00")).toBeNull();
+  });
 });

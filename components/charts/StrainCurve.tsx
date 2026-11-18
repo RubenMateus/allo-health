@@ -13,6 +13,7 @@ export function StrainCurve({
   now,
   width,
   height = 140,
+  endLabel = "NOW",
   accessibilityLabel,
 }: {
   points: { timestamp: string; strain: number }[];
@@ -22,6 +23,8 @@ export function StrainCurve({
   now: Date;
   width: number;
   height?: number;
+  /** Label at the right end of the axis; "24:00" for a finished day. */
+  endLabel?: string;
   accessibilityLabel: string;
 }) {
   const { colors } = useTheme();
@@ -77,7 +80,7 @@ export function StrainCurve({
       </Svg>
       <View className="flex-row justify-between mt-xs">
         <Text className="type-mono-small text-text-subtle">00:00</Text>
-        <Text className="type-mono-small text-text-subtle">NOW</Text>
+        <Text className="type-mono-small text-text-subtle">{endLabel}</Text>
       </View>
     </View>
   );
