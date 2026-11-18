@@ -27,7 +27,7 @@ Know exactly which version of Allo Health is on the phone, and be able to rebuil
 - `release-please-config.json` + `.release-please-manifest.json`, release type `node` (bumps package.json), with `app.json` `expo.version` as an extra JSON file so both stay in sync.
 - Changelog sections: Features, Bug fixes; `build(deps)`, `docs`, `chore` hidden.
 - **First release (my call):** v1.0.0 = everything on main today, so the current phone build has a tag. Later releases follow normal bumps.
-- **Settings (my call):** a small "Version 1.2.0 (abc1234)" line at the bottom of Settings. The version comes from `expo-constants`. The commit id is injected at build time by turning `app.json` into an `app.config.ts` that reads `git rev-parse --short HEAD` into `extra.commit` (falls back to "dev").
+- **Settings (my call):** a small "Version 1.2.0 (abc1234)" line at the bottom of Settings. The version comes from `expo-constants`. The commit id is injected at build time by a new `app.config.ts` that extends the static `app.json` (kept, so release-please can bump it) and reads `git rev-parse --short HEAD` into `extra.commit` (falls back to "dev"). Settings already shows "Allo Health 1.0.0"; this adds the commit.
 - Rollback = `git checkout vX.Y.Z` and build locally. Documented in docs/DEVELOPMENT.md.
 
 ## Things to know
