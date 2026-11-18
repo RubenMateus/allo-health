@@ -69,9 +69,6 @@
             "minSdkVersion": 26,
             "compileSdkVersion": 36,
             "targetSdkVersion": 36
-          },
-          "ios": {
-            "enableSceneSupport": true
           }
         }
       ],
@@ -83,7 +80,10 @@
           "backgroundColor": "#101319"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-font",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
