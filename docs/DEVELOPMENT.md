@@ -162,6 +162,28 @@ bun run test        # jest, run in band
 
 Tests cover the pure logic in `services/` (metrics, coaching, scores, summaries and data loading), the stores and hooks, the native adapters against payload fixtures, key screens and navigation (`RootStack.test.tsx` checks the intro gate with `expo-router/testing-library`), and the styling setup: `theme/nativewind.test.tsx` compiles the Tailwind config the way the iOS and Android builds do and checks every color, type, spacing and radius class against `theme/tokens.ts`. They run in Node and do not need a simulator. Use `bun run test`, not `bun test`: `bun test` starts Bun's own test runner, which does not work with the jest-expo preset.
 
+## Releases
+
+Releases are versioned, tagged and written up automatically by [release-please](https://github.com/googleapis/release-please). Nothing is sent to the app stores.
+
+- Every push to `main` updates one open pull request called "chore(main): release X.Y.Z". It holds the next version in `package.json` and `app.json` and the new `CHANGELOG.md` entries.
+- The version comes from pull request titles: `feat:` bumps the minor version and `fix:` bumps the patch version. Only features, fixes and performance changes go in the changelog; `build`, `chore`, `ci`, `docs`, `refactor`, `style` and `test` are left out. Keep titles in this format, since squash merges use them as the commit message.
+- Merge the release PR when you want a release. That tags the commit `vX.Y.Z` and creates a GitHub release. Ignore it until then.
+- The release PR shows no CI checks, because GitHub doesn't run workflows on PRs opened by Actions. It only changes versions and the changelog.
+- Settings shows the version and the commit the build came from, for example `Allo Health 1.2.0 (abc1234)`. Builds without git show `dev`.
+
+To go back to a known good release, check out its tag and rebuild:
+
+```sh
+git checkout v1.0.0
+bunx expo prebuild --clean
+bunx expo run:ios   # or run:android
+```
+
+One-time setup: enable **Allow GitHub Actions to create and approve pull requests** in the repository settings (Settings → Actions → General → Workflow permissions), or the release PR can't be opened.
+
+The first release is pinned to 1.0.0 with `release-as` in `release-please-config.json`. Remove that line once `v1.0.0` is tagged, or every later release would stay at 1.0.0.
+
 ## Project layout
 
 ```
