@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useDayScores } from "@/hooks/useDayScores";
-import { fromDayKey } from "@/services/journal";
+import { fromDayKey, shiftDayKey } from "@/services/journal";
 import type { DailyScore } from "@/services/metrics/daily";
 import {
   daysInPeriod,
@@ -52,7 +52,12 @@ export function usePeriodSummary(period: Period): PeriodSummaryData {
 
   const { data: workoutList } = useQuery({
     queryKey: ["period-workouts", provider.kind, period.start, period.end],
-    queryFn: () => provider.getWorkouts(fromDayKey(period.start)),
+    // Only the period itself: its last day ends at the next local midnight.
+    queryFn: () =>
+      provider.getWorkouts(
+        fromDayKey(period.start),
+        new Date(Math.min(fromDayKey(shiftDayKey(period.end, 1)).getTime(), Date.now())),
+      ),
   });
 
   return useMemo(() => {

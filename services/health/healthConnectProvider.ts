@@ -448,8 +448,8 @@ export class HealthConnectProvider implements HealthProvider {
     return buildStressSamples(heartRate, hrv, pastWindow(day)?.end ?? now());
   }
 
-  async getWorkouts(since: Date): Promise<Workout[]> {
-    const sessions = await this.read("ExerciseSession", since);
+  async getWorkouts(since: Date, until: Date = now()): Promise<Workout[]> {
+    const sessions = await this.read("ExerciseSession", since, until);
     const workouts = await Promise.all(
       sessions.map(async (session): Promise<Workout> => {
         const start = new Date(session.startTime);

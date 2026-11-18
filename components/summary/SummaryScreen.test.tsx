@@ -161,3 +161,32 @@ it("the week's load balance chart shows only that week's 7 days", async () => {
   client.clear();
   jest.useRealTimers();
 });
+
+describe("SummaryScreen review fixes", () => {
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date(2026, 10, 18, 17, 30) });
+    useDayStore.setState({ selectedDay: null, todayKey: "2026-11-18" });
+    mockParams = {};
+  });
+  afterEach(async () => {
+    await cleanup();
+    client.clear();
+    jest.useRealTimers();
+  });
+
+  it("the current week's load balance chart starts on its Monday", async () => {
+    mockSummary.mockReturnValue(data(threeDays, []));
+    await renderSummary();
+    expect(screen.queryByText("Nov 12")).toBeNull();
+    expect(screen.getAllByText("Nov 16").length).toBeGreaterThan(0);
+  });
+
+  it("shows no headline average or change without enough data", async () => {
+    const two = data(threeDays.slice(0, 2), []);
+    two.scores = { ...two.scores, deltas: { recovery: 8, strain: null, sleep: null } };
+    mockSummary.mockReturnValue(two);
+    await renderSummary();
+    expect(screen.queryByText(/VS LAST WEEK/)).toBeNull();
+    expect(screen.queryByText("60")).toBeNull();
+  });
+});

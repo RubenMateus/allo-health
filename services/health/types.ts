@@ -155,7 +155,8 @@ export interface HealthProvider {
   getNutrition(day?: Date): Promise<NutritionData | null>;
   getGlucose(day?: Date): Promise<GlucoseData | null>;
   getStressSamples(day?: Date): Promise<StressSample[]>;
-  getWorkouts(since: Date): Promise<Workout[]>;
+  /** Workouts from `since` up to `until` (default now). */
+  getWorkouts(since: Date, until?: Date): Promise<Workout[]>;
   /** Distance samples, elevation and running form for one workout. */
   getWorkoutDetails(workout: Workout): Promise<WorkoutDetails>;
   /** One value per day (the daily average), oldest first. */

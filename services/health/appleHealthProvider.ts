@@ -542,12 +542,12 @@ export class AppleHealthProvider implements HealthProvider {
     return buildStressSamples(heartRate, hrv, pastWindow(day)?.end ?? now());
   }
 
-  async getWorkouts(since: Date): Promise<Workout[]> {
+  async getWorkouts(since: Date, until: Date = now()): Promise<Workout[]> {
     const healthKit = await this.loadHealthKit();
     const workouts = await healthKit.queryWorkoutSamples({
       limit: 0,
       ascending: true,
-      filter: { date: { startDate: since, endDate: now() } },
+      filter: { date: { startDate: since, endDate: until } },
     });
     const results = await Promise.all(
       workouts.map(async (workout): Promise<Workout> => {

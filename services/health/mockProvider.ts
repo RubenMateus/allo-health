@@ -380,8 +380,11 @@ export class MockHealthProvider implements HealthProvider {
     }));
   }
 
-  async getWorkouts(since: Date): Promise<Workout[]> {
-    return mockWorkouts(since);
+  async getWorkouts(since: Date, until?: Date): Promise<Workout[]> {
+    const workouts = mockWorkouts(since);
+    return until
+      ? workouts.filter((w) => new Date(w.startedAt).getTime() < until.getTime())
+      : workouts;
   }
 
   async getWorkoutDetails(workout: Workout): Promise<WorkoutDetails> {

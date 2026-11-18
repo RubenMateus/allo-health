@@ -13,6 +13,7 @@ import { fromDayKey, tagLabels } from "@/services/journal";
 import type { DailyScore } from "@/services/metrics/daily";
 import { loadBalanceRules } from "@/services/metrics/loadBalance";
 import {
+  daysInPeriod,
   periodContaining,
   shiftPeriod,
   summaryRules,
@@ -85,11 +86,15 @@ export function SummaryScreen() {
   return (
     <DetailLayout
       title={noun === "week" ? "Week summary" : "Month summary"}
-      value={summary.scores.averages.recovery === null ? null : `${Math.round(summary.scores.averages.recovery)}`}
+      value={
+        !enoughData || averages.recovery === null ? null : `${Math.round(averages.recovery)}`
+      }
       unit="%"
       status="Average recovery"
       caption={
-        deltas.recovery === null ? null : `${formatDelta(deltas.recovery)} ${versus.toUpperCase()}`
+        !enoughData || deltas.recovery === null
+          ? null
+          : `${formatDelta(deltas.recovery)} ${versus.toUpperCase()}`
       }
     >
       <View className="flex-row items-center justify-between -mt-lg">
@@ -168,7 +173,8 @@ export function SummaryScreen() {
           {period.kind === "week" ? (
             <DetailSection title="Load balance">
               <LoadBalanceCard
-                days={summary.days.map((day) => ({
+                // The whole week, days still to come left empty, so the chart starts on Monday.
+                days={daysInPeriod(period, period.end).map((day) => ({
                   date: day,
                   strain: summary.scoresByDay[day]?.strain ?? null,
                   recovery: summary.scoresByDay[day]?.recovery ?? null,
