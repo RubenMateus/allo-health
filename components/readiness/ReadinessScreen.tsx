@@ -41,10 +41,10 @@ export function ReadinessScreen() {
   if (!data)
     return <DetailLayout title="Readiness" value={null} status="Loading" />;
 
-  const input = coachingInputFrom(data);
+  const input = coachingInputFrom(data.today);
   const coaching = coachingEngine.recommend(input);
-  const target = morningTargetStrain(data);
-  const waiting = data.recoveryScore === null || data.sleepScore === null;
+  const target = morningTargetStrain(data.today);
+  const waiting = data.today.recovery === null || data.today.sleepScore === null;
 
   return (
     <DetailLayout
@@ -61,7 +61,7 @@ export function ReadinessScreen() {
             scale built from time in heart rate zones and active energy. Aim to
             end the day inside the highlighted band.
           </Text>
-          <StrainScale target={target} current={data.strainScore} />
+          <StrainScale target={target} current={data.today.strain} />
         </Card>
       </DetailSection>
 
@@ -182,26 +182,26 @@ function StrainScale({
 }
 
 function InputRows({ data }: { data: DashboardData }) {
-  const effect = explainInputs(coachingInputFrom(data));
+  const effect = explainInputs(coachingInputFrom(data.today));
   const t = coachingThresholds;
   const rows = [
     {
       label: "Recovery",
-      value: data.recoveryScore,
+      value: data.today.recovery,
       unit: "/ 100",
       effect: effect.recovery,
       rule: `Under ${t.recoverBelowRecovery} means recover, ${t.pushFromRecovery}+ leaves room to build.`,
     },
     {
       label: "Sleep",
-      value: data.sleepScore,
+      value: data.today.sleepScore,
       unit: "/ 100",
       effect: effect.sleep,
       rule: `Under ${t.recoverBelowSleep} means recover.`,
     },
     {
       label: "Strain so far",
-      value: data.strainScore,
+      value: data.today.strain,
       unit: `/ ${MAX_STRAIN}`,
       effect: effect.strain,
       rule: `At ${t.pushBelowStrain} or more, today's load is already high enough to stop building.`,

@@ -85,15 +85,15 @@ export class RulesCoachingEngine implements CoachingEngine {
 
 export const coachingEngine: CoachingEngine = new RulesCoachingEngine();
 
-/** The engine's input from dashboard scores, with neutral stand-ins for missing ones. */
+/** The engine's input from a day's scores, with neutral stand-ins for missing ones. */
 export function coachingInputFrom(scores: {
-  recoveryScore: number | null;
-  strainScore: number | null;
+  recovery: number | null;
+  strain: number | null;
   sleepScore: number | null;
 }): CoachingInput {
   return {
-    recovery: scores.recoveryScore ?? 50,
-    strain: scores.strainScore ?? 0,
+    recovery: scores.recovery ?? 50,
+    strain: scores.strain ?? 0,
     sleep: scores.sleepScore ?? 50,
   };
 }
@@ -103,10 +103,10 @@ export function coachingInputFrom(scores: {
  * done yet. It stays fixed all day instead of dropping once you pass the push cut-off.
  */
 export function morningTargetStrain(scores: {
-  recoveryScore: number | null;
+  recovery: number | null;
   sleepScore: number | null;
 }): readonly [number, number] {
   return coachingEngine.recommend(
-    coachingInputFrom({ ...scores, strainScore: 0 }),
+    coachingInputFrom({ ...scores, strain: 0 }),
   ).targetStrain;
 }

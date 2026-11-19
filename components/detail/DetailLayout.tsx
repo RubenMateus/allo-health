@@ -1,11 +1,18 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, LockKeyhole } from "lucide-react-native";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useTheme } from "@/theme/ThemeProvider";
+import { spacing } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
 
 /**
@@ -193,6 +200,25 @@ export function StatGrid({
           </Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+/** Inner width of a full-width card on a detail page. */
+export function useDetailChartWidth(): number {
+  const { width } = useWindowDimensions();
+  return width - spacing.margin * 2 - spacing.lg * 2;
+}
+
+/** The on-device reminder at the foot of each health detail page. */
+export function PrivacyNote() {
+  const { colors } = useTheme();
+  return (
+    <View className="flex-row items-center gap-sm">
+      <LockKeyhole color={colors.textSubtle} size={14} />
+      <Text className="type-caption text-text-subtle flex-1">
+        Read on this phone from your health data. Nothing is sent anywhere.
+      </Text>
     </View>
   );
 }

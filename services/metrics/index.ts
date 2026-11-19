@@ -48,6 +48,32 @@ export function calculateSleepScore(sleep: SleepData): number {
   );
 }
 
+/** The word shown beside a strain score: 15+ high, 9+ moderate, else low. */
+export function strainScoreStatus(score: number | null) {
+  if (score === null) return "NO DATA";
+  if (score >= 15) return "HIGH";
+  if (score >= 9) return "MODERATE";
+  return "LOW";
+}
+
+/** The word shown beside a recovery score: 75+ high, 50+ moderate, else low. */
+export function recoveryScoreStatus(score: number | null) {
+  if (score === null) return "NO DATA";
+  if (score >= 75) return "HIGH";
+  if (score >= 50) return "MODERATE";
+  return "LOW";
+}
+
+/** Sentence-case wording of a score status, for detail page headers. */
+export const scoreStatusLabels = {
+  OPTIMAL: "Optimal",
+  FAIR: "Fair",
+  HIGH: "High",
+  MODERATE: "Moderate",
+  LOW: "Low",
+  "NO DATA": "No data",
+} as const;
+
 /** The word shown beside a sleep score: 80+ optimal, 60+ fair, else low. */
 export function sleepScoreStatus(score: number | null) {
   if (score === null) return "NO DATA";

@@ -242,3 +242,15 @@ export function dayWindow(day: Date, now: Date): { start: Date; end: Date } {
   next.setDate(next.getDate() + 1);
   return { start, end: next < now ? next : now };
 }
+
+/** The window of an earlier day, or null for today (or no day), which keeps the live windows. */
+export function pastDayWindow(
+  day: Date | undefined,
+  now: Date,
+): { start: Date; end: Date } | null {
+  if (!day) return null;
+  const window = dayWindow(day, now);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return window.start.getTime() === today.getTime() ? null : window;
+}

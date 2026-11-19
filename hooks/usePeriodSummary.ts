@@ -47,8 +47,9 @@ export function usePeriodSummary(period: Period): PeriodSummaryData {
   const previous = useMemo(() => shiftPeriod(period, -1), [period]);
   const last = days[days.length - 1] ?? period.start;
 
-  const scoresByDay = useDayScores(period.start, last);
-  const previousByDay = useDayScores(previous.start, previous.end);
+  // One range for both periods (they are back to back), so the stored days are
+  // read and Health is asked for baselines once. Newest days fill in first.
+  const scoresByDay = useDayScores(previous.start, last);
 
   const { data: workoutList } = useQuery({
     queryKey: ["period-workouts", provider.kind, period.start, period.end],
@@ -63,7 +64,7 @@ export function usePeriodSummary(period: Period): PeriodSummaryData {
   return useMemo(() => {
     const dayScores = days.map((day) => scoresByDay[day] ?? null);
     const previousScores = daysInPeriod(previous, today).map(
-      (day) => previousByDay[day] ?? null,
+      (day) => scoresByDay[day] ?? null,
     );
     const scores = summarizeScores(dayScores, previousScores);
     const recent = isRecentPeriod(period, today);
@@ -82,5 +83,5 @@ export function usePeriodSummary(period: Period): PeriodSummaryData {
           })
         : null,
     };
-  }, [days, scoresByDay, previousByDay, previous, period, today, workoutList, entries]);
+  }, [days, scoresByDay, previous, period, today, workoutList, entries]);
 }

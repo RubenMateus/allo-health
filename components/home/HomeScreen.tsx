@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -42,7 +43,11 @@ import {
   morningTargetStrain,
 } from "@/services/coaching";
 import type { DashboardData } from "@/services/health/dashboard";
-import { sleepScoreStatus } from "@/services/metrics";
+import {
+  recoveryScoreStatus,
+  sleepScoreStatus,
+  strainScoreStatus,
+} from "@/services/metrics";
 import { fromDayKey } from "@/services/journal";
 import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -57,6 +62,7 @@ import {
 export function HomeScreen() {
   const { colors } = useTheme();
   const dimensions = useWindowDimensions();
+  const queryClient = useQueryClient();
   const { data, isLoading, isFetching, isError, refetch } = useDayDashboard();
   const isToday = useIsToday();
   const selectedDayKey = useSelectedDayKey();
@@ -82,6 +88,8 @@ export function HomeScreen() {
         onRefresh={() => {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           void refetch();
+          // The last finished days, for watches that sync late.
+          void queryClient.invalidateQueries({ queryKey: ["score-history"] });
         }}
       >
         <TabHeader
@@ -146,30 +154,16 @@ function DashboardSections({
   chartWidth: number;
 }) {
   const { colors, gradients } = useTheme();
-  const strainStatus =
-    data.strainScore === null
-      ? "NO DATA"
-      : data.strainScore >= 15
-        ? "HIGH"
-        : data.strainScore >= 9
-          ? "MODERATE"
-          : "LOW";
-  const recoveryStatus =
-    data.recoveryScore === null
-      ? "NO DATA"
-      : data.recoveryScore >= 75
-        ? "HIGH"
-        : data.recoveryScore >= 50
-          ? "MODERATE"
-          : "LOW";
-  const sleepStatus = sleepScoreStatus(data.sleepScore);
+  const strainStatus = strainScoreStatus(data.today.strain);
+  const recoveryStatus = recoveryScoreStatus(data.today.recovery);
+  const sleepStatus = sleepScoreStatus(data.today.sleepScore);
   const rings: (RingMetric & {
     href: "/strain" | "/recovery" | "/sleep";
     hint: string;
   })[] = [
     {
       label: "STRAIN",
-      value: data.strainScore,
+      value: data.today.strain,
       max: 21,
       colors: gradients.strain,
       status: strainStatus,
@@ -179,7 +173,7 @@ function DashboardSections({
     },
     {
       label: "RECOVERY",
-      value: data.recoveryScore,
+      value: data.today.recovery,
       max: 100,
       colors: gradients.recovery,
       status: recoveryStatus,
@@ -189,7 +183,7 @@ function DashboardSections({
     },
     {
       label: "SLEEP",
-      value: data.sleepScore,
+      value: data.today.sleepScore,
       max: 100,
       colors: gradients.sleep,
       status: sleepStatus,
@@ -199,9 +193,9 @@ function DashboardSections({
     },
   ];
   const coaching = isToday
-    ? coachingEngine.recommend(coachingInputFrom(data))
+    ? coachingEngine.recommend(coachingInputFrom(data.today))
     : null;
-  const target = isToday ? morningTargetStrain(data) : null;
+  const target = isToday ? morningTargetStrain(data.today) : null;
 
   return (
     <View className="gap-2xl">
@@ -210,8 +204,8 @@ function DashboardSections({
         eyebrow={
           !isToday
             ? data.source === "mock"
-              ? `SAMPLE · ${dayEyebrow(data.date)}`
-              : dayEyebrow(data.date)
+              ? `SAMPLE · ${dayEyebrow(data.today.date)}`
+              : dayEyebrow(data.today.date)
             : data.source === "mock"
               ? "SAMPLE TELEMETRY"
               : "TODAY / HEALTH SIGNALS"
@@ -313,12 +307,12 @@ function DashboardSections({
                 </Text>
               </View>
               <Text className="type-heading text-text">
-                {data.recoveryScore === null || data.sleepScore === null
+                {data.today.recovery === null || data.today.sleepScore === null
                   ? "Waiting for enough signals"
                   : coaching.title}
               </Text>
               <Text className="type-body-small text-text-muted">
-                {data.recoveryScore === null || data.sleepScore === null
+                {data.today.recovery === null || data.today.sleepScore === null
                   ? "Connect or sync more health data to personalize your daily recommendation."
                   : coaching.message}
               </Text>

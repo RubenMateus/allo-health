@@ -1,16 +1,20 @@
 import { router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-import { BarChart } from "@/components/charts/BarChart";
-import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
+import { usePastDayEyebrow } from "@/components/day/dayLabels";
+import { recoveryDotColor } from "@/components/day/recoveryDot";
+import {
+  DetailLayout,
+  DetailSection,
+  PrivacyNote,
+  useDetailChartWidth,
+} from "@/components/detail/DetailLayout";
+import { ScoreHistorySection } from "@/components/detail/ScoreHistorySection";
 import { LoadBalanceSection } from "@/components/loadBalance/LoadBalanceCard";
-import { PrivacyNote } from "@/components/sleep/SleepScreen";
-import { historyLabel } from "@/components/strain/StrainScreen";
 import { Card, Hairline } from "@/components/ui/primitives";
-import { dayEyebrow } from "@/components/day/dayLabels";
 import { useDayDashboard } from "@/hooks/useHealthDashboard";
-import { useScoreHistory } from "@/hooks/useScoreHistory";
+import { recoveryScoreStatus, scoreStatusLabels } from "@/services/metrics";
 import {
   compareToBaseline,
   MIN_BASELINE_DAYS,
@@ -18,16 +22,9 @@ import {
   type RecoverySignal,
   type SignalKind,
 } from "@/services/metrics/daily";
-import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
+import { useIsToday } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
-import { spacing } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
-
-/** Same thresholds as the Home ring. */
-export function recoveryStatus(score: number | null) {
-  if (score === null) return "No data";
-  return score >= 75 ? "High" : score >= 50 ? "Moderate" : "Low";
-}
 
 const signalRows: {
   kind: SignalKind;
@@ -55,10 +52,10 @@ const signalRows: {
 
 /** A day's recovery (today by default): what moved it against your own normal, and the last two weeks. */
 export function RecoveryScreen() {
-  const { width } = useWindowDimensions();
-  const chartWidth = width - spacing.margin * 2 - spacing.lg * 2;
+  const chartWidth = useDetailChartWidth();
   const { data } = useDayDashboard();
   const isToday = useIsToday();
+  const subtitle = usePastDayEyebrow();
   if (!data)
     return <DetailLayout title="Recovery" value={null} status="Loading" />;
 
@@ -67,10 +64,10 @@ export function RecoveryScreen() {
   return (
     <DetailLayout
       title="Recovery"
-      subtitle={isToday ? undefined : dayEyebrow(data.date)}
+      subtitle={subtitle}
       value={today.recovery === null ? null : `${today.recovery}`}
       unit={today.recovery === null ? undefined : "%"}
-      status={recoveryStatus(today.recovery)}
+      status={scoreStatusLabels[recoveryScoreStatus(today.recovery)]}
       caption={
         missing.length
           ? `WAITING FOR ${missing.join(", ").toUpperCase()}`
@@ -200,49 +197,31 @@ function SignalRow({
 
 function HistorySection({ width }: { width: number }) {
   const { colors } = useTheme();
-  const isToday = useIsToday();
-  const selectedDay = useSelectedDayKey();
-  const { data: days } = useScoreHistory();
-  const colorFor = (score: number) =>
-    score >= 75 ? colors.primary : score >= 50 ? colors.stress : colors.error;
   return (
-    <DetailSection title="Last 14 days">
-      <Card className="gap-md">
-        {days ? (
-          <BarChart
-            bars={days.map((day, index) => ({
-              value: day.recovery ?? 0,
-              color: day.recovery === null ? undefined : colorFor(day.recovery),
-              label: historyLabel(index, days.length),
-              selected: !isToday && day.date === selectedDay,
-            }))}
-            width={width}
-            color={colors.primary}
-            accessibilityLabel={`Recovery for the last ${days.length} days`}
-          />
-        ) : (
-          <Text className="type-caption text-text-subtle">
-            Reading the last two weeks…
-          </Text>
-        )}
-        <View className="flex-row gap-md">
-          {(
-            [
-              ["High", colors.primary],
-              ["Moderate", colors.stress],
-              ["Low", colors.error],
-            ] as const
-          ).map(([label, color]) => (
-            <View key={label} className="flex-row items-center gap-xs">
-              <View
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              <Text className="type-caption text-text-subtle">{label}</Text>
-            </View>
-          ))}
-        </View>
-      </Card>
-    </DetailSection>
+    <ScoreHistorySection
+      width={width}
+      pick={(day) => day.recovery}
+      color={colors.primary}
+      colorFor={(score) => recoveryDotColor(score, colors)}
+      accessibilityLabel={(days) => `Recovery for the last ${days.length} days`}
+    >
+      <View className="flex-row gap-md">
+        {(
+          [
+            ["High", colors.primary],
+            ["Moderate", colors.stress],
+            ["Low", colors.error],
+          ] as const
+        ).map(([label, color]) => (
+          <View key={label} className="flex-row items-center gap-xs">
+            <View
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <Text className="type-caption text-text-subtle">{label}</Text>
+          </View>
+        ))}
+      </View>
+    </ScoreHistorySection>
   );
 }

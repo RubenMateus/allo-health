@@ -1,47 +1,41 @@
-import { Text, useWindowDimensions, View } from "react-native";
+import { Text, View } from "react-native";
 
-import { BarChart } from "@/components/charts/BarChart";
 import { StrainCurve } from "@/components/charts/StrainCurve";
-import { DetailLayout, DetailSection } from "@/components/detail/DetailLayout";
+import { usePastDayEyebrow } from "@/components/day/dayLabels";
+import {
+  DetailLayout,
+  DetailSection,
+  PrivacyNote,
+  useDetailChartWidth,
+} from "@/components/detail/DetailLayout";
+import { ScoreHistorySection } from "@/components/detail/ScoreHistorySection";
 import { LoadBalanceSection } from "@/components/loadBalance/LoadBalanceCard";
-import { PrivacyNote } from "@/components/sleep/SleepScreen";
 import { Card, EmptyState } from "@/components/ui/primitives";
-import { dayEyebrow } from "@/components/day/dayLabels";
 import { useDayDashboard } from "@/hooks/useHealthDashboard";
-import { useScoreHistory } from "@/hooks/useScoreHistory";
-import { fromDayKey } from "@/services/journal";
 import { MAX_STRAIN, morningTargetStrain } from "@/services/coaching";
+import { scoreStatusLabels, strainScoreStatus } from "@/services/metrics";
 import { strainCurve, type DailyScore } from "@/services/metrics/daily";
-import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
+import { averageOf } from "@/services/metrics/summary";
+import { useIsToday } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
-import { spacing } from "@/theme/tokens";
 import { formatEnergy } from "@/utils/formatters";
-
-/** Same thresholds as the Home ring. */
-export function strainStatus(score: number | null) {
-  if (score === null) return "No data";
-  return score >= 15 ? "High" : score >= 9 ? "Moderate" : "Low";
-}
 
 const zoneNames = ["Easy", "Light", "Moderate", "Hard", "Max"] as const;
 
 /** A day's strain (today by default): how it built up, where it came from, and the last two weeks. */
 export function StrainScreen() {
-  const { width } = useWindowDimensions();
-  const chartWidth = width - spacing.margin * 2 - spacing.lg * 2;
+  const chartWidth = useDetailChartWidth();
   const { data } = useDayDashboard();
   const isToday = useIsToday();
-  const subtitle = data && !isToday ? dayEyebrow(data.date) : undefined;
+  const subtitle = usePastDayEyebrow();
   if (!data)
     return <DetailLayout title="Strain" value={null} status="Loading" />;
 
   // The morning target only means something on the day itself.
-  const target = isToday ? morningTargetStrain(data) : null;
+  const target = isToday ? morningTargetStrain(data.today) : null;
   const { today, strainInputs } = data;
-  // A past day's curve runs to the end of that day, not to when it was read.
-  const curveEnd = isToday
-    ? new Date(today.computedAt)
-    : new Date(fromDayKey(data.date).setHours(23, 59, 59, 999));
+  // A past day is scored as of its end, so its curve runs to midnight.
+  const curveEnd = new Date(today.computedAt);
   const caption = target ? `TARGET TODAY ${target[0]}–${target[1]}` : null;
   if (today.strain === null || !today.strainBreakdown)
     return (
@@ -69,7 +63,7 @@ export function StrainScreen() {
       subtitle={subtitle}
       value={`${today.strain}`}
       unit={`/ ${MAX_STRAIN}`}
-      status={strainStatus(today.strain)}
+      status={scoreStatusLabels[strainScoreStatus(today.strain)]}
       caption={caption}
     >
       <DetailSection title={isToday ? "Today" : "That day"}>
@@ -159,50 +153,25 @@ function ZonesCard({
 
 function HistorySection({ width }: { width: number }) {
   const { colors } = useTheme();
-  const isToday = useIsToday();
-  const selectedDay = useSelectedDayKey();
-  const { data: days } = useScoreHistory();
-  const scored = days?.filter((day) => day.strain !== null) ?? [];
-  const average = scored.length
-    ? scored.reduce((sum, day) => sum + (day.strain ?? 0), 0) / scored.length
-    : null;
+  const averageFor = (days: DailyScore[]) =>
+    averageOf(days.map((day) => day.strain));
   return (
-    <DetailSection
-      title="Last 14 days"
-      trailing={
-        average === null ? null : (
+    <ScoreHistorySection
+      width={width}
+      pick={(day) => day.strain}
+      color={colors.strainStart}
+      trailing={(days) => {
+        const average = averageFor(days);
+        return average === null ? null : (
           <Text className="type-mono-small text-text-subtle">
             AVG {average.toFixed(1)}
           </Text>
-        )
-      }
-    >
-      <Card>
-        {days ? (
-          <BarChart
-            bars={days.map((day, index) => ({
-              value: day.strain ?? 0,
-              label: historyLabel(index, days.length),
-              selected: !isToday && day.date === selectedDay,
-            }))}
-            width={width}
-            color={colors.strainStart}
-            accessibilityLabel={`Strain for the last ${days.length} days${average === null ? "" : `, average ${average.toFixed(1)}`}`}
-          />
-        ) : (
-          <Text className="type-caption text-text-subtle">
-            Reading the last two weeks…
-          </Text>
-        )}
-      </Card>
-    </DetailSection>
+        );
+      }}
+      accessibilityLabel={(days) => {
+        const average = averageFor(days);
+        return `Strain for the last ${days.length} days${average === null ? "" : `, average ${average.toFixed(1)}`}`;
+      }}
+    />
   );
-}
-
-/** Labels the first, middle and last bars. */
-export function historyLabel(index: number, count: number) {
-  if (index === count - 1) return "Today";
-  if (index === 0 || index === Math.floor((count - 1) / 2))
-    return `${count - 1 - index}d`;
-  return undefined;
 }

@@ -26,6 +26,7 @@ import {
   bucketSamples,
   buildSleepTimeline,
   dayWindow,
+  pastDayWindow,
   buildStressSamples,
   clusterIntervals,
   dedupeWorkouts,
@@ -43,13 +44,7 @@ const todayStart = () => {
   start.setHours(0, 0, 0, 0);
   return start;
 };
-/** The window of an earlier day, or null for today (or no day), which keeps the live windows. */
-const pastWindow = (day?: Date) => {
-  if (!day) return null;
-  const current = now();
-  const window = dayWindow(day, current);
-  return window.start.getTime() === todayStart().getTime() ? null : window;
-};
+const pastWindow = (day?: Date) => pastDayWindow(day, now());
 
 // HKWorkoutActivityType raw values.
 const workoutLabels: Record<number, string> = {
@@ -693,6 +688,7 @@ export class AppleHealthProvider implements HealthProvider {
   async getBiomarkerHistory(
     kind: BiomarkerKind,
     since: Date,
+    until?: Date,
   ): Promise<HealthSample[]> {
     const healthKit = await this.loadHealthKit();
     const { identifier, unit } = biomarkerTypes[kind];
@@ -706,7 +702,7 @@ export class AppleHealthProvider implements HealthProvider {
       { day: 1 },
       {
         unit,
-        filter: { date: { startDate: anchor, endDate: now() } },
+        filter: { date: { startDate: anchor, endDate: until ?? now() } },
       } as never,
     );
     const scale = fractionKinds.has(kind) ? 100 : 1;

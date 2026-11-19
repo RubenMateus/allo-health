@@ -45,8 +45,8 @@ describe("dashboard hooks", () => {
       expect(result.current.home.data).toBeDefined();
       expect(result.current.day.data).toBeDefined();
     });
-    expect(result.current.home.data?.date).toBe(today);
-    expect(result.current.day.data?.date).toBe(past);
+    expect(result.current.home.data?.today.date).toBe(today);
+    expect(result.current.day.data?.today.date).toBe(past);
   });
 
   it("errors on a past day without falling back to the mock provider", async () => {

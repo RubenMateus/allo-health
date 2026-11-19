@@ -1,4 +1,5 @@
 import { coachingThresholds } from "@/services/coaching";
+import { shiftDayKey } from "@/services/journal";
 
 /** One day's strain (0–21) and recovery (0–100); null when it could not be computed. */
 export type LoadDay = {
@@ -103,15 +104,8 @@ export function lastDays(days: readonly LoadDay[], count: number): LoadDay[] {
   const newest = days.at(-1);
   if (!newest) return [];
   const byDate = new Map(days.map((day) => [day.date, day]));
-  const end = new Date(`${newest.date}T12:00:00`);
   return Array.from({ length: count }, (_, index) => {
-    const date = new Date(end);
-    date.setDate(end.getDate() - (count - 1 - index));
-    const key = [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0"),
-    ].join("-");
+    const key = shiftDayKey(newest.date, index - (count - 1));
     return byDate.get(key) ?? { date: key, strain: null, recovery: null };
   });
 }

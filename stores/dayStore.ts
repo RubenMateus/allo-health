@@ -60,6 +60,11 @@ export function useSelectedDayKey(): string {
   return selectedDay ?? todayKey;
 }
 
+/** The past day being browsed, or null when showing today. */
+export function useBrowsedDay(): string | null {
+  return useDayStore((s) => s.selectedDay);
+}
+
 export function useIsToday(): boolean {
   return useDayStore((s) => s.selectedDay === null);
 }

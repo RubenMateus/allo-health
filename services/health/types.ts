@@ -159,10 +159,11 @@ export interface HealthProvider {
   getWorkouts(since: Date, until?: Date): Promise<Workout[]>;
   /** Distance samples, elevation and running form for one workout. */
   getWorkoutDetails(workout: Workout): Promise<WorkoutDetails>;
-  /** One value per day (the daily average), oldest first. */
+  /** One value per day (the daily average) from `since` up to `until` (default now), oldest first. */
   getBiomarkerHistory(
     kind: BiomarkerKind,
     since: Date,
+    until?: Date,
   ): Promise<HealthSample[]>;
   /** Age and sex from the health source, where the platform shares them. */
   getProfile(): Promise<HealthProfile>;
