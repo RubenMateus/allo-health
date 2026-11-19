@@ -1,17 +1,17 @@
 import { toDayKey } from "@/services/journal";
 import {
   averageSamples,
-  calculateEnergyBattery,
   calculateStressTimeline,
 } from "@/services/metrics";
 import {
   BASELINE_DAYS,
-  scoreDay,
+  scoreDayWithEnergy,
   signalsFor,
   sleepAsOf,
   type DailyScore,
   type SignalKind,
 } from "@/services/metrics/daily";
+import type { EnergyPoint } from "@/services/metrics/energy";
 
 import type {
   GlucoseData,
@@ -32,7 +32,8 @@ export type DashboardData = {
   today: DailyScore;
   strainInputs: StrainInputs;
   stress: ReturnType<typeof calculateStressTimeline> | null;
-  energyBattery: number | null;
+  /** The day's Energy Bank in 5-minute steps; `today.energy` has the totals. */
+  energyPoints: EnergyPoint[];
   activeEnergyKcal: number;
   hrv: number | null;
   restingHeartRate: number | null;
@@ -48,6 +49,9 @@ export type DashboardData = {
     glucose: boolean;
   };
 };
+
+/** The Home stress chart shows the last 4 hours, in 5-minute buckets. */
+const STRESS_CHART_BUCKETS = 48;
 
 const fallbackStrain: StrainInputs = {
   heartRateSamples: [],
@@ -79,7 +83,8 @@ export async function loadDashboardData(
       provider.getStrainInputs(day),
       provider.getNutrition(day),
       provider.getGlucose(day),
-      provider.getStressSamples(day),
+      // One read feeds both the Energy Bank (the whole day) and the stress chart (its last 4 hours).
+      provider.getDayStressSamples(day),
     ]),
     readSignalHistories(provider, BASELINE_DAYS + 1, anchor),
   ]);
@@ -102,12 +107,13 @@ export async function loadDashboardData(
   const strainInputs = get<StrainInputs>(4, fallbackStrain);
   const nutrition = get<NutritionData | null>(5, null);
   const glucose = get<GlucoseData | null>(6, null);
-  const stressSamples = get<StressSample[]>(7, []).sort((a, b) =>
+  const dayStress = get<StressSample[]>(7, []).sort((a, b) =>
     a.timestamp.localeCompare(b.timestamp),
   );
+  const stressSamples = dayStress.slice(-STRESS_CHART_BUCKETS);
   const hrv = hrvSamples.at(-1)?.value ?? null;
   const date = toDayKey(past ? day : now);
-  const today = scoreDay({
+  const { score: today, energyPoints } = scoreDayWithEnergy({
     date,
     sleep,
     strainInputs,
@@ -119,6 +125,7 @@ export async function loadDashboardData(
     histories,
     // A past day is scored as of its end, which also ends its strain curve there.
     now: anchor ?? now,
+    dayStress,
   });
   const { sleepScore, strain: strainScore } = today;
   const stress = stressSamples.length
@@ -128,19 +135,6 @@ export async function loadDashboardData(
         today.recoveryInputs.hrv.baseline,
       )
     : null;
-  const restorativeMinutes = stress
-    ? stress.samples.filter((sample) => sample.value <= 25).length * 5
-    : 0;
-  const energyBattery =
-    stress && strainScore !== null && sleepScore !== null
-      ? calculateEnergyBattery({
-          sleepPerformance: sleepScore,
-          strain: strainScore,
-          stressAverage: stress.average,
-          restMinutes: restorativeMinutes,
-        })
-      : null;
-
   return {
     source: provider.kind,
     permissionState:
@@ -153,7 +147,7 @@ export async function loadDashboardData(
     today,
     strainInputs,
     stress,
-    energyBattery,
+    energyPoints,
     activeEnergyKcal: strainInputs.activeEnergyKcal,
     hrv: hrv ?? (hrvSamples.length ? averageSamples(hrvSamples, 0) : null),
     restingHeartRate,

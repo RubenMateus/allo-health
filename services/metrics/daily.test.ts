@@ -170,6 +170,65 @@ describe("scoreDay", () => {
     expect(result.strain).not.toBeNull();
   });
 
+  it("energy is null when the day has no stress readings", () => {
+    const result = scoreDay({
+      date: "2026-11-15",
+      sleep,
+      strainInputs: strainInputs([100]),
+      signals,
+      histories,
+      now,
+      dayStress: [],
+    });
+    expect(result.energy).toBeNull();
+  });
+
+  it("scoreDay stores energy summary without points", () => {
+    const dayStress = Array.from({ length: 24 }, (_, i) => ({
+      timestamp: new Date(2026, 10, 15, 9, (i + 1) * 5).toISOString(),
+      heartRate: 70,
+      hrv: 50,
+    }));
+    const result = scoreDay({
+      date: "2026-11-15",
+      sleep,
+      strainInputs: strainInputs([100]),
+      signals,
+      histories,
+      now,
+      dayStress,
+    });
+    expect(result.energy).not.toBeNull();
+    expect("points" in result.energy!).toBe(false);
+    expect(result.energy!.hourly).toHaveLength(25);
+  });
+
+  it("energy ignores a night that ended before the day began", () => {
+    const yesterdaysNight = {
+      ...sleep,
+      wakeTime: new Date(2026, 10, 14, 7).toISOString(),
+      stages: [
+        {
+          stage: "deep" as const,
+          start: new Date(2026, 10, 13, 23).toISOString(),
+          end: new Date(2026, 10, 14, 7).toISOString(),
+        },
+      ],
+    };
+    const result = scoreDay({
+      date: "2026-11-15",
+      sleep: yesterdaysNight,
+      strainInputs: strainInputs([100]),
+      signals,
+      histories,
+      now: new Date(2026, 10, 15, 0, 30),
+      dayStress: [
+        { timestamp: new Date(2026, 10, 15, 0, 30).toISOString(), heartRate: 60, hrv: 50 },
+      ],
+    });
+    expect(result.energy!.hourly[0]).toBe(20);
+  });
+
   it("has no strain without heart rate or active energy", () => {
     const result = scoreDay({
       date: "2026-11-15",

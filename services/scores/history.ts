@@ -141,8 +141,21 @@ async function saveComputed(
 }
 
 /** A day another load already saved since `stored` was read. */
-const savedSince = (storage: ScoreStorage, date: string) =>
-  parsed.get(storage)?.days[date];
+const savedSince = (storage: ScoreStorage, date: string) => {
+  const day = parsed.get(storage)?.days[date];
+  // A day saved before the Energy Bank is being refilled, not reused.
+  return day && !lacksEnergy(day) ? day : undefined;
+};
+
+/** Days this recent that were saved before the Energy Bank are read again, so "usual" has them. */
+export const ENERGY_REFILL_DAYS = 14;
+
+/** Saved before the Energy Bank existed (no `energy` key at all, not a null one). */
+const lacksEnergy = (day: DailyScore) => day.energy === undefined;
+
+/** A stored day as callers see it: older days without energy read as null. */
+const withEnergy = (day: DailyScore): DailyScore =>
+  lacksEnergy(day) ? { ...day, energy: null } : day;
 
 const needsCompute = (
   stored: DailyScore | undefined,
@@ -151,6 +164,7 @@ const needsCompute = (
 ) =>
   !stored ||
   daysAgo <= REFRESH_RECENT_DAYS ||
+  (daysAgo <= ENERGY_REFILL_DAYS && lacksEnergy(stored)) ||
   (daysAgo < RETRY_NULL_DAYS &&
     (stored.strain === null || stored.recovery === null) &&
     now.getTime() - new Date(stored.computedAt).getTime() >=
@@ -197,7 +211,7 @@ export async function loadScoreHistory(
     Object.assign(stored, fresh);
   }
 
-  return [...past.map(({ date }) => stored[date]!), today];
+  return [...past.map(({ date }) => withEnergy(stored[date]!)), today];
 }
 
 /**
@@ -227,8 +241,16 @@ export async function loadScoreRange(
   const result: Record<string, DailyScore | null> = {};
   const missing: string[] = [];
   for (let date = from; date <= to; date = shiftDayKey(date, 1)) {
+    const day = stored[date];
     if (date >= todayKey) result[date] = null;
-    else if (stored[date]) result[date] = stored[date]!;
+    else if (
+      day &&
+      !(
+        lacksEnergy(day) &&
+        date >= shiftDayKey(todayKey, -ENERGY_REFILL_DAYS)
+      )
+    )
+      result[date] = withEnergy(day);
     else missing.push(date);
   }
   if (!missing.length || signal?.aborted) return result;
@@ -282,9 +304,10 @@ async function computeDay(
   const day = fromDayKey(date);
   const asOf = sleepAsOf(day);
   // Each read on its own: a type the user didn't grant mustn't empty the others.
-  const [sleep, strainInputs] = await Promise.allSettled([
+  const [sleep, strainInputs, dayStress] = await Promise.allSettled([
     provider.getSleep(asOf),
     provider.getStrainInputs(day),
+    provider.getDayStressSamples(day),
   ]);
   return scoreDay({
     date,
@@ -294,5 +317,6 @@ async function computeDay(
     signals: signalsFor(histories, date),
     histories,
     now,
+    dayStress: dayStress.status === "fulfilled" ? dayStress.value : [],
   });
 }

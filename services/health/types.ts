@@ -154,7 +154,12 @@ export interface HealthProvider {
   getStrainInputs(day?: Date): Promise<StrainInputs>;
   getNutrition(day?: Date): Promise<NutritionData | null>;
   getGlucose(day?: Date): Promise<GlucoseData | null>;
-  getStressSamples(day?: Date): Promise<StressSample[]>;
+  /**
+   * Every 5-minute stress bucket of the calendar day. Today runs up to now and
+   * reaches back at least 4 hours, so just after midnight the stress chart still
+   * has the evening (the Energy Bank ignores anything before midnight).
+   */
+  getDayStressSamples(day?: Date): Promise<StressSample[]>;
   /** Workouts from `since` up to `until` (default now). */
   getWorkouts(since: Date, until?: Date): Promise<Workout[]>;
   /** Distance samples, elevation and running form for one workout. */

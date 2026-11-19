@@ -1,4 +1,9 @@
-import { buildSleepTimeline, stageMinutes } from "./nativeSamples";
+import {
+  buildDayStressSamples,
+  buildSleepTimeline,
+  stageMinutes,
+  stressWindow,
+} from "./nativeSamples";
 
 const t = (hour: number, minute = 0) =>
   new Date(2026, 10, hour < 12 ? 17 : 16, hour, minute).getTime();
@@ -52,5 +57,60 @@ describe("buildSleepTimeline", () => {
 
     expect(timeline).toEqual([{ stage: "rem", start: iso(23), end: iso(7) }]);
     expect(stageMinutes(timeline).rem).toBe(480);
+  });
+});
+
+describe("buildDayStressSamples", () => {
+  const from = new Date(2026, 10, 10, 0, 0);
+  const to = new Date(2026, 10, 11, 0, 0);
+  const minuteSamples = (startHour: number, endHour: number) =>
+    Array.from({ length: (endHour - startHour) * 60 }, (_, i) => ({
+      value: 60,
+      unit: "bpm",
+      timestamp: new Date(2026, 10, 10, startHour, i + 0.5).toISOString(),
+    }));
+
+  it("keeps every bucket of the day", () => {
+    const samples = buildDayStressSamples(minuteSamples(0, 12), [], from, to);
+    expect(samples).toHaveLength(144);
+    expect(samples[0].timestamp).toBe(new Date(2026, 10, 10, 0, 5).toISOString());
+    expect(samples.at(-1)!.timestamp).toBe(
+      new Date(2026, 10, 10, 12, 0).toISOString(),
+    );
+  });
+
+  it("ignores readings outside the window", () => {
+    const evening = {
+      value: 90,
+      unit: "bpm",
+      timestamp: new Date(2026, 10, 9, 22, 0).toISOString(),
+    };
+    const samples = buildDayStressSamples(
+      [evening, ...minuteSamples(8, 9)],
+      [{ value: 40, unit: "ms", timestamp: new Date(2026, 10, 10, 8, 30).toISOString() }],
+      from,
+      to,
+    );
+    expect(samples).toHaveLength(12);
+    expect(samples.every((s) => s.heartRate === 60 && s.hrv === 40)).toBe(true);
+  });
+});
+
+describe("stressWindow", () => {
+  it("reaches back 4 hours just after midnight, on the 5-minute grid", () => {
+    const now = new Date(2026, 10, 10, 1, 2);
+    expect(stressWindow(undefined, now)).toEqual({
+      start: new Date(2026, 10, 9, 21, 0),
+      end: now,
+    });
+  });
+
+  it("is the calendar day later in the day and on past days", () => {
+    const now = new Date(2026, 10, 10, 15, 0);
+    expect(stressWindow(undefined, now).start).toEqual(new Date(2026, 10, 10));
+    expect(stressWindow(new Date(2026, 10, 8, 12), now)).toEqual({
+      start: new Date(2026, 10, 8),
+      end: new Date(2026, 10, 9),
+    });
   });
 });

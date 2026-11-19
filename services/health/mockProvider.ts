@@ -372,14 +372,39 @@ export class MockHealthProvider implements HealthProvider {
     };
   }
 
-  async getStressSamples(day?: Date): Promise<StressSample[]> {
-    const hr = await this.getHeartRate(day);
-    const hrv = await this.getHRV(day);
-    return hr.map((sample, index) => ({
-      timestamp: sample.timestamp,
-      heartRate: sample.value,
-      hrv: hrv[Math.min(index, hrv.length - 1)]?.value ?? 48,
-    }));
+  /** A whole sample day in 5-minute steps: a calm night, a busy late morning, an evening workout. */
+  async getDayStressSamples(day: Date = new Date()): Promise<StressSample[]> {
+    const midnight = new Date(day);
+    midnight.setHours(0, 0, 0, 0);
+    const end = Math.min(midnight.getTime() + 86_400_000, Date.now());
+    // Today also reaches back 4 hours, like the native reads, for the stress chart.
+    const start = new Date(Math.min(midnight.getTime(), end - 4 * 3_600_000));
+    start.setMinutes(Math.floor(start.getMinutes() / 5) * 5, 0, 0);
+    const noise = isPastDay(day) ? dayNoise(day) : 0.5;
+    const samples: StressSample[] = [];
+    // Stops before midnight, so every sample of a past day is stamped on that day.
+    for (let t = start.getTime() + 5 * 60_000; t < end; t += 5 * 60_000) {
+      // Hours since midnight; last night's evening wraps to 21:00–24:00.
+      const sinceMidnight = (t - midnight.getTime()) / 3_600_000;
+      const hour = sinceMidnight < 0 ? sinceMidnight + 24 : sinceMidnight;
+      const wobble = Math.sin(t / 1_700_000) * 3;
+      const [heartRate, hrv] =
+        hour < 7.5
+          ? [52 + wobble, 62]
+          : hour >= 17.5 && hour < 18.5
+            ? [138 + wobble * 3, 24]
+            : hour >= 10 && hour < 11.5
+              ? [84 + noise * 12 + wobble, 34]
+              : hour >= 21.5
+                ? [58 + wobble, 55]
+                : [68 + noise * 8 + wobble, 47];
+      samples.push({
+        timestamp: new Date(t).toISOString(),
+        heartRate: Math.round(heartRate),
+        hrv: Math.round(hrv * (0.85 + noise * 0.3)),
+      });
+    }
+    return samples;
   }
 
   async getWorkouts(since: Date, until?: Date): Promise<Workout[]> {

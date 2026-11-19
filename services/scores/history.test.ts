@@ -369,3 +369,61 @@ describe("sample data and cancellation", () => {
     expect(reports[0]).toEqual([key(5), key(4), key(3)].sort());
   });
 });
+
+/** A day saved before the Energy Bank existed: no `energy` key at all. */
+function legacyDay(date: string) {
+  return {
+    ...today,
+    date,
+    strainBreakdown: null,
+    recoveryInputs: {} as DailyScore["recoveryInputs"],
+    computedAt: NOW.toISOString(),
+  };
+}
+
+describe("energy in stored days", () => {
+  it("computeDay reads the full-day stress", async () => {
+    const storage = memoryStorage();
+    const provider = realProvider();
+    const dayStress = jest.spyOn(provider, "getDayStressSamples");
+    await loadScoreRange(provider, storage, key(3), key(3), NOW);
+    expect(dayStress).toHaveBeenCalled();
+    expect(toDayKey(dayStress.mock.calls[0][0]!)).toBe(key(3));
+    const day = stored(storage)[key(3)];
+    expect(day.energy).not.toBeNull();
+    expect(day.energy!.hourly).toHaveLength(25);
+    expect(day.energy!.hourly[24]).toBe(day.energy!.close);
+  });
+
+  it("stored days without energy load as energy null", async () => {
+    const storage = memoryStorage();
+    storage.data.set(
+      "days",
+      JSON.stringify({ [key(20)]: legacyDay(key(20)) }),
+    );
+    const provider = realProvider();
+    const dayStress = jest.spyOn(provider, "getDayStressSamples");
+    const days = await loadScoreRange(provider, storage, key(20), key(20), NOW);
+    expect(days[key(20)]!.energy).toBeNull();
+    expect(dayStress).not.toHaveBeenCalled();
+  });
+
+  it("refills energy for recent days stored before the update", async () => {
+    const storage = memoryStorage();
+    storage.data.set("days", JSON.stringify({ [key(5)]: legacyDay(key(5)) }));
+    const days = await loadScoreRange(realProvider(), storage, key(5), key(5), NOW);
+    expect(days[key(5)]!.energy?.hourly).toHaveLength(25);
+    expect(stored(storage)[key(5)].energy?.hourly).toHaveLength(25);
+  });
+
+  it("the 14-day history refills days stored without energy", async () => {
+    const storage = memoryStorage();
+    await loadScoreHistory(realProvider(), storage, today, NOW);
+    const days = stored(storage);
+    for (const day of Object.values(days)) delete (day as Partial<DailyScore>).energy;
+    storage.data.set("days", JSON.stringify(days));
+    const history = await loadScoreHistory(realProvider(), storage, today, NOW);
+    expect(history.slice(0, -1).every((day) => day.energy?.hourly.length === 25)).toBe(true);
+  });
+
+});

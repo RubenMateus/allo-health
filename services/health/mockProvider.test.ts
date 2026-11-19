@@ -52,7 +52,7 @@ describe("MockHealthProvider day-aware readings", () => {
     const day = daysAgo(2);
     const sameDay = (iso: string) =>
       new Date(iso).toDateString() === day.toDateString();
-    expect((await provider.getStressSamples(day)).every((s) => sameDay(s.timestamp))).toBe(true);
+    expect((await provider.getDayStressSamples(day)).every((s) => sameDay(s.timestamp))).toBe(true);
     expect((await provider.getGlucose(day)).samples.every((s) => sameDay(s.timestamp))).toBe(true);
     expect((await provider.getHeartRate(day)).every((s) => sameDay(s.timestamp))).toBe(true);
     expect((await provider.getHRV(day)).every((s) => sameDay(s.timestamp))).toBe(true);
@@ -66,6 +66,20 @@ describe("MockHealthProvider day-aware readings", () => {
     expect(await provider.getActiveEnergy()).toBe(468);
     expect((await provider.getNutrition(daysAgo(3))).calories).not.toBe(1840);
     expect((await provider.getNutrition()).calories).toBe(1840);
+  });
+});
+
+describe("MockHealthProvider.getDayStressSamples", () => {
+  it("getDayStressSamples covers the whole past day", async () => {
+    const day = daysAgo(2);
+    const samples = await new MockHealthProvider().getDayStressSamples(day);
+    expect(samples.length).toBeGreaterThan(48);
+    expect(
+      samples.every((s) => new Date(s.timestamp).getDate() === day.getDate() ||
+        // the last bucket ends at midnight
+        new Date(s.timestamp).getHours() === 0),
+    ).toBe(true);
+    expect(new Date(samples[0].timestamp).getHours()).toBe(0);
   });
 });
 

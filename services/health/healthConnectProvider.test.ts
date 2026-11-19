@@ -243,7 +243,7 @@ describe("HealthConnectProvider heart rate", () => {
       ],
     });
 
-    expect(await provider().getStressSamples()).toEqual([
+    expect(await provider().getDayStressSamples()).toEqual([
       { timestamp: at(24, 7, 55), heartRate: 72, hrv: 48 },
     ]);
   });
@@ -542,7 +542,7 @@ describe("HealthConnectProvider reads for a given day", () => {
     await provider().getHeartRate(day);
     await provider().getHRV(day);
     await provider().getGlucose(day);
-    await provider().getStressSamples(day);
+    await provider().getDayStressSamples(day);
 
     for (const type of [
       "HeartRate",

@@ -1,4 +1,4 @@
-import { calculateEnergyBattery, calculateRecoveryScore, calculateSleepScore, calculateStrainScore, calculateStressTimeline } from './index';
+import { calculateRecoveryScore, calculateSleepScore, calculateStrainScore, calculateStressTimeline } from './index';
 import type { SleepData, StrainInputs } from '@/services/health/types';
 
 const sleep: SleepData = { durationMinutes: 480, needMinutes: 480, efficiency: 1, deepMinutes: 96, remMinutes: 106, lastSleepAt: '2026-09-30T06:00:00.000Z', lightMinutes: 278, awakeMinutes: 0, inBedMinutes: 480, bedtime: '2026-09-29T22:00:00.000Z', wakeTime: '2026-09-30T06:00:00.000Z', stages: [] };
@@ -23,8 +23,4 @@ describe('health metric estimates', () => {
     expect(calculateStressTimeline([], 60, 50)).toEqual({ samples: [], lowest: 0, highest: 0, average: 0 });
   });
 
-  it('clamps the energy battery to its display range', () => {
-    expect(calculateEnergyBattery({ sleepPerformance: 100, strain: 0, stressAverage: 0, restMinutes: 1000 })).toBe(100);
-    expect(calculateEnergyBattery({ sleepPerformance: 0, strain: 21, stressAverage: 100, restMinutes: 0 })).toBe(6);
-  });
 });

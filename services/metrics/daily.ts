@@ -2,11 +2,19 @@ import type {
   HealthSample,
   SleepData,
   StrainInputs,
+  StressSample,
 } from "@/services/health/types";
 import { fromDayKey, toDayKey } from "@/services/journal";
 
 import {
+  calculateEnergyDay,
+  energySleepStages,
+  type EnergyPoint,
+  type EnergySummary,
+} from "./energy";
+import {
   calculateRecoveryScore,
+  calculateStressTimeline,
   calculateSleepScore,
   calculateStrainScore,
   strainFromWeightedMinutes,
@@ -60,6 +68,8 @@ export type DailyScore = {
     respiratoryRate: RecoverySignal;
     sleepScore: number | null;
   };
+  /** The day's Energy Bank; null without stress readings (and for days stored before it existed). */
+  energy: EnergySummary | null;
   computedAt: string;
 };
 
@@ -193,14 +203,26 @@ const signal = (
 ): RecoverySignal => ({ value, ...baselineFor(kind, history, date) });
 
 /** Strain, sleep and recovery for one day, recovery against personal baselines. */
-export function scoreDay(input: {
+type ScoreDayInput = {
   date: string;
   sleep: SleepData | null;
   strainInputs: StrainInputs | null;
   signals: Record<SignalKind, number | null>;
   histories: Record<SignalKind, HealthSample[]>;
   now: Date;
-}): DailyScore {
+  /** Every 5-minute stress bucket of the day, for the Energy Bank. */
+  dayStress?: StressSample[];
+};
+
+export function scoreDay(input: ScoreDayInput): DailyScore {
+  return scoreDayWithEnergy(input).score;
+}
+
+/** `scoreDay`, plus the Energy Bank's 5-minute points (which aren't stored). */
+export function scoreDayWithEnergy(input: ScoreDayInput): {
+  score: DailyScore;
+  energyPoints: EnergyPoint[];
+} {
   const { date, sleep, strainInputs, signals, histories } = input;
   const sleepScore = sleep ? calculateSleepScore(sleep) : null;
   const hasStrain =
@@ -239,7 +261,26 @@ export function scoreDay(input: {
           respiratoryRateBaseline: respiratoryRate.baseline,
         })
       : null;
-  return {
+  const stress = input.dayStress?.length
+    ? calculateStressTimeline(
+        input.dayStress,
+        restingHeartRate.value ?? restingHeartRate.baseline,
+        hrv.baseline,
+      ).samples
+    : [];
+  const energyDay = calculateEnergyDay({
+    date,
+    stress,
+    sleepStages: energySleepStages(sleep, date),
+    // Today stops at now. A finished day runs to midnight; a past day scored as
+    // of its last millisecond (23:59:59.999) counts as finished too.
+    until:
+      toDayKey(new Date(input.now.getTime() + 1)) === date
+        ? input.now
+        : undefined,
+  });
+  const { points: energyPoints = [], ...energy } = energyDay ?? {};
+  const score: DailyScore = {
     date,
     strain: hasStrain ? calculateStrainScore(strainInputs) : null,
     recovery,
@@ -251,8 +292,10 @@ export function scoreDay(input: {
         }
       : null,
     recoveryInputs,
+    energy: energyDay ? (energy as EnergySummary) : null,
     computedAt: input.now.toISOString(),
   };
+  return { score, energyPoints };
 }
 
 /** Lower is better for resting heart rate and breathing rate. */

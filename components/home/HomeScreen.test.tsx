@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react-native";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react-native";
+import { router } from "expo-router";
 
 import { useDayStore } from "@/stores/dayStore";
 import { ThemeProvider } from "@/theme/ThemeProvider";
@@ -61,6 +67,15 @@ describe("HomeScreen day navigation", () => {
     await cleanup();
     client.clear();
     jest.useRealTimers();
+  });
+
+  it("opens energy bank", async () => {
+    const push = jest.spyOn(router, "push").mockImplementation(() => undefined);
+    await renderHome();
+    expect(await screen.findByText("ENERGY BANK")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Energy Bank details"));
+    expect(push).toHaveBeenCalledWith("/energy");
+    push.mockRestore();
   });
 
   it("shows the coach on today", async () => {
