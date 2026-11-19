@@ -157,6 +157,8 @@ function DashboardSections({
   const strainStatus = strainScoreStatus(data.today.strain);
   const recoveryStatus = recoveryScoreStatus(data.today.recovery);
   const sleepStatus = sleepScoreStatus(data.today.sleepScore);
+  // The balance at the latest reading: now on today, midnight on a past day.
+  const energyValue = data.today.energy?.close ?? null;
   const rings: (RingMetric & {
     href: "/strain" | "/recovery" | "/sleep";
     hint: string;
@@ -425,20 +427,20 @@ function DashboardSections({
             <View className="flex-1 gap-2xs">
               <Text className="type-badge text-text-muted">ENERGY BATTERY</Text>
               <Text className="type-caption text-text-subtle">
-                {energyStatus(data.energyBattery)}
+                {energyStatus(energyValue)}
               </Text>
             </View>
-            {data.energyBattery === null ? (
+            {energyValue === null ? (
               <Text className="type-metric-lg text-text-subtle">--</Text>
             ) : (
               <Text className="type-metric-lg text-primary-bright tabular-nums">
-                {data.energyBattery}
+                {energyValue}
                 <Text className="type-caption text-text-muted">%</Text>
               </Text>
             )}
           </View>
-          {data.energyBattery !== null ? (
-            <BatteryMeter value={data.energyBattery} />
+          {energyValue !== null ? (
+            <BatteryMeter value={energyValue} />
           ) : null}
         </Card>
       </View>

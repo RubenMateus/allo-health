@@ -42,6 +42,8 @@ async function readStored(
     const cached = parsed.get(storage);
     if (cached?.raw === raw) return { ...cached.days };
     const days = JSON.parse(raw) as Record<string, DailyScore>;
+    // Days saved before the Energy Bank have no `energy`.
+    for (const day of Object.values(days)) day.energy ??= null;
     parsed.set(storage, { raw, days });
     return { ...days };
   } catch {
@@ -282,9 +284,10 @@ async function computeDay(
   const day = fromDayKey(date);
   const asOf = sleepAsOf(day);
   // Each read on its own: a type the user didn't grant mustn't empty the others.
-  const [sleep, strainInputs] = await Promise.allSettled([
+  const [sleep, strainInputs, dayStress] = await Promise.allSettled([
     provider.getSleep(asOf),
     provider.getStrainInputs(day),
+    provider.getDayStressSamples(day),
   ]);
   return scoreDay({
     date,
@@ -294,5 +297,6 @@ async function computeDay(
     signals: signalsFor(histories, date),
     histories,
     now,
+    dayStress: dayStress.status === "fulfilled" ? dayStress.value : [],
   });
 }

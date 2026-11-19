@@ -27,6 +27,7 @@ function score(
     recovery,
     strain,
     sleepScore: sleep,
+    energy: null,
     strainBreakdown: null,
     recoveryInputs: {
       hrv: signal,

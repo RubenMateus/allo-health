@@ -47,6 +47,15 @@ describe("loadDashboardData for a day", () => {
     expect(new Date(computedAt).getHours()).toBe(23);
   });
 
+  it("dashboard exposes energy points for the selected day", async () => {
+    const data = await loadDashboardData(new MockHealthProvider(), "mock", pastDay);
+    expect(data.energyPoints.length).toBeGreaterThan(0);
+    expect(new Date(data.energyPoints.at(-1)!.timestamp).getTime()).toBeLessThanOrEqual(
+      new Date(2026, 10, 16, 0, 0).getTime(),
+    );
+    expect(data.today.energy!.close).toBe(data.energyPoints.at(-1)!.value);
+  });
+
   it("describes the requested day", async () => {
     const data = await loadDashboardData(new MockHealthProvider(), "mock", pastDay);
     expect(data.today.date).toBe(toDayKey(pastDay));

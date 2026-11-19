@@ -37,6 +37,7 @@ const score = (date: string, recovery: number): DailyScore => ({
   sleepScore: 75,
   strainBreakdown: null,
   recoveryInputs: { hrv: signal, restingHeartRate: signal, respiratoryRate: signal, sleepScore: 75 },
+  energy: null,
   computedAt: `${date}T23:00:00Z`,
 });
 

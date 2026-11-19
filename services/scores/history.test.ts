@@ -369,3 +369,34 @@ describe("sample data and cancellation", () => {
     expect(reports[0]).toEqual([key(5), key(4), key(3)].sort());
   });
 });
+
+describe("energy in stored days", () => {
+  it("computeDay reads the full-day stress", async () => {
+    const storage = memoryStorage();
+    const provider = realProvider();
+    const dayStress = jest.spyOn(provider, "getDayStressSamples");
+    await loadScoreRange(provider, storage, key(3), key(3), NOW);
+    expect(dayStress).toHaveBeenCalled();
+    expect(toDayKey(dayStress.mock.calls[0][0]!)).toBe(key(3));
+    const day = stored(storage)[key(3)];
+    expect(day.energy).not.toBeNull();
+    expect(day.energy!.hourly).toHaveLength(25);
+    expect(day.energy!.hourly[24]).toBe(day.energy!.close);
+  });
+
+  it("stored days without energy load as energy null", async () => {
+    const storage = memoryStorage();
+    const { energy: _energy, ...old } = {
+      ...today,
+      date: key(3),
+      strainBreakdown: null,
+      recoveryInputs: {} as DailyScore["recoveryInputs"],
+      computedAt: NOW.toISOString(),
+      energy: null,
+    };
+    // A day saved before energy existed, recent enough to be kept but not recomputed.
+    storage.data.set("days", JSON.stringify({ [key(10)]: { ...old, date: key(10) } }));
+    const days = await loadScoreRange(realProvider(), storage, key(10), key(10), NOW);
+    expect(days[key(10)]!.energy).toBeNull();
+  });
+});

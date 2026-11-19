@@ -167,24 +167,6 @@ export function calculateStressTimeline(
   };
 }
 
-export function calculateEnergyBattery(input: {
-  sleepPerformance: number;
-  strain: number;
-  stressAverage: number;
-  restMinutes: number;
-}): number {
-  // The battery starts at 45 points, gains from sleep/rest, and drains with daily strain and average stress.
-  return Math.round(
-    clamp(
-      45 +
-        input.sleepPerformance * 0.35 +
-        input.restMinutes * 0.025 -
-        input.strain * 1.15 -
-        input.stressAverage * 0.15,
-    ),
-  );
-}
-
 export function averageSamples(
   samples: HealthSample[],
   fallback: number,
