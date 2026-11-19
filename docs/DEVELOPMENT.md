@@ -182,8 +182,6 @@ bunx expo run:ios   # or run:android
 
 One-time setup: enable **Allow GitHub Actions to create and approve pull requests** in the repository settings (Settings → Actions → General → Workflow permissions), or the release PR can't be opened.
 
-The first release is pinned to 1.0.0 with `release-as` in `release-please-config.json`. Remove that line once `v1.0.0` is tagged, or every later release would stay at 1.0.0.
-
 ## Project layout
 
 ```
