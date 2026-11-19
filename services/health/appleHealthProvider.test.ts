@@ -255,7 +255,7 @@ describe("AppleHealthProvider heart rate", () => {
       return [] as never;
     });
 
-    const stress = await provider().getStressSamples();
+    const stress = await provider().getDayStressSamples();
 
     expect(stress).toEqual([
       { timestamp: at(24, 2, 5).toISOString(), heartRate: 58, hrv: 61 },
@@ -605,7 +605,7 @@ describe("AppleHealthProvider reads for a given day", () => {
   it("builds a past day's stress from that day's samples", async () => {
     mocked.queryQuantitySamples.mockResolvedValue([] as never);
 
-    await provider().getStressSamples(at(21, 15));
+    await provider().getDayStressSamples(at(21, 15));
 
     const window = { startDate: at(21, 0), endDate: at(22, 0) };
     expect(mocked.queryQuantitySamples).toHaveBeenCalledWith(

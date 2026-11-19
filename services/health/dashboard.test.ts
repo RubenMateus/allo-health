@@ -25,6 +25,27 @@ describe("loadDashboardData baselines", () => {
   });
 });
 
+describe("loadDashboardData stress reads", () => {
+  it("draws the stress chart from the same full-day read as the Energy Bank", async () => {
+    const provider = new MockHealthProvider();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const samples = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: new Date(start.getTime() + (i + 1) * 5 * 60_000).toISOString(),
+      heartRate: 70 + (i % 5),
+      hrv: 45,
+    }));
+    const dayRead = jest
+      .spyOn(provider, "getDayStressSamples")
+      .mockResolvedValue(samples);
+    const data = await loadDashboardData(provider);
+    expect(dayRead).toHaveBeenCalledTimes(1);
+    expect(data.stress!.samples).toHaveLength(48);
+    expect(data.stress!.samples.at(-1)!.timestamp).toBe(samples.at(-1)!.timestamp);
+    expect(data.stress!.samples[0].timestamp).toBe(samples[12].timestamp);
+  });
+});
+
 describe("loadDashboardData for a day", () => {
   const pastDay = new Date(2026, 10, 15, 14);
   beforeEach(() => jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) }));

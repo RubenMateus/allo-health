@@ -52,7 +52,7 @@ describe("MockHealthProvider day-aware readings", () => {
     const day = daysAgo(2);
     const sameDay = (iso: string) =>
       new Date(iso).toDateString() === day.toDateString();
-    expect((await provider.getStressSamples(day)).every((s) => sameDay(s.timestamp))).toBe(true);
+    expect((await provider.getDayStressSamples(day)).every((s) => sameDay(s.timestamp))).toBe(true);
     expect((await provider.getGlucose(day)).samples.every((s) => sameDay(s.timestamp))).toBe(true);
     expect((await provider.getHeartRate(day)).every((s) => sameDay(s.timestamp))).toBe(true);
     expect((await provider.getHRV(day)).every((s) => sameDay(s.timestamp))).toBe(true);

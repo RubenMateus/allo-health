@@ -372,25 +372,21 @@ export class MockHealthProvider implements HealthProvider {
     };
   }
 
-  async getStressSamples(day?: Date): Promise<StressSample[]> {
-    const hr = await this.getHeartRate(day);
-    const hrv = await this.getHRV(day);
-    return hr.map((sample, index) => ({
-      timestamp: sample.timestamp,
-      heartRate: sample.value,
-      hrv: hrv[Math.min(index, hrv.length - 1)]?.value ?? 48,
-    }));
-  }
-
   /** A whole sample day in 5-minute steps: a calm night, a busy late morning, an evening workout. */
   async getDayStressSamples(day: Date = new Date()): Promise<StressSample[]> {
-    const start = new Date(day);
-    start.setHours(0, 0, 0, 0);
-    const end = Math.min(start.getTime() + 86_400_000, Date.now());
+    const midnight = new Date(day);
+    midnight.setHours(0, 0, 0, 0);
+    const end = Math.min(midnight.getTime() + 86_400_000, Date.now());
+    // Today also reaches back 4 hours, like the native reads, for the stress chart.
+    const start = new Date(Math.min(midnight.getTime(), end - 4 * 3_600_000));
+    start.setMinutes(Math.floor(start.getMinutes() / 5) * 5, 0, 0);
     const noise = isPastDay(day) ? dayNoise(day) : 0.5;
     const samples: StressSample[] = [];
-    for (let t = start.getTime() + 5 * 60_000; t <= end; t += 5 * 60_000) {
-      const hour = (t - start.getTime()) / 3_600_000;
+    // Stops before midnight, so every sample of a past day is stamped on that day.
+    for (let t = start.getTime() + 5 * 60_000; t < end; t += 5 * 60_000) {
+      // Hours since midnight; last night's evening wraps to 21:00–24:00.
+      const sinceMidnight = (t - midnight.getTime()) / 3_600_000;
+      const hour = sinceMidnight < 0 ? sinceMidnight + 24 : sinceMidnight;
       const wobble = Math.sin(t / 1_700_000) * 3;
       const [heartRate, hrv] =
         hour < 7.5

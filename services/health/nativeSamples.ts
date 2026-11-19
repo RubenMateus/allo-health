@@ -52,24 +52,6 @@ export function bucketSamples(
     }));
 }
 
-/**
- * Pairs the latest heart-rate buckets with the HRV reading nearest in time.
- * HRV is sparse (a few readings a day), so pairing by array index was meaningless.
- */
-export function buildStressSamples(
-  heartRate: HealthSample[],
-  hrv: HealthSample[],
-  now: Date,
-  count = 48,
-): StressSample[] {
-  const buckets = bucketSamples(
-    heartRate,
-    new Date(now.getTime() - 24 * 60 * minute),
-    now,
-  ).slice(-count);
-  return pairWithHrv(buckets, hrv);
-}
-
 /** Every 5-minute heart-rate bucket from `from` to `to`, paired with the nearest HRV reading. */
 export function buildDayStressSamples(
   heartRate: HealthSample[],
@@ -258,6 +240,27 @@ export function dayWindow(day: Date, now: Date): { start: Date; end: Date } {
   const next = new Date(start);
   next.setDate(next.getDate() + 1);
   return { start, end: next < now ? next : now };
+}
+
+/** How far back today's stress read reaches at least, for the Home stress chart. */
+export const STRESS_CHART_HOURS = 4;
+
+/** A day's stress window: the calendar day, but today also covers the last few hours. */
+export function stressWindow(
+  day: Date | undefined,
+  now: Date,
+): { start: Date; end: Date } {
+  const window = dayWindow(day ?? now, now);
+  const recent = new Date(now.getTime() - STRESS_CHART_HOURS * 60 * minute);
+  // On the same 5-minute grid as midnight, so buckets line up with the day's.
+  recent.setMinutes(
+    Math.floor(recent.getMinutes() / SAMPLE_BUCKET_MINUTES) * SAMPLE_BUCKET_MINUTES,
+    0,
+    0,
+  );
+  return window.end.getTime() === now.getTime() && recent < window.start
+    ? { start: recent, end: window.end }
+    : window;
 }
 
 /** The window of an earlier day, or null for today (or no day), which keeps the live windows. */

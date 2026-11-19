@@ -50,6 +50,9 @@ export type DashboardData = {
   };
 };
 
+/** The Home stress chart shows the last 4 hours, in 5-minute buckets. */
+const STRESS_CHART_BUCKETS = 48;
+
 const fallbackStrain: StrainInputs = {
   heartRateSamples: [],
   activeEnergyKcal: 0,
@@ -80,7 +83,7 @@ export async function loadDashboardData(
       provider.getStrainInputs(day),
       provider.getNutrition(day),
       provider.getGlucose(day),
-      provider.getStressSamples(day),
+      // One read feeds both the Energy Bank (the whole day) and the stress chart (its last 4 hours).
       provider.getDayStressSamples(day),
     ]),
     readSignalHistories(provider, BASELINE_DAYS + 1, anchor),
@@ -104,12 +107,12 @@ export async function loadDashboardData(
   const strainInputs = get<StrainInputs>(4, fallbackStrain);
   const nutrition = get<NutritionData | null>(5, null);
   const glucose = get<GlucoseData | null>(6, null);
-  const stressSamples = get<StressSample[]>(7, []).sort((a, b) =>
+  const dayStress = get<StressSample[]>(7, []).sort((a, b) =>
     a.timestamp.localeCompare(b.timestamp),
   );
+  const stressSamples = dayStress.slice(-STRESS_CHART_BUCKETS);
   const hrv = hrvSamples.at(-1)?.value ?? null;
   const date = toDayKey(past ? day : now);
-  const dayStress = get<StressSample[]>(8, []);
   const { score: today, energyPoints } = scoreDayWithEnergy({
     date,
     sleep,

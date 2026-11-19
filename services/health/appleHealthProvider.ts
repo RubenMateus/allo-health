@@ -28,7 +28,7 @@ import {
   dayWindow,
   pastDayWindow,
   buildDayStressSamples,
-  buildStressSamples,
+  stressWindow,
   clusterIntervals,
   dedupeWorkouts,
   pickMainSleep,
@@ -530,20 +530,12 @@ export class AppleHealthProvider implements HealthProvider {
     return recent.length ? { samples: recent, unit: "mg/dL" } : null;
   }
 
-  async getStressSamples(day?: Date): Promise<StressSample[]> {
-    const [heartRate, hrv] = await Promise.all([
-      this.getHeartRate(day),
-      this.getHRV(day),
-    ]);
-    return buildStressSamples(heartRate, hrv, pastWindow(day)?.end ?? now());
-  }
-
   async getDayStressSamples(day?: Date): Promise<StressSample[]> {
     const [heartRate, hrv] = await Promise.all([
       this.getHeartRate(day),
       this.getHRV(day),
     ]);
-    const { start, end } = dayWindow(day ?? now(), now());
+    const { start, end } = stressWindow(day, now());
     return buildDayStressSamples(heartRate, hrv, start, end);
   }
 
