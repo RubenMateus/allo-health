@@ -39,6 +39,16 @@ describe("calculateEnergyDay", () => {
     expect(calculateEnergyDay({ date, stress: [], sleepStages: [] })).toBeNull();
   });
 
+  it("returns null when every reading is from before midnight", () => {
+    expect(
+      calculateEnergyDay({
+        date,
+        stress: [{ timestamp: at("23:30", 9), value: 30 }],
+        sleepStages: [],
+      }),
+    ).toBeNull();
+  });
+
   it("opens at 20", () => {
     const day = calculateEnergyDay({
       date,

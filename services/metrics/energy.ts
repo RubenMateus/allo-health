@@ -81,7 +81,6 @@ export function calculateEnergyDay(input: {
   sleepStages: SleepSegment[];
   until?: Date;
 }): EnergyDay | null {
-  if (!input.stress.length) return null;
   const midnight = fromDayKey(input.date).getTime();
   const dayEnd = midnight + 24 * HOUR_MS;
   const until = Math.min(input.until?.getTime() ?? dayEnd, dayEnd);
@@ -92,6 +91,8 @@ export function calculateEnergyDay(input: {
     if (offset <= 0 || offset > dayEnd - midnight) continue;
     readings.set(Math.ceil(offset / STEP_MS) - 1, reading.value);
   }
+  // Readings from before midnight (today's read reaches back for the stress chart) don't count.
+  if (!readings.size) return null;
 
   let balance = ENERGY_OPENING;
   let charged = 0;
