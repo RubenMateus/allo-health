@@ -35,6 +35,7 @@ export function RootStack({
         <Stack.Screen name="readiness" />
         <Stack.Screen name="sleep" />
         <Stack.Screen name="strain" />
+        <Stack.Screen name="energy" />
         <Stack.Screen name="recovery" />
         <Stack.Screen name="summary" />
       </Stack.Protected>
