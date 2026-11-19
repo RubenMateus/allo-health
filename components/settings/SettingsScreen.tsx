@@ -35,6 +35,7 @@ import { useHealthStore } from "@/stores/healthStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore, type ThemePreference } from "@/stores/settingsStore";
 import { useTheme } from "@/theme/ThemeProvider";
+import { formatVersionLabel } from "@/utils/appVersion";
 import { cn } from "@/utils/cn";
 import { formatSyncedAt } from "@/utils/formatters";
 
@@ -194,7 +195,10 @@ export function SettingsScreen() {
         </Text>
       </View>
       <Text className="type-mono-small text-text-subtle text-center">
-        Allo Health {Constants.expoConfig?.version ?? ""}
+        {formatVersionLabel(
+          Constants.expoConfig?.version,
+          Constants.expoConfig?.extra?.commit,
+        )}
       </Text>
     </Screen>
   );
