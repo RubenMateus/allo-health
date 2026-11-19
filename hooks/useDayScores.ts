@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { useTodayKey } from "@/stores/dayStore";
 import type { DailyScore } from "@/services/metrics/daily";
-import { loadScoreRange, scoreStorageFor } from "@/services/scores/history";
+import { loadScoreRange } from "@/services/scores/history";
 import { scoreStorage } from "@/services/scores/storage";
 import { useHealthStore } from "@/stores/healthStore";
 
@@ -26,7 +26,7 @@ export function useDayScores(from: string, to: string): DayScores {
     queryFn: ({ signal }) =>
       loadScoreRange(
         provider,
-        scoreStorageFor(provider, scoreStorage),
+        scoreStorage,
         from,
         to,
         new Date(),

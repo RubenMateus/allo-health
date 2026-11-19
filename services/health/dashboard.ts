@@ -6,8 +6,8 @@ import {
 } from "@/services/metrics";
 import {
   BASELINE_DAYS,
-  dailyValue,
   scoreDay,
+  signalsFor,
   sleepAsOf,
   type DailyScore,
   type SignalKind,
@@ -25,17 +25,12 @@ import type {
 } from "./types";
 
 export type DashboardData = {
-  /** Day key of the day this describes. */
-  date: string;
   source: HealthProvider["kind"];
   permissionState: PermissionState;
   sleep: SleepData | null;
-  sleepScore: number | null;
-  /** Today's scores with what went into them; the same shape as stored history. */
+  /** The day's scores (its `date` names the day) with what went into them; the same shape as stored history. */
   today: DailyScore;
   strainInputs: StrainInputs;
-  recoveryScore: number | null;
-  strainScore: number | null;
   stress: ReturnType<typeof calculateStressTimeline> | null;
   energyBattery: number | null;
   activeEnergyKcal: number;
@@ -73,7 +68,8 @@ export async function loadDashboardData(
   const asOf = past ? sleepAsOf(day) : undefined;
   const anchor = past ? new Date(day) : undefined;
   anchor?.setHours(23, 59, 59, 999);
-  // The baseline histories don't depend on the day's reads, so both go at once.
+  // The baseline histories don't depend on the day's reads, so both go at once,
+  // even though they are wasted when every read below fails.
   const [results, histories] = await Promise.all([
     Promise.allSettled([
       provider.getSleep(asOf),
@@ -115,18 +111,16 @@ export async function loadDashboardData(
     date,
     sleep,
     strainInputs,
-    // Today's daily average where the platform has one, else the latest reading.
-    signals: {
-      hrv: dailyValue(histories.hrv, date) ?? hrv,
-      restingHeartRate:
-        dailyValue(histories.restingHeartRate, date) ?? restingHeartRate,
-      respiratoryRate:
-        dailyValue(histories.respiratoryRate, date) ?? respiratoryRate,
-    },
+    signals: signalsFor(
+      histories,
+      date,
+      past ? undefined : { hrv, restingHeartRate, respiratoryRate },
+    ),
     histories,
-    now,
+    // A past day is scored as of its end, which also ends its strain curve there.
+    now: anchor ?? now,
   });
-  const { sleepScore, strain: strainScore, recovery: recoveryScore } = today;
+  const { sleepScore, strain: strainScore } = today;
   const stress = stressSamples.length
     ? calculateStressTimeline(
         stressSamples,
@@ -148,7 +142,6 @@ export async function loadDashboardData(
       : null;
 
   return {
-    date,
     source: provider.kind,
     permissionState:
       provider.kind === "mock"
@@ -157,11 +150,8 @@ export async function loadDashboardData(
           ? "partial"
           : permissionState,
     sleep,
-    sleepScore,
     today,
     strainInputs,
-    recoveryScore,
-    strainScore,
     stress,
     energyBattery,
     activeEnergyKcal: strainInputs.activeEnergyKcal,
@@ -187,8 +177,9 @@ export async function loadDashboardData(
 const SIGNALS: SignalKind[] = ["hrv", "restingHeartRate", "respiratoryRate"];
 
 /**
- * Daily averages for the recovery signals over the baseline window and today.
- * A history that can't be read leaves that signal on its fixed baseline.
+ * Daily averages for the recovery signals over the `days` before `anchor`'s day,
+ * through the end of that day. A history that can't be read leaves that signal
+ * on its fixed baseline.
  */
 export async function readSignalHistories(
   provider: HealthProvider,
@@ -198,9 +189,15 @@ export async function readSignalHistories(
   const since = new Date(anchor);
   since.setHours(0, 0, 0, 0);
   since.setDate(since.getDate() - days);
+  // No later than now: today's window is still open.
+  const endOfDay = new Date(anchor);
+  endOfDay.setHours(23, 59, 59, 999);
+  const until = new Date(Math.min(endOfDay.getTime(), Date.now()));
   const results = await Promise.allSettled(
     SIGNALS.map((kind) =>
-      Promise.resolve().then(() => provider.getBiomarkerHistory(kind, since)),
+      Promise.resolve().then(() =>
+        provider.getBiomarkerHistory(kind, since, until),
+      ),
     ),
   );
   return Object.fromEntries(

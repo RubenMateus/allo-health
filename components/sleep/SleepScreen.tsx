@@ -25,7 +25,8 @@ export function SleepScreen() {
   if (!data)
     return <DetailLayout title="Sleep" value={null} status="Loading" />;
 
-  const { sleep, sleepScore } = data;
+  const { sleep } = data;
+  const { sleepScore } = data.today;
   if (!sleep || sleepScore === null)
     return (
       <DetailLayout

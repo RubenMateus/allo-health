@@ -9,6 +9,8 @@ export const HEALTH_QUERY_KEYS = [
   "health-dashboard",
   "fitness-dashboard",
   "biomarkers",
+  // Re-reads the last finished days too, for watches that sync late.
+  "score-history",
 ];
 
 const isHealthQuery = (query: { queryKey: readonly unknown[] }) =>

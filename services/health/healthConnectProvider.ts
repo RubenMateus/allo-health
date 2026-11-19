@@ -577,32 +577,33 @@ export class HealthConnectProvider implements HealthProvider {
   private async readBiomarker(
     kind: BiomarkerKind,
     since: Date,
+    until = now(),
   ): Promise<Array<{ time: string; value: number }>> {
     switch (kind) {
       case "weight":
-        return (await this.read("Weight", since)).map((record) => ({
+        return (await this.read("Weight", since, until)).map((record) => ({
           time: record.time,
           value: record.weight.inKilograms,
         }));
       case "hrv":
-        return (await this.read("HeartRateVariabilityRmssd", since)).map(
+        return (await this.read("HeartRateVariabilityRmssd", since, until)).map(
           (record) => ({
             time: record.time,
             value: record.heartRateVariabilityMillis,
           }),
         );
       case "restingHeartRate":
-        return (await this.read("RestingHeartRate", since)).map((record) => ({
+        return (await this.read("RestingHeartRate", since, until)).map((record) => ({
           time: record.time,
           value: record.beatsPerMinute,
         }));
       case "bodyFat":
-        return (await this.read("BodyFat", since)).map((record) => ({
+        return (await this.read("BodyFat", since, until)).map((record) => ({
           time: record.time,
           value: record.percentage,
         }));
       case "leanBodyMass":
-        return (await this.read("LeanBodyMass", since)).map((record) => ({
+        return (await this.read("LeanBodyMass", since, until)).map((record) => ({
           time: record.time,
           value: record.mass.inKilograms,
         }));
@@ -612,12 +613,12 @@ export class HealthConnectProvider implements HealthProvider {
           value: record.vo2MillilitersPerMinuteKilogram,
         }));
       case "bloodOxygen":
-        return (await this.read("OxygenSaturation", since)).map((record) => ({
+        return (await this.read("OxygenSaturation", since, until)).map((record) => ({
           time: record.time,
           value: record.percentage,
         }));
       case "respiratoryRate":
-        return (await this.read("RespiratoryRate", since)).map((record) => ({
+        return (await this.read("RespiratoryRate", since, until)).map((record) => ({
           time: record.time,
           value: record.rate,
         }));
@@ -627,8 +628,9 @@ export class HealthConnectProvider implements HealthProvider {
   async getBiomarkerHistory(
     kind: BiomarkerKind,
     since: Date,
+    until?: Date,
   ): Promise<HealthSample[]> {
-    const readings = await this.readBiomarker(kind, since);
+    const readings = await this.readBiomarker(kind, since, until);
     return dailyAverages(
       readings.map((reading) => ({
         value: reading.value,

@@ -1,13 +1,12 @@
 import { toDayKey } from "@/services/journal";
+import { loadScoreRange } from "@/services/scores/history";
 import { loadDashboardData } from "./dashboard";
 import { MockHealthProvider } from "./mockProvider";
 
 describe("loadDashboardData baselines", () => {
   it("scores today's recovery against the provider's 30-day history", async () => {
     const data = await loadDashboardData(new MockHealthProvider());
-    expect(data.recoveryScore).toBe(data.today.recovery);
-    expect(data.strainScore).toBe(data.today.strain);
-    expect(data.sleepScore).toBe(data.today.sleepScore);
+    expect(data.today.recovery).not.toBeNull();
     expect(data.today.recoveryInputs.hrv.building).toBe(false);
     expect(data.today.recoveryInputs.hrv.baselineDays).toBeGreaterThanOrEqual(7);
     expect(data.strainInputs.activeEnergyKcal).toBe(468);
@@ -17,7 +16,7 @@ describe("loadDashboardData baselines", () => {
     const provider = new MockHealthProvider();
     provider.getBiomarkerHistory = () => Promise.reject(new Error("denied"));
     const data = await loadDashboardData(provider);
-    expect(data.recoveryScore).not.toBeNull();
+    expect(data.today.recovery).not.toBeNull();
     expect(data.today.recoveryInputs.hrv).toMatchObject({
       baseline: 48,
       building: true,
@@ -31,9 +30,25 @@ describe("loadDashboardData for a day", () => {
   beforeEach(() => jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) }));
   afterEach(() => jest.useRealTimers());
 
+  it("scores a past day the same way as the day history, as of its end", async () => {
+    const provider = new MockHealthProvider();
+    const key = toDayKey(pastDay);
+    const data = await loadDashboardData(provider, "mock", pastDay);
+    const range = await loadScoreRange(
+      provider,
+      { getItem: () => null, setItem: () => undefined },
+      key,
+      key,
+    );
+
+    const { computedAt, ...scores } = data.today;
+    const { computedAt: _rangeComputedAt, ...rangeScores } = range[key]!;
+    expect(scores).toEqual(rangeScores);
+    expect(new Date(computedAt).getHours()).toBe(23);
+  });
+
   it("describes the requested day", async () => {
     const data = await loadDashboardData(new MockHealthProvider(), "mock", pastDay);
-    expect(data.date).toBe(toDayKey(pastDay));
     expect(data.today.date).toBe(toDayKey(pastDay));
     expect(new Date(data.sleep!.wakeTime).toDateString()).toBe(
       pastDay.toDateString(),
@@ -48,6 +63,6 @@ describe("loadDashboardData for a day", () => {
 
   it("defaults to today", async () => {
     const data = await loadDashboardData(new MockHealthProvider());
-    expect(data.date).toBe(toDayKey(new Date()));
+    expect(data.today.date).toBe(toDayKey(new Date()));
   });
 });

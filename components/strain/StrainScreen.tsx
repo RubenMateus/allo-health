@@ -12,7 +12,6 @@ import { ScoreHistorySection } from "@/components/detail/ScoreHistorySection";
 import { LoadBalanceSection } from "@/components/loadBalance/LoadBalanceCard";
 import { Card, EmptyState } from "@/components/ui/primitives";
 import { useDayDashboard } from "@/hooks/useHealthDashboard";
-import { fromDayKey } from "@/services/journal";
 import { MAX_STRAIN, morningTargetStrain } from "@/services/coaching";
 import { scoreStatusLabels, strainScoreStatus } from "@/services/metrics";
 import { strainCurve, type DailyScore } from "@/services/metrics/daily";
@@ -33,12 +32,10 @@ export function StrainScreen() {
     return <DetailLayout title="Strain" value={null} status="Loading" />;
 
   // The morning target only means something on the day itself.
-  const target = isToday ? morningTargetStrain(data) : null;
+  const target = isToday ? morningTargetStrain(data.today) : null;
   const { today, strainInputs } = data;
-  // A past day's curve runs to the end of that day, not to when it was read.
-  const curveEnd = isToday
-    ? new Date(today.computedAt)
-    : new Date(fromDayKey(data.date).setHours(23, 59, 59, 999));
+  // A past day is scored as of its end, so its curve runs to midnight.
+  const curveEnd = new Date(today.computedAt);
   const caption = target ? `TARGET TODAY ${target[0]}–${target[1]}` : null;
   if (today.strain === null || !today.strainBreakdown)
     return (

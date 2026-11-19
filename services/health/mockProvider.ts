@@ -192,6 +192,7 @@ const biomarkerShapes: Record<
 function mockBiomarkerHistory(
   kind: BiomarkerKind,
   since: Date,
+  until?: Date,
 ): HealthSample[] {
   const [start, end, wobble, every, unit] = biomarkerShapes[kind];
   const days = Math.min(
@@ -208,6 +209,7 @@ function mockBiomarkerHistory(
     const day = new Date();
     day.setDate(day.getDate() - daysAgo);
     day.setHours(0, 0, 0, 0);
+    if (until && day > until) break;
     samples.push({
       value: start + (end - start) * progress + noise * wobble,
       unit,
@@ -424,8 +426,9 @@ export class MockHealthProvider implements HealthProvider {
   async getBiomarkerHistory(
     kind: BiomarkerKind,
     since: Date,
+    until?: Date,
   ): Promise<HealthSample[]> {
-    return mockBiomarkerHistory(kind, since);
+    return mockBiomarkerHistory(kind, since, until);
   }
 
   async getProfile(): Promise<HealthProfile> {

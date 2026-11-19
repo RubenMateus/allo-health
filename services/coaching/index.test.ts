@@ -25,15 +25,15 @@ describe('explainInputs', () => {
 
 describe('coachingInputFrom', () => {
   it('fills missing scores with neutral values', () => {
-    expect(coachingInputFrom({ recoveryScore: null, strainScore: null, sleepScore: 70 })).toEqual({ recovery: 50, strain: 0, sleep: 70 });
+    expect(coachingInputFrom({ recovery: null, strain: null, sleepScore: 70 })).toEqual({ recovery: 50, strain: 0, sleep: 70 });
   });
 });
 
 describe('morningTargetStrain', () => {
   it('keeps the target set from recovery and sleep, whatever strain is so far', () => {
     expect(coachingEngine.recommend({ recovery: 80, strain: 14, sleep: 80 }).targetStrain).toEqual([8, 12]);
-    expect(morningTargetStrain({ recoveryScore: 80, sleepScore: 80 })).toEqual([12, 16]);
-    expect(morningTargetStrain({ recoveryScore: 40, sleepScore: 80 })).toEqual([4, 7]);
-    expect(morningTargetStrain({ recoveryScore: null, sleepScore: null })).toEqual([4, 7]);
+    expect(morningTargetStrain({ recovery: 80, sleepScore: 80 })).toEqual([12, 16]);
+    expect(morningTargetStrain({ recovery: 40, sleepScore: 80 })).toEqual([4, 7]);
+    expect(morningTargetStrain({ recovery: null, sleepScore: null })).toEqual([4, 7]);
   });
 });

@@ -124,6 +124,30 @@ export function dailyValue(history: HealthSample[], date: string) {
   return history.find((sample) => dayOf(sample) === date)?.value ?? null;
 }
 
+/**
+ * The recovery signals for `date`: the platform's daily average, else
+ * `latest` (today's live readings, so a day without an average yet still
+ * scores). Past days pass no `latest`, so every past-day score is worked out
+ * the same way, whether for its own page or for the history.
+ */
+export function signalsFor(
+  histories: Record<SignalKind, HealthSample[]>,
+  date: string,
+  latest?: Record<SignalKind, number | null>,
+): Record<SignalKind, number | null> {
+  return {
+    hrv: dailyValue(histories.hrv, date) ?? latest?.hrv ?? null,
+    restingHeartRate:
+      dailyValue(histories.restingHeartRate, date) ??
+      latest?.restingHeartRate ??
+      null,
+    respiratoryRate:
+      dailyValue(histories.respiratoryRate, date) ??
+      latest?.respiratoryRate ??
+      null,
+  };
+}
+
 /** Minutes spent in each of the five zones, zone 1 first. */
 export function strainZones(inputs: StrainInputs): StrainZone[] {
   const minutes = new Map<StrainZone["zone"], number>();

@@ -6,7 +6,6 @@ import {
   KEEP_DAYS,
   loadScoreHistory,
   loadScoreRange,
-  scoreStorageFor,
   withStoredDays,
 } from "./history";
 import type { ScoreStorage } from "./types";
@@ -186,6 +185,29 @@ describe("loadScoreRange", () => {
     expect(Object.keys(stored(storage))).toHaveLength(13);
   });
 
+  it("reads each day once when overlapping ranges load together", async () => {
+    const storage = memoryStorage();
+    const { provider, strain } = countingProvider();
+
+    await Promise.all([
+      loadScoreRange(provider, storage, key(10), key(4), NOW),
+      loadScoreRange(provider, storage, key(7), key(1), NOW),
+    ]);
+
+    expect(strain).toHaveBeenCalledTimes(10);
+    expect(Object.keys(stored(storage))).toHaveLength(10);
+  });
+
+  it("saves a long backfill in batches, not once per day", async () => {
+    const storage = memoryStorage();
+    const setItem = jest.spyOn(storage, "setItem");
+
+    await loadScoreRange(realProvider(), storage, key(30), key(1), NOW);
+
+    expect(setItem.mock.calls.length).toBeLessThanOrEqual(5);
+    expect(Object.keys(stored(storage))).toHaveLength(30);
+  });
+
   it("maps today and later to null without storing them", async () => {
     const storage = memoryStorage();
     const result = await loadScoreRange(
@@ -253,9 +275,9 @@ describe("loadScoreRange", () => {
       ),
     ).rejects.toThrow("interrupted");
 
-    expect(landed).toEqual([key(5), key(4)]);
+    expect(landed).toEqual([key(1), key(2)]);
     expect(Object.keys(stored(storage)).sort()).toEqual(
-      [key(5), key(4)].sort(),
+      [key(1), key(2)].sort(),
     );
   });
 });
@@ -276,15 +298,34 @@ describe("sample data and cancellation", () => {
     const storage = memoryStorage();
     const setItem = jest.spyOn(storage, "setItem");
     const mock = new MockHealthProvider();
-    const kept = scoreStorageFor(mock, storage);
 
-    const range = await loadScoreRange(mock, kept, key(5), key(1), NOW);
-    const history = await loadScoreHistory(mock, kept, today, NOW);
+    const range = await loadScoreRange(mock, storage, key(5), key(1), NOW);
+    const history = await loadScoreHistory(mock, storage, today, NOW);
 
     expect(Object.values(range).every(Boolean)).toBe(true);
     expect(history).toHaveLength(14);
     expect(setItem).not.toHaveBeenCalled();
     expect(storage.data.size).toBe(0);
+  });
+
+  it("never shows stored real scores as sample data", async () => {
+    const storage = memoryStorage();
+    await loadScoreHistory(realProvider(), storage, today, NOW);
+    const real = stored(storage)[key(3)]!;
+    storage.data.set(
+      "days",
+      JSON.stringify({ ...stored(storage), [key(3)]: { ...real, recovery: 1 } }),
+    );
+
+    const range = await loadScoreRange(
+      new MockHealthProvider(),
+      storage,
+      key(3),
+      key(3),
+      NOW,
+    );
+
+    expect(range[key(3)]!.recovery).not.toBe(1);
   });
 
   it("stops reading and writing once aborted", async () => {

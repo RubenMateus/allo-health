@@ -688,6 +688,7 @@ export class AppleHealthProvider implements HealthProvider {
   async getBiomarkerHistory(
     kind: BiomarkerKind,
     since: Date,
+    until?: Date,
   ): Promise<HealthSample[]> {
     const healthKit = await this.loadHealthKit();
     const { identifier, unit } = biomarkerTypes[kind];
@@ -701,7 +702,7 @@ export class AppleHealthProvider implements HealthProvider {
       { day: 1 },
       {
         unit,
-        filter: { date: { startDate: anchor, endDate: now() } },
+        filter: { date: { startDate: anchor, endDate: until ?? now() } },
       } as never,
     );
     const scale = fractionKinds.has(kind) ? 100 : 1;

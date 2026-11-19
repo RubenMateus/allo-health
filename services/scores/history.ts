@@ -3,8 +3,8 @@ import type { HealthProvider, HealthSample } from "@/services/health/types";
 import { fromDayKey, shiftDayKey, toDayKey } from "@/services/journal";
 import {
   BASELINE_DAYS,
-  dailyValue,
   scoreDay,
+  signalsFor,
   sleepAsOf,
   type DailyScore,
   type SignalKind,
@@ -23,13 +23,27 @@ export const RETRY_AFTER_HOURS = 6;
 /** Stored days older than this are dropped. */
 export const KEEP_DAYS = 730;
 const STORAGE_KEY = "days";
+/** A backfill saves after this many new days, and once more at the end. */
+const SAVE_EVERY_DAYS = 7;
+
+/** The last text read or written per store, with its parsed days. */
+const parsed = new WeakMap<
+  ScoreStorage,
+  { raw: string; days: Record<string, DailyScore> }
+>();
 
 async function readStored(
   storage: ScoreStorage,
 ): Promise<Record<string, DailyScore>> {
   try {
     const raw = await storage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, DailyScore>) : {};
+    if (!raw) return {};
+    // Parsing up to 730 days is the slow part; skip it while the text is unchanged.
+    const cached = parsed.get(storage);
+    if (cached?.raw === raw) return { ...cached.days };
+    const days = JSON.parse(raw) as Record<string, DailyScore>;
+    parsed.set(storage, { raw, days });
+    return { ...days };
   } catch {
     return {};
   }
@@ -42,7 +56,7 @@ const discardingStorage: ScoreStorage = {
 };
 
 /** The store to keep `provider`'s scores in; the sample provider's are never kept. */
-export function scoreStorageFor(
+function scoreStorageFor(
   provider: HealthProvider,
   storage: ScoreStorage,
 ): ScoreStorage {
@@ -74,9 +88,61 @@ async function saveDays(
     const stored = await readStored(storage);
     Object.assign(stored, fresh);
     pruneStored(stored, today);
-    await storage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    const raw = JSON.stringify(stored);
+    await storage.setItem(STORAGE_KEY, raw);
+    parsed.set(storage, { raw, days: stored });
   });
 }
+
+/**
+ * Days computed but not saved yet, per provider, so overlapping loads share
+ * one read. An entry goes once its day is saved, or if the read fails.
+ */
+const unsavedDays = new WeakMap<
+  HealthProvider,
+  Map<string, Promise<DailyScore>>
+>();
+
+function unsavedFor(provider: HealthProvider) {
+  let days = unsavedDays.get(provider);
+  if (!days) unsavedDays.set(provider, (days = new Map()));
+  return days;
+}
+
+function computeShared(
+  provider: HealthProvider,
+  date: string,
+  histories: Record<SignalKind, HealthSample[]>,
+  now: Date,
+): Promise<DailyScore> {
+  const days = unsavedFor(provider);
+  const existing = days.get(date);
+  if (existing) return existing;
+  const day = computeDay(provider, date, histories, now);
+  days.set(date, day);
+  day.catch(() => days.delete(date));
+  return day;
+}
+
+/** Saves `fresh`, then lets later loads read those days from storage. */
+async function saveComputed(
+  provider: HealthProvider,
+  storage: ScoreStorage,
+  today: string,
+  fresh: Record<string, DailyScore>,
+) {
+  if (!Object.keys(fresh).length) return;
+  try {
+    await saveDays(storage, today, fresh);
+  } finally {
+    const days = unsavedFor(provider);
+    for (const date of Object.keys(fresh)) days.delete(date);
+  }
+}
+
+/** A day another load already saved since `stored` was read. */
+const savedSince = (storage: ScoreStorage, date: string) =>
+  parsed.get(storage)?.days[date];
 
 const needsCompute = (
   stored: DailyScore | undefined,
@@ -97,10 +163,11 @@ const needsCompute = (
  */
 export async function loadScoreHistory(
   provider: HealthProvider,
-  storage: ScoreStorage,
+  store: ScoreStorage,
   today: DailyScore,
   now = new Date(),
 ): Promise<DailyScore[]> {
+  const storage = scoreStorageFor(provider, store);
   const stored = await withStoredDays(() => readStored(storage));
   // Count back from today's date, not the clock: the dashboard may have been
   // read before midnight and the app left open.
@@ -119,11 +186,15 @@ export async function loadScoreHistory(
     );
     // One day at a time, so a backfill doesn't flood HealthKit / Health Connect.
     const fresh: Record<string, DailyScore> = {};
-    for (const { date } of stale) {
-      fresh[date] = await computeDay(provider, date, histories, now);
+    try {
+      for (const { date } of stale) {
+        fresh[date] = await computeShared(provider, date, histories, now);
+      }
+    } finally {
+      // Also on failure, so the days already read are kept.
+      await saveComputed(provider, storage, today.date, fresh);
     }
     Object.assign(stored, fresh);
-    await saveDays(storage, today.date, fresh);
   }
 
   return [...past.map(({ date }) => stored[date]!), today];
@@ -133,12 +204,13 @@ export async function loadScoreHistory(
  * Scores for every day in [from, to]. Today and later map to null and are never
  * stored. Days already stored are passed to `onStored` first, then missing
  * finished days are computed one at a time, saved, and passed to `onDay` as
- * they land.
- * Once `signal` aborts, no further reads or writes happen.
+ * they land, newest first so the most recent days fill in first. Scores from
+ * the sample provider are returned but never saved. Once `signal` aborts, no
+ * further days are read or reported; the ones already reported are still saved.
  */
 export async function loadScoreRange(
   provider: HealthProvider,
-  storage: ScoreStorage,
+  store: ScoreStorage,
   from: string,
   to: string,
   now = new Date(),
@@ -149,6 +221,7 @@ export async function loadScoreRange(
   } = {},
 ): Promise<Record<string, DailyScore | null>> {
   const { signal, onStored } = options;
+  const storage = scoreStorageFor(provider, store);
   const todayKey = toDayKey(now);
   const stored = await withStoredDays(() => readStored(storage));
   const result: Record<string, DailyScore | null> = {};
@@ -169,14 +242,33 @@ export async function loadScoreRange(
     span + BASELINE_DAYS + 1,
     fromDayKey(to),
   );
-  for (const date of missing) {
-    if (signal?.aborted) break;
-    const score = await computeDay(provider, date, histories, now);
-    if (signal?.aborted) break;
-    // Durable before it is reported, so an interrupted backfill keeps its days.
-    await saveDays(storage, todayKey, { [date]: score });
-    result[date] = score;
-    onDay?.(score);
+  // Saved a few days at a time: each save rewrites the whole stored map.
+  let unsaved: Record<string, DailyScore> = {};
+  const flush = async () => {
+    if (!Object.keys(unsaved).length) return;
+    const batch = unsaved;
+    unsaved = {};
+    await saveComputed(provider, storage, todayKey, batch);
+  };
+  try {
+    for (const date of missing.reverse()) {
+      if (signal?.aborted) break;
+      const saved = savedSince(storage, date);
+      const score =
+        saved ?? (await computeShared(provider, date, histories, now));
+      if (signal?.aborted) {
+        // Not saved, so a later load must read it again.
+        if (!saved) unsavedFor(provider).delete(date);
+        break;
+      }
+      if (!saved) unsaved[date] = score;
+      result[date] = score;
+      onDay?.(score);
+      if (Object.keys(unsaved).length >= SAVE_EVERY_DAYS) await flush();
+    }
+  } finally {
+    // Also on failure, so an interrupted backfill keeps the days it finished.
+    await flush();
   }
   return result;
 }
@@ -189,11 +281,6 @@ async function computeDay(
 ): Promise<DailyScore> {
   const day = fromDayKey(date);
   const asOf = sleepAsOf(day);
-  const signals = {
-    hrv: dailyValue(histories.hrv, date),
-    restingHeartRate: dailyValue(histories.restingHeartRate, date),
-    respiratoryRate: dailyValue(histories.respiratoryRate, date),
-  };
   // Each read on its own: a type the user didn't grant mustn't empty the others.
   const [sleep, strainInputs] = await Promise.allSettled([
     provider.getSleep(asOf),
@@ -204,7 +291,7 @@ async function computeDay(
     sleep: sleep.status === "fulfilled" ? sleep.value : null,
     strainInputs:
       strainInputs.status === "fulfilled" ? strainInputs.value : null,
-    signals,
+    signals: signalsFor(histories, date),
     histories,
     now,
   });

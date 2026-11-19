@@ -40,9 +40,15 @@ describe("syncHealthData", () => {
       queryKey: ["fitness-dashboard", "mock"],
       queryFn: fitness,
     });
+    const history = jest.fn(async () => "history");
+    await client.fetchQuery({
+      queryKey: ["score-history", "mock", "2026-11-18"],
+      queryFn: history,
+    });
     await client.fetchQuery({ queryKey: ["journal"], queryFn: journal });
 
     const result = await syncHealthData(client);
+    expect(history).toHaveBeenCalledTimes(2);
 
     expect(result).toEqual({ ok: true });
     expect(mockRestoreConnection).toHaveBeenCalledTimes(1);

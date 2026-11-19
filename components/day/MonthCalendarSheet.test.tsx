@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { useDayScores } from "@/hooks/useDayScores";
+import { useDayStore } from "@/stores/dayStore";
 
 import { MonthCalendarSheet } from "./MonthCalendarSheet";
 
@@ -21,6 +22,12 @@ const mockScores = jest.mocked(useDayScores);
 describe("MonthCalendarSheet", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date(2026, 10, 18, 12) });
+    // The store read the real clock when it loaded.
+    useDayStore.setState({
+      selectedDay: null,
+      todayKey: "2026-11-18",
+      leftOn: "2026-11-18",
+    });
     mockScores.mockReset();
     mockScores.mockReturnValue({});
   });

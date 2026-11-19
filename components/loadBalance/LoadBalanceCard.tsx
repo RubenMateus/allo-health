@@ -200,7 +200,7 @@ export function LoadBalanceCard({
   days: readonly LoadDay[];
   /** How many days the chart shows, ending with the newest. */
   count?: number;
-  /** The verdict for these days, when the caller already worked it out. */
+  /** `loadBalance(lastDays(days, count))`, when the caller already worked it out. */
   balance?: LoadBalance;
   /** Width of the chart, i.e. the card's inner width. */
   width: number;
