@@ -28,6 +28,7 @@ import {
   buildSleepTimeline,
   dayWindow,
   pastDayWindow,
+  buildDayStressSamples,
   buildStressSamples,
   dedupeWorkouts,
   pickMainSleep,
@@ -442,6 +443,15 @@ export class HealthConnectProvider implements HealthProvider {
       this.getHRV(day),
     ]);
     return buildStressSamples(heartRate, hrv, pastWindow(day)?.end ?? now());
+  }
+
+  async getDayStressSamples(day?: Date): Promise<StressSample[]> {
+    const [heartRate, hrv] = await Promise.all([
+      this.getHeartRate(day),
+      this.getHRV(day),
+    ]);
+    const { start, end } = dayWindow(day ?? now(), now());
+    return buildDayStressSamples(heartRate, hrv, start, end);
   }
 
   async getWorkouts(since: Date, until: Date = now()): Promise<Workout[]> {

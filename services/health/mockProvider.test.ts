@@ -69,6 +69,20 @@ describe("MockHealthProvider day-aware readings", () => {
   });
 });
 
+describe("MockHealthProvider.getDayStressSamples", () => {
+  it("getDayStressSamples covers the whole past day", async () => {
+    const day = daysAgo(2);
+    const samples = await new MockHealthProvider().getDayStressSamples(day);
+    expect(samples.length).toBeGreaterThan(48);
+    expect(
+      samples.every((s) => new Date(s.timestamp).getDate() === day.getDate() ||
+        // the last bucket ends at midnight
+        new Date(s.timestamp).getHours() === 0),
+    ).toBe(true);
+    expect(new Date(samples[0].timestamp).getHours()).toBe(0);
+  });
+});
+
 describe("MockHealthProvider.getWorkouts", () => {
   it("leaves out workouts that start after `until`", async () => {
     const since = new Date(Date.now() - 28 * 86_400_000);

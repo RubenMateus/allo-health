@@ -67,6 +67,23 @@ export function buildStressSamples(
     new Date(now.getTime() - 24 * 60 * minute),
     now,
   ).slice(-count);
+  return pairWithHrv(buckets, hrv);
+}
+
+/** Every 5-minute heart-rate bucket from `from` to `to`, paired with the nearest HRV reading. */
+export function buildDayStressSamples(
+  heartRate: HealthSample[],
+  hrv: HealthSample[],
+  from: Date,
+  to: Date,
+): StressSample[] {
+  return pairWithHrv(bucketSamples(heartRate, from, to), hrv);
+}
+
+function pairWithHrv(
+  buckets: HealthSample[],
+  hrv: HealthSample[],
+): StressSample[] {
   const hrvTimes = hrv.map((sample) => ({
     value: sample.value,
     time: new Date(sample.timestamp).getTime(),

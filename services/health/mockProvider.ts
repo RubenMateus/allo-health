@@ -382,6 +382,35 @@ export class MockHealthProvider implements HealthProvider {
     }));
   }
 
+  /** A whole sample day in 5-minute steps: a calm night, a busy late morning, an evening workout. */
+  async getDayStressSamples(day: Date = new Date()): Promise<StressSample[]> {
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = Math.min(start.getTime() + 86_400_000, Date.now());
+    const noise = isPastDay(day) ? dayNoise(day) : 0.5;
+    const samples: StressSample[] = [];
+    for (let t = start.getTime() + 5 * 60_000; t <= end; t += 5 * 60_000) {
+      const hour = (t - start.getTime()) / 3_600_000;
+      const wobble = Math.sin(t / 1_700_000) * 3;
+      const [heartRate, hrv] =
+        hour < 7.5
+          ? [52 + wobble, 62]
+          : hour >= 17.5 && hour < 18.5
+            ? [138 + wobble * 3, 24]
+            : hour >= 10 && hour < 11.5
+              ? [84 + noise * 12 + wobble, 34]
+              : hour >= 21.5
+                ? [58 + wobble, 55]
+                : [68 + noise * 8 + wobble, 47];
+      samples.push({
+        timestamp: new Date(t).toISOString(),
+        heartRate: Math.round(heartRate),
+        hrv: Math.round(hrv * (0.85 + noise * 0.3)),
+      });
+    }
+    return samples;
+  }
+
   async getWorkouts(since: Date, until?: Date): Promise<Workout[]> {
     const workouts = mockWorkouts(since);
     return until

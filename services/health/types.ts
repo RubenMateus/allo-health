@@ -155,6 +155,8 @@ export interface HealthProvider {
   getNutrition(day?: Date): Promise<NutritionData | null>;
   getGlucose(day?: Date): Promise<GlucoseData | null>;
   getStressSamples(day?: Date): Promise<StressSample[]>;
+  /** Every 5-minute stress bucket of the calendar day (today: up to now). */
+  getDayStressSamples(day?: Date): Promise<StressSample[]>;
   /** Workouts from `since` up to `until` (default now). */
   getWorkouts(since: Date, until?: Date): Promise<Workout[]>;
   /** Distance samples, elevation and running form for one workout. */
