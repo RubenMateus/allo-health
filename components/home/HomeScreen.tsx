@@ -48,6 +48,7 @@ import {
   sleepScoreStatus,
   strainScoreStatus,
 } from "@/services/metrics";
+import { energyStatus } from "@/services/metrics/energy";
 import { fromDayKey } from "@/services/journal";
 import { useIsToday, useSelectedDayKey } from "@/stores/dayStore";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -420,28 +421,39 @@ function DashboardSections({
             />
           )}
           <Hairline className="my-lg" />
-          <View className="flex-row items-center gap-md">
-            <View className="w-[34px] h-[34px] rounded-full bg-primary-wash items-center justify-center">
-              <BatteryCharging color={colors.primary} size={18} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Energy Bank details"
+            onPress={() => {
+              void Haptics.selectionAsync();
+              router.push("/energy");
+            }}
+            className="active:opacity-80"
+          >
+            <View className="flex-row items-center gap-md">
+              <View className="w-[34px] h-[34px] rounded-full bg-primary-wash items-center justify-center">
+                <BatteryCharging color={colors.primary} size={18} />
+              </View>
+              <View className="flex-1 gap-2xs">
+                <Text className="type-badge text-text-muted">ENERGY BANK</Text>
+                <Text className="type-caption text-text-subtle">
+                  {energyStatus(energyValue)}
+                </Text>
+              </View>
+              {energyValue === null ? (
+                <Text className="type-metric-lg text-text-subtle">--</Text>
+              ) : (
+                <Text className="type-metric-lg text-primary-bright tabular-nums">
+                  {energyValue}
+                  <Text className="type-caption text-text-muted">%</Text>
+                </Text>
+              )}
+              <ChevronRight color={colors.textSubtle} size={16} />
             </View>
-            <View className="flex-1 gap-2xs">
-              <Text className="type-badge text-text-muted">ENERGY BATTERY</Text>
-              <Text className="type-caption text-text-subtle">
-                {energyStatus(energyValue)}
-              </Text>
-            </View>
-            {energyValue === null ? (
-              <Text className="type-metric-lg text-text-subtle">--</Text>
-            ) : (
-              <Text className="type-metric-lg text-primary-bright tabular-nums">
-                {energyValue}
-                <Text className="type-caption text-text-muted">%</Text>
-              </Text>
-            )}
-          </View>
-          {energyValue !== null ? (
-            <BatteryMeter value={energyValue} />
-          ) : null}
+            {energyValue !== null ? (
+              <BatteryMeter value={energyValue} />
+            ) : null}
+          </Pressable>
         </Card>
       </View>
 
@@ -707,7 +719,7 @@ function BatteryMeter({ value }: { value: number }) {
   const width = `${Math.max(0, Math.min(100, value))}%` as `${number}%`;
   return (
     <View
-      accessibilityLabel={`Energy battery ${value} percent`}
+      accessibilityLabel={`Energy Bank ${value} percent`}
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: value }}
       className="h-1.5 rounded-full overflow-hidden bg-track mt-md"
@@ -782,11 +794,3 @@ function SkeletonBlock({ className }: { className: string }) {
   return <Animated.View className={className} style={animatedStyle} />;
 }
 
-function energyStatus(value: number | null): string {
-  if (value === null) return "Waiting for sleep and stress signals";
-  return value >= 70
-    ? "Plenty in reserve"
-    : value >= 40
-      ? "Steady, pace your effort"
-      : "Low reserve, prioritize recovery";
-}

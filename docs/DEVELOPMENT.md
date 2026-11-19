@@ -132,7 +132,7 @@ Everything the app saves stays on the phone, in SQLite key-value stores (expo-sq
 | `settings.db` | Theme, last sync time, and when the intro was finished |
 | `journal.db` | Journal check-ins |
 | `profile.db` | Birth year and sex entered in the app |
-| `scores.db` | Daily strain, recovery and sleep scores for up to 730 days, so the week strip, month calendar, 14-day charts and summaries load without re-reading Health |
+| `scores.db` | Daily strain, recovery and sleep scores and the Energy Bank's hourly curve for up to 730 days, so the week strip, month calendar, 14-day charts and summaries load without re-reading Health |
 
 The score history is a cache (`services/scores/history.ts`). The first time, the app computes the last 14 days from Health. After that it keeps finished days and only recomputes the last 2 (watches sync late) plus any empty day from the past week, at most every 6 hours. Days you browse further back are read live from Health and then cached. Deleting the app clears all four databases.
 
