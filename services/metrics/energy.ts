@@ -8,7 +8,7 @@ export const ENERGY_OPENING = 20;
 
 // Rates are points per 5-minute step. Tuned so a good ~7.5 h night takes the
 // bank from about 20 to about 90, a calm waking hour adds ~2, a mildly stressed
-// hour costs 3, and a hard hour (stress 80) costs about 10.
+// hour costs about 4, and a hard hour (stress 80) costs about 11.
 const SLEEP_RATES: Record<Exclude<SleepStage, "awake">, number> = {
   deep: 0.95,
   rem: 0.85,
@@ -18,7 +18,7 @@ const SLEEP_RATES: Record<Exclude<SleepStage, "awake">, number> = {
 const CALM_RATE = 0.15;
 const CALM_MAX_STRESS = 25;
 const MILD_MAX_STRESS = 50;
-const MILD_DRAIN_RATE = 0.25;
+const MILD_DRAIN_RATE = 0.35;
 /** Above MILD_MAX_STRESS: MILD_DRAIN_RATE plus this per stress point. */
 const STRESS_DRAIN_PER_POINT = 0.02;
 const STEP_MS = 5 * 60_000;
