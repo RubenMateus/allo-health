@@ -174,7 +174,32 @@ describe("calculateEnergyDay", () => {
       sleepStages: [],
     })!;
     expect(day.hourly[24]).toBe(day.close);
-    expect(minutes(day.points.at(-1)!.timestamp)).toBe(13 * 60);
+    expect(day.points.at(-1)!.timestamp).toBe(at("00:00", 11));
+    expect(day.points.at(-1)!.value).toBe(day.close);
+  });
+
+  it("sleep charges even where no heart rate was read", () => {
+    const day = calculateEnergyDay({
+      date,
+      stress: [
+        { timestamp: at("00:05"), value: 10 },
+        { timestamp: at("07:30"), value: 10 },
+      ],
+      sleepStages: night,
+    })!;
+    expect(day.hourly[7]).toBeGreaterThanOrEqual(80);
+  });
+
+  it("points run from midnight to `until`", () => {
+    const day = calculateEnergyDay({
+      date,
+      stress: readings("08:00", "13:00", 30),
+      sleepStages: [],
+      until: new Date(at("15:02")),
+    })!;
+    expect(day.points[0]).toEqual({ timestamp: at("00:00"), value: 20 });
+    expect(minutes(day.points.at(-1)!.timestamp)).toBe(15 * 60);
+    expect(day.points.at(-1)!.value).toBe(day.close);
   });
 });
 

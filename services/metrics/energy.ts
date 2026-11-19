@@ -69,10 +69,11 @@ function preMidnightCredit(midnight: number, stages: SleepSegment[]): number {
 }
 
 /**
- * The day's running energy balance from its 5-minute stress readings and the
- * night that ended that morning. Sleep charges (deep and REM most), calm waking
- * stretches charge a little, stress drains; a step with no reading changes
- * nothing. `until` (default the end of the day) is when the day is read as of.
+ * The day's running energy balance on a 5-minute grid from midnight to `until`
+ * (default the end of the day). Asleep steps (from the night that ended that
+ * morning) charge whether or not heart rate was read, deep and REM most; awake
+ * steps move only where there is a stress reading: calm charges a little,
+ * stress drains. Null when the day has no stress readings at all.
  */
 export function calculateEnergyDay(input: {
   date: string;
@@ -82,10 +83,15 @@ export function calculateEnergyDay(input: {
 }): EnergyDay | null {
   if (!input.stress.length) return null;
   const midnight = fromDayKey(input.date).getTime();
-  const until = input.until?.getTime() ?? midnight + 24 * HOUR_MS;
-  const stress = [...input.stress].sort((a, b) =>
-    a.timestamp.localeCompare(b.timestamp),
-  );
+  const dayEnd = midnight + 24 * HOUR_MS;
+  const until = Math.min(input.until?.getTime() ?? dayEnd, dayEnd);
+  // Readings are stamped at their bucket's end: bucket i ends at midnight + (i+1) steps.
+  const readings = new Map<number, number>();
+  for (const reading of input.stress) {
+    const offset = new Date(reading.timestamp).getTime() - midnight;
+    if (offset <= 0 || offset > dayEnd - midnight) continue;
+    readings.set(Math.ceil(offset / STEP_MS) - 1, reading.value);
+  }
 
   let balance = ENERGY_OPENING;
   let charged = 0;
@@ -95,36 +101,37 @@ export function calculateEnergyDay(input: {
     if (next > balance) charged += next - balance;
     else drained += balance - next;
     balance = next;
-    return next;
   };
   apply(preMidnightCredit(midnight, input.sleepStages));
-  const opening = balance;
 
-  const points: EnergyPoint[] = [];
-  const times: number[] = [];
+  const points: EnergyPoint[] = [
+    { timestamp: new Date(midnight).toISOString(), value: Math.round(balance) },
+  ];
   let lastCharged: EnergySummary["lastCharged"] = null;
-  for (const reading of stress) {
-    const time = new Date(reading.timestamp).getTime();
-    // Readings are stamped at their bucket's end; judge sleep at its middle.
-    const rate = sleepRateAt(time - STEP_MS / 2, input.sleepStages);
+  const steps = Math.floor((until - midnight) / STEP_MS);
+  for (let index = 0; index < steps; index++) {
+    const end = midnight + (index + 1) * STEP_MS;
+    // Judge sleep at the step's middle.
+    const sleepRate = sleepRateAt(end - STEP_MS / 2, input.sleepStages);
+    const stress = readings.get(index);
     const before = balance;
-    const value = Math.round(apply(rate ?? awakeDelta(reading.value)));
-    points.push({ timestamp: reading.timestamp, value });
-    times.push(time);
-    if (balance > before) lastCharged = { at: reading.timestamp, value };
+    if (sleepRate !== null) apply(sleepRate);
+    else if (stress !== undefined) apply(awakeDelta(stress));
+    const point = {
+      timestamp: new Date(end).toISOString(),
+      value: Math.round(balance),
+    };
+    points.push(point);
+    if (balance > before) lastCharged = { at: point.timestamp, value: point.value };
   }
 
   const hourly: (number | null)[] = [];
-  let index = -1;
-  for (let hour = 0; hour <= 24; hour++) {
-    const time = midnight + hour * HOUR_MS;
-    if (time > until) {
-      hourly.push(null);
-      continue;
-    }
-    while (index + 1 < times.length && times[index + 1] <= time) index++;
-    hourly.push(index < 0 ? Math.round(opening) : points[index].value);
-  }
+  for (let hour = 0; hour <= 24; hour++)
+    hourly.push(
+      midnight + hour * HOUR_MS > until
+        ? null
+        : points[Math.min(hour * 12, points.length - 1)].value,
+    );
 
   return {
     points,
@@ -134,6 +141,17 @@ export function calculateEnergyDay(input: {
     close: points[points.length - 1].value,
     lastCharged,
   };
+}
+
+/** The night's stages only if it ended on `date`; an earlier night must not open today's bank. */
+export function energySleepStages(
+  sleep: { wakeTime: string; stages: SleepSegment[] } | null,
+  date: string,
+): SleepSegment[] {
+  if (!sleep) return [];
+  return new Date(sleep.wakeTime).getTime() >= fromDayKey(date).getTime()
+    ? sleep.stages
+    : [];
 }
 
 /** "Usual" looks back over this many finished days with energy… */

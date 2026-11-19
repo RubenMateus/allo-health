@@ -8,6 +8,7 @@ import { fromDayKey, toDayKey } from "@/services/journal";
 
 import {
   calculateEnergyDay,
+  energySleepStages,
   type EnergyPoint,
   type EnergySummary,
 } from "./energy";
@@ -270,7 +271,7 @@ export function scoreDayWithEnergy(input: ScoreDayInput): {
   const energyDay = calculateEnergyDay({
     date,
     stress,
-    sleepStages: sleep?.stages ?? [],
+    sleepStages: energySleepStages(sleep, date),
     // Today stops at now. A finished day runs to midnight; a past day scored as
     // of its last millisecond (23:59:59.999) counts as finished too.
     until:

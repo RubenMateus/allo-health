@@ -15,6 +15,7 @@ import { useDayDashboard } from "@/hooks/useHealthDashboard";
 import { fromDayKey } from "@/services/journal";
 import {
   energyCoaching,
+  energySleepStages,
   energyStatus,
   type EnergySummary,
 } from "@/services/metrics/energy";
@@ -80,7 +81,7 @@ export function EnergyScreen() {
         <Card className="gap-sm">
           <EnergyCurve
             points={data.energyPoints}
-            sleepBands={sleepBands(data.sleep?.stages ?? [])}
+            sleepBands={sleepBands(energySleepStages(data.sleep, data.today.date))}
             start={fromDayKey(data.today.date)}
             end={new Date(fromDayKey(data.today.date).getTime() + 24 * HOUR_MS)}
             width={chartWidth}

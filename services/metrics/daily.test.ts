@@ -203,6 +203,32 @@ describe("scoreDay", () => {
     expect(result.energy!.hourly).toHaveLength(25);
   });
 
+  it("energy ignores a night that ended before the day began", () => {
+    const yesterdaysNight = {
+      ...sleep,
+      wakeTime: new Date(2026, 10, 14, 7).toISOString(),
+      stages: [
+        {
+          stage: "deep" as const,
+          start: new Date(2026, 10, 13, 23).toISOString(),
+          end: new Date(2026, 10, 14, 7).toISOString(),
+        },
+      ],
+    };
+    const result = scoreDay({
+      date: "2026-11-15",
+      sleep: yesterdaysNight,
+      strainInputs: strainInputs([100]),
+      signals,
+      histories,
+      now: new Date(2026, 10, 15, 0, 30),
+      dayStress: [
+        { timestamp: new Date(2026, 10, 15, 0, 30).toISOString(), heartRate: 60, hrv: 50 },
+      ],
+    });
+    expect(result.energy!.hourly[0]).toBe(20);
+  });
+
   it("has no strain without heart rate or active energy", () => {
     const result = scoreDay({
       date: "2026-11-15",
