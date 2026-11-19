@@ -1,6 +1,8 @@
 import type { SleepSegment, SleepStage } from "@/services/health/types";
 import { fromDayKey } from "@/services/journal";
 
+import type { DailyScore } from "./daily";
+
 /** Every day opens here at 00:00 and is computed on its own. */
 export const ENERGY_OPENING = 20;
 
@@ -132,4 +134,57 @@ export function calculateEnergyDay(input: {
     close: points[points.length - 1].value,
     lastCharged,
   };
+}
+
+/** "Usual" looks back over this many finished days with energy… */
+export const USUAL_DAYS = 14;
+/** …and needs at least this many before it compares. */
+export const MIN_USUAL_DAYS = 5;
+/** Within this many points of usual reads as "about the same". */
+const SAME_AS_USUAL = 5;
+
+/** Median balance at `hour` (0..24) over the latest USUAL_DAYS days that have it. */
+export function energyUsual(days: DailyScore[], hour: number): number | null {
+  const values = [...days]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((day) => day.energy?.hourly[hour] ?? null)
+    .filter((value): value is number => value !== null)
+    .slice(0, USUAL_DAYS)
+    .sort((a, b) => a - b);
+  if (values.length < MIN_USUAL_DAYS) return null;
+  const middle = Math.floor(values.length / 2);
+  return values.length % 2
+    ? values[middle]
+    : Math.round((values[middle - 1] + values[middle]) / 2);
+}
+
+/** The coaching line: today against usual at this time, a past day by its close. */
+export function energyCoaching(input: {
+  value: number;
+  usual: number | null;
+  /** "HH:MM" of the value being compared. */
+  at: string;
+  isToday: boolean;
+}): string {
+  const { value, usual, at, isToday } = input;
+  if (usual === null)
+    return "Still learning your usual pattern. Check back after a few more days.";
+  const gap = value - usual;
+  const comparison =
+    Math.abs(gap) <= SAME_AS_USUAL
+      ? "about the same as usual"
+      : `${Math.abs(gap)}% ${gap < 0 ? "lower" : "higher"} than usual`;
+  return isToday
+    ? `Your Energy Bank is ${comparison} for ${at}.`
+    : `You ended the day ${comparison}.`;
+}
+
+/** Status words for a balance. */
+export function energyStatus(value: number | null): string {
+  if (value === null) return "Waiting for heart-rate and HRV readings";
+  return value >= 70
+    ? "Plenty in reserve"
+    : value >= 40
+      ? "Steady, pace your effort"
+      : "Low reserve, prioritize recovery";
 }
