@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/RubenMateus/allo-health/compare/v1.0.0...v1.1.0) (2026-11-19)
+
+
+### Features
+
+* energy bank ([#52](https://github.com/RubenMateus/allo-health/issues/52)) ([d7a88c7](https://github.com/RubenMateus/allo-health/commit/d7a88c7760d11207865892b669585111ce181fe9))
+
 ## 1.0.0 (2026-11-18)
 
 
